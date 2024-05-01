@@ -1,4 +1,4 @@
-import geo
+import model as geo
 import matplotlib.pyplot as plt
 import numpy as np
 
