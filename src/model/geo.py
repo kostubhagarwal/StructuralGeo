@@ -2,15 +2,21 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-def getModel(resolution=50):
-  x = np.linspace(-10, 10, resolution)  # X coordinates from -10 to 10
-  y = np.linspace(-10, 10, resolution)  # Y coordinates from -10 to 10
-  z = np.linspace(-10, 10, resolution)  # Z coordinates from -10 to 10
-  X, Y, Z = np.meshgrid(x, y, z, indexing='ij')  # Create a 3D meshgrid for X, Y, and Z coordinates
-
-  # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
-  xyz = np.column_stack((X.flatten(), Y.flatten(), Z.flatten()))
-  return xyz, X, Y, Z
+class GeoModel:
+    def __init__(self,  bounds=(-10, 10), resolution=50):
+        self._resolution = resolution
+        self._bounds = bounds
+        # Init 3D meshgrid for X, Y, and Z coordinates
+        self.X, self.Y, self.Z = self._createGrid()
+        # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
+        self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
+        self.data = np.zeros(self.X.shape)  # Initialize data array with zeros
+        
+    def _createGrid(self):
+        x = np.linspace(*self._bounds, num = self._resolution)
+        y = np.linspace(*self._bounds, num = self._resolution)
+        z = np.linspace(*self._bounds, num = self._resolution)
+        return np.meshgrid(x, y, z, indexing='ij')      
 
 def rotate(axis, theta):
     """
@@ -26,7 +32,7 @@ def rotate(axis, theta):
     return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
                      [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
                      [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]])
-
+    
 # Fillin the NaN's
 class fillin:
     def __init__(self, value):
@@ -218,8 +224,8 @@ def volview(X, Y, Z, data):
     # Add color bar
     cbar = fig.colorbar(sc)
     cbar.set_label('Intensity')
-
-
+    
+    return fig, ax
 
 def ModelHistory(xyz, history):
     # Clone the xyz array to avoid modifying the original input
