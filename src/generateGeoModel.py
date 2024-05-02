@@ -23,12 +23,5 @@ model.fill_nans(nan_replacement_val)
 fig, ax = geovis.volview(model)
 plt.show()
 
-geovis.plotCrossSection(model, coord='x', slice_index=0)
-
-
-
-
-
-
 print('Done')
 

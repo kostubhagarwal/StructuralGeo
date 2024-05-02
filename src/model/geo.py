@@ -5,19 +5,26 @@ class GeoModel:
     def __init__(self,  bounds=(-16, 16), resolution=64):
         self._resolution = resolution
         self._bounds = bounds
-        # Init 3D meshgrid for X, Y, and Z coordinates of the view field
-        self.X, self.Y, self.Z = self._create_grid()
-        # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
-        self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
-        self.data = np.full(self.xyz.shape[0], np.nan)  # Initialize data array with zeros
         self.transformations = []
-        
+        # Init large data arrays to none to avoid memory assignment until needed
+        self.X = None
+        self.Y = None
+        self.Z = None
+        self.xyz = None
+        self.data = None
+
     def _create_grid(self):
-        x = np.linspace(*self._bounds, num = self._resolution)
-        y = np.linspace(*self._bounds, num = self._resolution)
-        z = np.linspace(*self._bounds, num = self._resolution)
-        return np.meshgrid(x, y, z, indexing='ij')
-    
+        if self.X is None or self.Y is None or self.Z is None:
+            # Init 3D meshgrid for X, Y, and Z coordinates of the view field
+            x = np.linspace(*self._bounds, num=self._resolution)
+            y = np.linspace(*self._bounds, num=self._resolution)
+            z = np.linspace(*self._bounds, num=self._resolution)
+            self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
+            # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
+            self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
+            # Initialize data array with NaNs
+            self.data = np.full(self.xyz.shape[0], np.nan)  
+        
     def add_transformations(self, transformations):
         """Add multiple transformations to the pipeline."""
         for transformation in transformations:
@@ -28,14 +35,14 @@ class GeoModel:
 
     def compute_model(self):
         """Apply all transformations in the pipeline."""
-        
-        #TODO Can this clone be removed?
+        self._create_grid()
+        assert self.xyz is not None, "Grid not created."
         # Clone the xyz array to avoid modifying the original input
-        xyz_copy = self.xyz.copy()
+        xyz_motion = self.xyz.copy()
 
-        # TODO: Why is this reverse iterated
         for transformation in reversed(self.transformations):
-            xyz_copy, self.data = transformation.run(xyz_copy, self.data)
+            xyz_motion, self.data = transformation.run(xyz_motion, self.data)
+ 
         return self.data
 
     def clear_transformations(self):
@@ -43,13 +50,14 @@ class GeoModel:
         self.transformations = []
     
     def fill_nans(self, value = 4):
+        assert self.data is not None, "Data array is empty."
         indnan = np.isnan(self.data)
         self.data[indnan] = value
         return self.data  
     
 class Transformation:
     def run(self, xyz, data):
-        raise NotImplementedError("Each transformation must implement 'run' method.")
+        raise NotImplementedError("Transformation must implement 'run' method.")
 
 class Layer(Transformation):
     def __init__(self, base, width, value):
