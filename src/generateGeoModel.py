@@ -11,7 +11,7 @@ tilt = geo.Tilt(strike=0, dip=20)
 upright_fold = geo.Fold(strike=0, dip=90, period = 40)
 dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=3)
 
-model = geo.GeoModel(resolution = 50)
+model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
 data = geo.ModelHistory(model.xyz, [layer0, layer1, layer2,  layer3, dike, tilt,upright_fold])
 

@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from .util import rotate
 
 class GeoModel:
-    def __init__(self,  bounds=(-10, 10), resolution=50):
+    def __init__(self,  bounds=(-16, 16), resolution=64):
         self._resolution = resolution
         self._bounds = bounds
         # Init 3D meshgrid for X, Y, and Z coordinates
@@ -18,32 +19,21 @@ class GeoModel:
         z = np.linspace(*self._bounds, num = self._resolution)
         return np.meshgrid(x, y, z, indexing='ij')      
 
-def rotate(axis, theta):
-    """
-    Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
-    """
-    axis = np.asarray(axis)
-    axis = axis / np.sqrt(np.dot(axis, axis))
-    a = np.cos(theta / 2.0)
-    b, c, d = -axis * np.sin(theta / 2.0)
-    aa, bb, cc, dd = a*a, b*b, c*c, d*d
-    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
-    return np.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
-                     [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
-                     [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]])
-    
 # Fillin the NaN's
-class fillin:
-    def __init__(self, value):
-        self.value = value
+# class fillin:
+#     def __init__(self, value):
+#         self.value = value
 
+#     def run(self, xyz, data):
+#         indnan = np.isnan(data)
+#         data[indnan] = self.value
+#         return xyz, data
+    
+class Transformation:
     def run(self, xyz, data):
-        indnan = np.isnan(data)
-        data[indnan] = self.value
-        return xyz, data
+        raise NotImplementedError("Each transformation must implement 'run' method.")
 
-class Layer:
+class Layer(Transformation):
     def __init__(self, base, width, value):
         self.base = base
         self.width = width
@@ -62,7 +52,7 @@ class Layer:
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
 
-class Tilt:
+class Tilt(Transformation):
     def __init__(self, strike, dip):
         self.strike = np.radians(strike)  # Convert degrees to radians
         self.dip = np.radians(dip)  # Convert degrees to radians
@@ -77,7 +67,7 @@ class Tilt:
         # Apply rotation to xyz points
         return xyz @ R.T, data  # Assuming xyz is an Nx3 numpy array
 
-class Fold:
+class Fold(Transformation):
     def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, point=[0, 0, 0]):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -111,7 +101,7 @@ class Fold:
 
         return new_xyz, data
 
-class Dike:
+class Dike(Transformation):
     def __init__(self, strike, dip, width, point, data_value):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -136,7 +126,7 @@ class Dike:
 
         return xyz, data
 
-class Shear:
+class Shear(Transformation):
     def __init__(self, shear_amount, dims=[50,50,50]):
         self.shear_amount = shear_amount
         self.dims = dims
