@@ -2,23 +2,43 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-def plotCrossSection(model):
+def plotCrossSection(model, coord='y', slice_index=10):    
+    # Ensure the coordinate is valid
+    if coord not in ['x', 'y', 'z']:
+        raise ValueError("Invalid coordinate specified; please use 'x', 'y', or 'z'.")
+   
+    # Mapping for two plot axes and data index
+    axes = {
+        'x': (model.Y, model.Z, 0),  # Y-Z plane
+        'y': (model.X, model.Z, 1),  # X-Z plane
+        'z': (model.X, model.Y, 2)   # X-Y plane
+    }
+    
+    # Labels for the axes
+    labels = {
+        'x': ('Y coordinate', 'Z coordinate'),
+        'y': ('X coordinate', 'Z coordinate'),
+        'z': ('X coordinate', 'Y coordinate')
+    }
+          
     data = model.data
-    X = model.X
-    Y = model.Y
-    Z = model.Z
     # Reshape the data back to the 3D grid
-    data_reshaped = data.reshape(X.shape)
-    # # Plotting a cross-section, for example at z index 10
-    y_index = 10  # Change this index to view different vertical cross-sectional slices
+    data_reshaped = data.reshape(model.X.shape)
+    
+    xlabel, ylabel = labels[coord]
+    plane1, plane2, axis_index = axes[coord]
+    coord1, coord2 = plane1.take(slice_index, axis=axis_index), plane2.take(slice_index, axis=axis_index)
+    slice_data = data_reshaped.take(slice_index, axis=axis_index)
+
     plt.figure(figsize=(10, 8))
-    plt.pcolormesh(X[:, y_index, :], Z[:, y_index, :], data_reshaped[:, y_index, :], shading='auto')
+    plt.pcolormesh(coord1, coord2, slice_data, shading='auto')
     plt.colorbar()  # Show color scale
-    plt.title(f'Vertical Cross-section at Y index {y_index}')
-    plt.xlabel('X coordinate')
-    plt.ylabel('Z coordinate')
+    plt.title(f'Cross-section at {coord.upper()} index {slice_index}')
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.show()
 
+# TODO: Review this function
 def plot3D(model):
     data = model.data
     X = model.X
@@ -65,6 +85,7 @@ def volview(model):
     X = model.X
     Y = model.Y
     Z = model.Z
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     sc = ax.scatter(X, Y, Z, c=data, cmap='viridis')
@@ -72,5 +93,9 @@ def volview(model):
     # Add color bar
     cbar = fig.colorbar(sc)
     cbar.set_label('Intensity')
+    
+    # Setting labels for each axis
+    ax.set_xlabel('X Coordinate')
+    ax.set_ylabel('Y Coordinate')
     
     return fig, ax
