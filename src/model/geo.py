@@ -2,7 +2,10 @@ import numpy as np
 from .util import rotate
 
 class GeoModel:
-    def __init__(self,  bounds=(-16, 16), resolution=64):
+    EMPTY_VALUE = -1
+    MAX_VALUE = 10
+    
+    def __init__(self,  bounds=(0, 16), resolution=64):
         self._resolution = resolution
         self._bounds = bounds
         self.transformations = []
@@ -49,7 +52,7 @@ class GeoModel:
         """Clear all transformations."""
         self.transformations = []
     
-    def fill_nans(self, value = 4):
+    def fill_nans(self, value = EMPTY_VALUE):
         assert self.data is not None, "Data array is empty."
         indnan = np.isnan(self.data)
         self.data[indnan] = value
@@ -181,15 +184,3 @@ class Shear(Transformation):
                 sheared_array[x, :, z] = np.roll(array[x, :, z], shear)
 
         return xyz, sheared_array.flatten()
-
-def ModelHistory(xyz, history):
-    # Clone the xyz array to avoid modifying the original input
-    cloned_xyz = np.array(xyz, copy=True)
-    # Initialize data for each coordinate point as NaNs, in a numpy array
-    data = np.full(cloned_xyz.shape[0], np.nan)
-
-    # Apply each transformation in the history in reverse order
-    for transformation in reversed(history):
-        cloned_xyz, data = transformation.run(cloned_xyz, data)
-
-    return data

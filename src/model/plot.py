@@ -1,6 +1,44 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap, BoundaryNorm
 from mpl_toolkits.mplot3d import Axes3D
+
+# Custom color map that handles -1 values as white
+viridis_big = plt.cm.get_cmap('viridis', 256)  # Get more granularity
+newcolors = viridis_big(np.linspace(0, 1, 256))  # Take the viridis colors
+newcolors[:1, :] = np.array([1, 1, 1, 1])  # Set the first row to white
+newcmp = ListedColormap(newcolors)  # Create a new colormap from this array
+
+# Define boundaries and normalization (based on -1 sentinel, range 0 - 10 for data)
+boundaries = np.arange(-1.5, 11, 1)  
+norm = BoundaryNorm(boundaries, newcmp.N, clip=True)
+
+class ColorMapConfig:
+    """Configuration for discrete colormap with sentinel value (white) for non-rock areas."""
+    def __init__(self, vmin=0, vmax=10):
+        self.vmin = vmin
+        self.vmax = vmax
+        num_colors = vmax - vmin + 1  # Number of colors for the valid data range
+        sentinel_color = np.array([1, 1, 1, 1])  # RGBA for non-rock sentinel color
+        self.ticks = np.arange(vmin - 1, vmax + 1)  # Tick locations for the color bar
+        self.cmap = self.create_colormap(num_colors, sentinel_color)
+        self.norm = self.create_norm(num_colors)
+
+    def create_colormap(self, num_colors, sentinel_color):
+        # Use the viridis colormap for the valid data range
+        viridis = plt.cm.get_cmap('viridis', num_colors - 1)
+        # Generate the colors for the valid data range
+        colors = viridis(np.linspace(0, 1, num_colors - 1))
+        # Prepend the sentinel color
+        all_colors = np.vstack((sentinel_color, colors))
+        return ListedColormap(all_colors)
+
+    def create_norm(self, num_colors):
+        # Define boundaries to accommodate sentinel at -1 and data values from vmin to vmax
+        boundaries = np.arange(self.vmin - 1.5, self.vmax + 0.5, 1)
+        return BoundaryNorm(boundaries, num_colors, clip=True)
+
+color_config = ColorMapConfig(vmin=0, vmax=10)
 
 def plotCrossSection(model, coord='y', slice_index=10):    
     # Ensure the coordinate is valid
@@ -31,12 +69,34 @@ def plotCrossSection(model, coord='y', slice_index=10):
     slice_data = data_reshaped.take(slice_index, axis=axis_index)
 
     plt.figure(figsize=(10, 8))
-    plt.pcolormesh(coord1, coord2, slice_data, shading='auto')
+    plt.pcolormesh(coord1, coord2, slice_data, cmap=color_config.cmap, norm=color_config.norm, shading='auto')
     plt.colorbar()  # Show color scale
     plt.title(f'Cross-section at {coord.upper()} index {slice_index}')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.show()
+    
+def volview(model):
+    data = model.data
+    X = model.X
+    Y = model.Y
+    Z = model.Z
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # Scatter plot using the customized colormap and normalization
+    sc = ax.scatter(X, Y, Z, c=data, cmap=color_config.cmap, norm=color_config.norm)
+    
+    # Add color bar with discrete steps
+    cbar = fig.colorbar(sc, ticks=np.arange(-1, 11), extend='neither')  # Setting ticks at each integer
+    cbar.set_label('Rock Type')
+    
+    # Setting labels for each axis
+    ax.set_xlabel('X Coordinate')
+    ax.set_ylabel('Y Coordinate')
+    
+    return fig, ax
 
 # TODO: Review this function
 def plot3D(model):
@@ -80,22 +140,4 @@ def plot3D(model):
     plt.title('3D Plot with X-Z and Y-Z Cross Section Images')
     plt.show()
 
-def volview(model):
-    data = model.data
-    X = model.X
-    Y = model.Y
-    Z = model.Z
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    sc = ax.scatter(X, Y, Z, c=data, cmap='viridis')
-    
-    # Add color bar
-    cbar = fig.colorbar(sc)
-    cbar.set_label('Intensity')
-    
-    # Setting labels for each axis
-    ax.set_xlabel('X Coordinate')
-    ax.set_ylabel('Y Coordinate')
-    
-    return fig, ax
+

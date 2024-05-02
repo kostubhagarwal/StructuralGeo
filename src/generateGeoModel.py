@@ -18,8 +18,7 @@ model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
 model.add_transformations(list_transformations)
 model.compute_model()
-nan_replacement_val = 4
-model.fill_nans(nan_replacement_val)
+model.fill_nans()
 fig, ax = geovis.volview(model)
 plt.show()
 
