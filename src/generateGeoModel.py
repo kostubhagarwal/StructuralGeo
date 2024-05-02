@@ -13,13 +13,11 @@ dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=3)
 
 model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
-data = geo.ModelHistory(model.xyz, [layer0, layer1, layer2,  layer3, dike, tilt,upright_fold])
-
-# Fillin the NaN's
-indnan = np.isnan(data)
-data[indnan] = 4
-
-fig, ax = geo.volview(model.X, model.Y, model.Z, data)
+model.add_transformations(list_transformations)
+model.compute_model()
+nan_replacement_val = 4
+model.fill_nans(nan_replacement_val)
+fig, ax = geovis.volview(model.X, model.Y, model.Z, model.data)
 
 plt.show()
 

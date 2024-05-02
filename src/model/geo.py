@@ -1,33 +1,51 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 from .util import rotate
 
 class GeoModel:
     def __init__(self,  bounds=(-16, 16), resolution=64):
         self._resolution = resolution
         self._bounds = bounds
-        # Init 3D meshgrid for X, Y, and Z coordinates
-        self.X, self.Y, self.Z = self._createGrid()
+        # Init 3D meshgrid for X, Y, and Z coordinates of the view field
+        self.X, self.Y, self.Z = self._create_grid()
         # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
         self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
-        self.data = np.zeros(self.X.shape)  # Initialize data array with zeros
+        self.data = np.full(self.xyz.shape[0], np.nan)  # Initialize data array with zeros
+        self.transformations = []
         
-    def _createGrid(self):
+    def _create_grid(self):
         x = np.linspace(*self._bounds, num = self._resolution)
         y = np.linspace(*self._bounds, num = self._resolution)
         z = np.linspace(*self._bounds, num = self._resolution)
-        return np.meshgrid(x, y, z, indexing='ij')      
+        return np.meshgrid(x, y, z, indexing='ij')
+    
+    def add_transformations(self, transformations):
+        """Add multiple transformations to the pipeline."""
+        for transformation in transformations:
+            if isinstance(transformation, Transformation):
+                self.transformations.append(transformation)
+            else:
+                raise TypeError("All items in the transformations list must be instances of the Transformation class.")
 
-# Fillin the NaN's
-# class fillin:
-#     def __init__(self, value):
-#         self.value = value
+    def compute_model(self):
+        """Apply all transformations in the pipeline."""
+        
+        #TODO Can this clone be removed?
+        # Clone the xyz array to avoid modifying the original input
+        xyz_copy = self.xyz.copy()
 
-#     def run(self, xyz, data):
-#         indnan = np.isnan(data)
-#         data[indnan] = self.value
-#         return xyz, data
+        # TODO: Why is this reverse iterated
+        for transformation in reversed(self.transformations):
+            xyz_copy, self.data = transformation.run(xyz_copy, self.data)
+        return self.data
+
+    def clear_transformations(self):
+        """Clear all transformations."""
+        self.transformations = []
+    
+    def fill_nans(self, value = 4):
+        indnan = np.isnan(self.data)
+        self.data[indnan] = value
+        return self.data  
     
 class Transformation:
     def run(self, xyz, data):
@@ -155,67 +173,6 @@ class Shear(Transformation):
                 sheared_array[x, :, z] = np.roll(array[x, :, z], shear)
 
         return xyz, sheared_array.flatten()
-
-def plotCrossSection(data, X, Y, Z):
-    # Reshape the data back to the 3D grid
-    data_reshaped = data.reshape(X.shape)
-    # # Plotting a cross-section, for example at z index 10
-    y_index = 10  # Change this index to view different vertical cross-sectional slices
-    plt.figure(figsize=(10, 8))
-    plt.pcolormesh(X[:, y_index, :], Z[:, y_index, :], data_reshaped[:, y_index, :], shading='auto')
-    plt.colorbar()  # Show color scale
-    plt.title(f'Vertical Cross-section at Y index {y_index}')
-    plt.xlabel('X coordinate')
-    plt.ylabel('Z coordinate')
-    plt.show()
-
-def plot3D(data, X, Y, Z):
-    # Reshape the data back to the 3D grid
-    data_reshaped = data.reshape(X.shape)
-    fig = plt.figure(figsize=(12, 10))
-    ax = fig.add_subplot(111, projection='3d')
-
-    # Choose indices for the cross sections
-    y_index = 10  # for the X-Z plane cross-section
-    x_index = 10  # for the Y-Z plane cross-section
-
-    # Plot the X-Z cross-section as a texture on a Y constant plane
-    XZ_x, XZ_z = X[:, y_index, :], Z[:, y_index, :]
-    XZ_slice = data_reshaped[:, y_index, :]
-    ax.plot_surface(XZ_x, np.full_like(XZ_x, Y[0, y_index, 0]), XZ_z, rstride=1, cstride=1, facecolors=plt.cm.viridis(XZ_slice / np.nanmax(XZ_slice)))
-
-    # Plot the Y-Z cross-section as a texture on an X constant plane
-    YZ_y, YZ_z = Y[x_index, :, :], Z[x_index, :, :]
-    YZ_slice = data_reshaped[x_index, :, :]
-    ax.plot_surface(np.full_like(YZ_y, X[x_index, 0, 0]), YZ_y, YZ_z, rstride=1, cstride=1, facecolors=plt.cm.viridis(YZ_slice / np.nanmax(YZ_slice)))
-
-    # Set labels
-    ax.set_xlabel('X Coordinate')
-    ax.set_ylabel('Y Coordinate')
-    ax.set_zlabel('Z Coordinate')
-
-    # Color bar
-    mappable = plt.cm.ScalarMappable(cmap='viridis', norm=plt.Normalize(vmin=data_reshaped.min(), vmax=data_reshaped.max()))
-    mappable.set_array([])
-    cbar = plt.colorbar(mappable, ax=ax, orientation='vertical')
-    cbar.set_label('Data value')
-
-    # Set the aspect ratio of the plot
-    ax.set_box_aspect([1, 1, 1])  # Equal aspect ratio
-
-    plt.title('3D Plot with X-Z and Y-Z Cross Section Images')
-    plt.show()
-
-def volview(X, Y, Z, data):
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    sc = ax.scatter(X, Y, Z, c=data, cmap='viridis')
-    
-    # Add color bar
-    cbar = fig.colorbar(sc)
-    cbar.set_label('Intensity')
-    
-    return fig, ax
 
 def ModelHistory(xyz, history):
     # Clone the xyz array to avoid modifying the original input
