@@ -10,7 +10,7 @@ layer3 = geo.Layer(base=6., width=2., value=3)
 
 tilt = geo.Tilt(strike=0, dip=20)
 upright_fold = geo.Fold(strike=0, dip=90, period = 40)
-dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=3)
+dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=7)
 
 list_transformations = [layer0, layer1, layer2, layer3, dike, tilt, upright_fold]
 # list_transformations = [layer0, layer1, layer2, layer3, dike, tilt]
@@ -18,8 +18,10 @@ model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
 model.add_transformations(list_transformations)
 model.compute_model()
-model.fill_nans()
-fig, ax = geovis.volview(model)
+model.fill_nans
+geovis.volmesh(model, threshold= -.5)
+
+# fig, ax = geovis.volview(model)
 plt.show()
 
 print('Done')

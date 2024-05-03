@@ -1,44 +1,35 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
+import pyvista as pv
 from mpl_toolkits.mplot3d import Axes3D
-
-# Custom color map that handles -1 values as white
-viridis_big = plt.cm.get_cmap('viridis', 256)  # Get more granularity
-newcolors = viridis_big(np.linspace(0, 1, 256))  # Take the viridis colors
-newcolors[:1, :] = np.array([1, 1, 1, 1])  # Set the first row to white
-newcmp = ListedColormap(newcolors)  # Create a new colormap from this array
-
-# Define boundaries and normalization (based on -1 sentinel, range 0 - 10 for data)
-boundaries = np.arange(-1.5, 11, 1)  
-norm = BoundaryNorm(boundaries, newcmp.N, clip=True)
 
 class ColorMapConfig:
     """Configuration for discrete colormap with sentinel value (white) for non-rock areas."""
-    def __init__(self, vmin=0, vmax=10):
+    def __init__(self, vmin=-1, vmax=10):
         self.vmin = vmin
         self.vmax = vmax
-        num_colors = vmax - vmin + 1  # Number of colors for the valid data range
+        num_colors = vmax - vmin    # Number of colors for the valid data range
         sentinel_color = np.array([1, 1, 1, 1])  # RGBA for non-rock sentinel color
-        self.ticks = np.arange(vmin - 1, vmax + 1)  # Tick locations for the color bar
+        self.ticks = np.arange(vmin, vmax + 1)  # Adjusted ticks
         self.cmap = self.create_colormap(num_colors, sentinel_color)
-        self.norm = self.create_norm(num_colors)
+        self.norm = self.create_norm()
 
     def create_colormap(self, num_colors, sentinel_color):
         # Use the viridis colormap for the valid data range
-        viridis = plt.cm.get_cmap('viridis', num_colors - 1)
+        viridis = plt.cm.get_cmap('viridis', num_colors)
         # Generate the colors for the valid data range
-        colors = viridis(np.linspace(0, 1, num_colors - 1))
+        colors = viridis(np.linspace(0, 1, num_colors))
         # Prepend the sentinel color
         all_colors = np.vstack((sentinel_color, colors))
         return ListedColormap(all_colors)
 
-    def create_norm(self, num_colors):
+    def create_norm(self):
         # Define boundaries to accommodate sentinel at -1 and data values from vmin to vmax
-        boundaries = np.arange(self.vmin - 1.5, self.vmax + 0.5, 1)
-        return BoundaryNorm(boundaries, num_colors, clip=True)
+        boundaries = np.linspace(self.vmin - .5, self.vmax + 0.5, self.vmax - self.vmin + 2)
+        return BoundaryNorm(boundaries, len(boundaries) - 1)
 
-color_config = ColorMapConfig(vmin=0, vmax=10)
+color_config = ColorMapConfig(vmin=-1, vmax=10)
 
 def plotCrossSection(model, coord='y', slice_index=10):    
     # Ensure the coordinate is valid
@@ -97,6 +88,36 @@ def volview(model):
     ax.set_ylabel('Y Coordinate')
     
     return fig, ax
+
+def volmesh(model, threshold=-0.5):
+    # Ensure the data is reshaped properly to match the grid dimensions
+    grid = pv.StructuredGrid(model.X, model.Y, model.Z)
+        
+    # Set data to the grid
+    values = model.data
+    grid["values"] = values.flatten(order='F')  # Flatten the array if needed
+    
+    # Create a plotter object
+    plotter = pv.Plotter()
+    
+    # Add the mesh to the plotter, thresholding to exclude np.nan values or sentinel values
+    # The 
+    mesh = grid.threshold(threshold, all_scalars=True) 
+    
+    # Add the surface mesh to the plotter, using the colormap and clim defined in color_config
+    sargs = dict(
+    title = "Rock Type",
+    title_font_size=16,
+    label_font_size=10,
+    shadow=True,
+    n_labels= color_config.vmax - color_config.vmin + 1,
+    italic=True,
+    font_family="arial",
+    )
+    plotter.add_mesh(mesh, scalars="values", cmap=color_config.cmap, clim=(color_config.vmin, color_config.vmax), scalar_bar_args=sargs)
+
+    # Show the plotter
+    plotter.show()    
 
 # TODO: Review this function
 def plot3D(model):
