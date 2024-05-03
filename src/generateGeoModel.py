@@ -1,5 +1,6 @@
 import model.geo as geo
 import model.plot as geovis
+import model.history as history
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -16,13 +17,27 @@ list_transformations = [layer0, layer1, layer2, layer3, dike, tilt, upright_fold
 # list_transformations = [layer0, layer1, layer2, layer3, dike, tilt]
 model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
-model.add_transformations(list_transformations)
+model.add_history(list_transformations)
 model.compute_model()
-model.fill_nans
+model.fill_nans()
 geovis.volmesh(model, threshold= -.5)
 
 # fig, ax = geovis.volview(model)
-plt.show()
+# plt.show()
+# geovis.plotCrossSection(model, coord='y', slice_index=32)
 
-print('Done')
+
+
+# config = {
+#     'base_layers': {
+#         'base_init': -5,
+#         'mean_num': 4,    
+#         'sigma_num': 1, 
+#         'mean_width': 3,
+#         'sigma_width': 1,
+#     },
+#     # Additional configuration parameters can be added as needed
+# }
+
+# sedimentary_history = history.SedimentaryHistory(config)
 

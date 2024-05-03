@@ -6,63 +6,86 @@ class GeoModel:
     MAX_VALUE = 10
     
     def __init__(self,  bounds=(0, 16), resolution=64):
-        self._resolution = resolution
-        self._bounds = bounds
-        self.transformations = []
-        # Init large data arrays to none to avoid memory assignment until needed
-        self.X = None
-        self.Y = None
-        self.Z = None
-        self.xyz = None
-        self.data = None
-
-    def _create_grid(self):
-        if self.X is None or self.Y is None or self.Z is None:
-            # Init 3D meshgrid for X, Y, and Z coordinates of the view field
-            x = np.linspace(*self._bounds, num=self._resolution)
-            y = np.linspace(*self._bounds, num=self._resolution)
-            z = np.linspace(*self._bounds, num=self._resolution)
-            self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
-            # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
-            self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
-            # Initialize data array with NaNs
-            self.data = np.full(self.xyz.shape[0], np.nan)  
+        self.resolution = resolution
+        self.bounds = bounds
+        self.history = []
+        self.snapshots = None
+        # Init 3D meshgrid for X, Y, and Z coordinates of the view field
+        x = np.linspace(*self.bounds, num=self.resolution)
+        y = np.linspace(*self.bounds, num=self.resolution)
+        z = np.linspace(*self.bounds, num=self.resolution)
+        self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
+        # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
+        # This gives mesh representation of the model
+        self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
+        # Initialize data array with NaNs
+        self.data = np.full(self.xyz.shape[0], np.nan)  
         
-    def add_transformations(self, transformations):
-        """Add multiple transformations to the pipeline."""
-        for transformation in transformations:
-            if isinstance(transformation, Transformation):
-                self.transformations.append(transformation)
-            else:
-                raise TypeError("All items in the transformations list must be instances of the Transformation class.")
+    def add_history(self, history):
+        """Add one or more geological processes to model history."""
+        if not all(isinstance(event, GeoProcess) for event in history):
+            raise TypeError("All items in the history list must be instances of the GeoProcess class.")                
+        else:
+            self.history.extend(history)
+            
+    def clear_history(self):
+        """Clear all geological process from history."""
+        self.history = []                
 
     def compute_model(self):
-        """Apply all transformations in the pipeline."""
-        self._create_grid()
-        assert self.xyz is not None, "Grid not created."
+        """Compute the present day model based on the geological history
+        
+        Backward pass:
+        The xyz mesh is backtracked through history using the transformations
+        stored in the history list. Intermediate states are stored at required
+        intervals for the forward pass.
+        
+        Forward pass:
+        The deposition events are applied to the xyz mesh in its intermediate 
+        transformed state.
+        
+        """
+        
         # Clone the xyz array to avoid modifying the original input
         xyz_motion = self.xyz.copy()
 
-        for transformation in reversed(self.transformations):
+        for transformation in reversed(self.history):
             xyz_motion, self.data = transformation.run(xyz_motion, self.data)
  
         return self.data
+    
+    # def push_snapshot(self, xyz):
+    #     """Push the current mesh state onto the snapshot stack."""
+    #     self.snapshots.append(np.copy(self.xyz))
 
-    def clear_transformations(self):
-        """Clear all transformations."""
-        self.transformations = []
+    # def pop_snapshot(self):
+    #     """Pop the top state from the snapshot stack and restore it."""
+    #     if self.snapshots:
+    #         xyz = self.snapshots.pop()
+    #     else:
+    #         raise IndexError("Attempted to pop from an empty snapshot stack.")
+    #     return xyz
     
     def fill_nans(self, value = EMPTY_VALUE):
         assert self.data is not None, "Data array is empty."
         indnan = np.isnan(self.data)
         self.data[indnan] = value
         return self.data  
-    
-class Transformation:
-    def run(self, xyz, data):
-        raise NotImplementedError("Transformation must implement 'run' method.")
 
-class Layer(Transformation):
+class GeoProcess:
+    pass
+
+class Deposition(GeoProcess):
+    """
+    Base class for all deposition processes, such as layers and dikes.
+    
+    Depositions modify the geological data (e.g., rock types) associated with a mesh point
+    without altering or transforming the mesh.
+    """
+    def run(self, xyz, data):
+        raise NotImplementedError()
+    
+class Layer(Deposition):
     def __init__(self, base, width, value):
         self.base = base
         self.width = width
@@ -80,6 +103,41 @@ class Layer(Transformation):
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
+    
+class Dike(Deposition):
+    
+    def __init__(self, strike, dip, width, point, data_value):
+        self.strike = np.radians(strike)
+        self.dip = np.radians(dip)
+        self.width = width
+        self.point = np.array(point)
+        self.data_value = data_value
+
+    def run(self, xyz, data):
+        # Calculate rotation matrices
+        M1 = rotate([0, 0, 1], -self.strike)  # Rotation around z-axis for strike
+        M2 = rotate([0, 1, 0], self.dip)      # Rotation around y-axis for dip
+
+        # Normal vector of the dike plane
+        N = M1 @ M2 @ [0.0, 0.0, 1.0]
+        N /= np.linalg.norm(N)  # Normalize the normal vector
+
+        # Calculate distances from the dike plane
+        dists = np.dot(xyz - self.point, N)
+
+        # Update data based on whether points are within the width of the dike
+        data[np.abs(dists) <= self.width / 2.0] = self.data_value
+
+        return xyz, data
+    
+class Transformation(GeoProcess):
+    """
+    Base class for all transformation processes, such as tilting and folding.
+    
+    Transformations modify the mesh coordinates without altering the data contained at each point.
+    """
+    def run(self, xyz, data):
+        raise NotImplementedError("Transformation must implement 'run' method.")
 
 class Tilt(Transformation):
     def __init__(self, strike, dip):
@@ -129,31 +187,6 @@ class Fold(Transformation):
             new_xyz[i] = point + T[:3]
 
         return new_xyz, data
-
-class Dike(Transformation):
-    def __init__(self, strike, dip, width, point, data_value):
-        self.strike = np.radians(strike)
-        self.dip = np.radians(dip)
-        self.width = width
-        self.point = np.array(point)
-        self.data_value = data_value
-
-    def run(self, xyz, data):
-        # Calculate rotation matrices
-        M1 = rotate([0, 0, 1], -self.strike)  # Rotation around z-axis for strike
-        M2 = rotate([0, 1, 0], self.dip)      # Rotation around y-axis for dip
-
-        # Normal vector of the dike plane
-        N = M1 @ M2 @ [0.0, 0.0, 1.0]
-        N /= np.linalg.norm(N)  # Normalize the normal vector
-
-        # Calculate distances from the dike plane
-        dists = np.dot(xyz - self.point, N)
-
-        # Update data based on whether points are within the width of the dike
-        data[np.abs(dists) <= self.width / 2.0] = self.data_value
-
-        return xyz, data
 
 class Shear(Transformation):
     def __init__(self, shear_amount, dims=[50,50,50]):
