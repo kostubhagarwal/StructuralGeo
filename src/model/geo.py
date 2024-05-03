@@ -9,7 +9,7 @@ class GeoModel:
         self.resolution = resolution
         self.bounds = bounds
         self.history = []
-        self.snapshots = None
+        self.snapshots = np.empty((0, 0, 0, 0))
         # Init 3D meshgrid for X, Y, and Z coordinates of the view field
         x = np.linspace(*self.bounds, num=self.resolution)
         y = np.linspace(*self.bounds, num=self.resolution)
@@ -35,6 +35,12 @@ class GeoModel:
     def compute_model(self):
         """Compute the present day model based on the geological history
         
+        Snapshots:
+        The xyz mesh is saved to a preallocated array for use in the forward pass.
+        The starting state [0] is always required, additional snapshots are needed 
+        at the start of any deposition process. 
+        
+        
         Backward pass:
         The xyz mesh is backtracked through history using the transformations
         stored in the history list. Intermediate states are stored at required
@@ -42,30 +48,62 @@ class GeoModel:
         
         Forward pass:
         The deposition events are applied to the xyz mesh in its intermediate 
-        transformed state.
-        
+        transformed state.        
         """
+        # Determine how many snapshots are needed for memory pre-allocation
+        self.snapshot_indices = self.prepare_snapshots()
+        self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
+        print(f"Intermediate mesh states saved at {self.snapshot_indices}")
+    
+        # Backward pass to reverse mesh grid of points
+        self.backward_pass()
         
-        # Clone the xyz array to avoid modifying the original input
-        xyz_motion = self.xyz.copy()
+        # Forward pass to apply deposition events
+        self.forward_pass()
+        
+    def prepare_snapshots(self):
+        """ Determine when to take snapshots of the mesh during the backward pass.
+        
+        Snapshots of the xyz mesh should be taken at end of a transformation sequence
+        """  
+        # Always include the time start state of mesh      
+        snapshot_indices = [0]
+        for i in range(1,len(self.history)):
+            if isinstance(self.history[i], Deposition) and isinstance(self.history[i-1], Transformation):
+                snapshot_indices.append(i)
+        
+        return snapshot_indices
 
-        for transformation in reversed(self.history):
-            xyz_motion, self.data = transformation.run(xyz_motion, self.data)
- 
-        return self.data
-    
-    # def push_snapshot(self, xyz):
-    #     """Push the current mesh state onto the snapshot stack."""
-    #     self.snapshots.append(np.copy(self.xyz))
-
-    # def pop_snapshot(self):
-    #     """Pop the top state from the snapshot stack and restore it."""
-    #     if self.snapshots:
-    #         xyz = self.snapshots.pop()
-    #     else:
-    #         raise IndexError("Attempted to pop from an empty snapshot stack.")
-    #     return xyz
-    
+    def backward_pass(self):
+        """ Backtrack the xyz mesh through the geological history using transformations."""
+        # Make a copy of the model xyz mesh to apply transformations
+        current_xyz = self.xyz.copy()
+        
+        i = len(self.history) - 1
+        for event in reversed(self.history):
+            # Store snapshots of the mesh at required intervals
+            if i in self.snapshot_indices:
+                # The final state (index 0) uses the actual xyz since no further modifications are made,
+                # avoiding unnecessary copying for efficiency.
+                if i != 0:
+                    self.snapshots[self.snapshot_indices.index(i)] = np.copy(current_xyz)
+                else:
+                    self.snapshots[0] = current_xyz        
+            # Apply transformation to the mesh (skipping depositon events that do not alter the mesh)    
+            if isinstance(event, Transformation):
+                current_xyz, _ = event.run(current_xyz, self.data)
+            i -= 1
+            
+    def forward_pass(self):
+        """ Apply deposition events to the mesh based on the geological history."""
+        for i, event in enumerate(self.history):
+            # Update mesh coordinates as required by fetching snapshot from the backward pass
+            if i in self.snapshot_indices:
+                snapshot_index = self.snapshot_indices.index(i)
+                current_xyz = self.snapshots[snapshot_index,...]
+            if isinstance(event, Deposition):
+                _, self.data = event.run(current_xyz, self.data)
+        
     def fill_nans(self, value = EMPTY_VALUE):
         assert self.data is not None, "Data array is empty."
         indnan = np.isnan(self.data)
@@ -103,6 +141,25 @@ class Layer(Deposition):
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
+    
+class Bedrock(Deposition):
+    def __init__(self, base, value):
+        self.base = base
+        self.value = value
+
+    def run(self, xyz, data):
+        # Extract z-coordinates
+        z_coords = xyz[:, 2]
+
+        # Create a mask where z is below the base level
+        mask = z_coords <= self.base
+
+        # Apply the mask and update data where condition is met
+        data[mask] = self.value
+
+        # Return the unchanged xyz and the potentially modified data
+        return xyz, data
+
     
 class Dike(Deposition):
     

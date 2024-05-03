@@ -4,16 +4,17 @@ import model.history as history
 import matplotlib.pyplot as plt
 import numpy as np
 
-layer0 = geo.Layer(base=-5., width=5., value=0)
-layer1 = geo.Layer(base=0., width=5., value=1)
-layer2 = geo.Layer(base=5., width=1., value=2)
-layer3 = geo.Layer(base=6., width=2., value=3)
+bedrock = geo.Bedrock(base=-5, value=0)
+layer0 = geo.Layer(base=-5., width=5., value=1)
+layer1 = geo.Layer(base=0., width=5., value=2)
+layer2 = geo.Layer(base=5., width=1., value=3)
+layer3 = geo.Layer(base=6., width=2., value=4)
 
 tilt = geo.Tilt(strike=0, dip=20)
 upright_fold = geo.Fold(strike=0, dip=90, period = 40)
 dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=7)
 
-list_transformations = [layer0, layer1, layer2, layer3, dike, tilt, upright_fold]
+list_transformations = [bedrock, layer0, layer1, tilt, layer2, layer3, dike, tilt, upright_fold, layer1]
 # list_transformations = [layer0, layer1, layer2, layer3, dike, tilt]
 model = geo.GeoModel(bounds = (-10,10), resolution = 64)
 
