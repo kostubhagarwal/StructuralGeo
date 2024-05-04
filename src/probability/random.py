@@ -1,24 +1,26 @@
 import numpy as np
+import itertools
 
-class UniqueRandomGenerator:
-    def __init__(self, min_value, max_value):
-        self.min_value = min_value
-        self.max_value = max_value
-        self.range_values = list(range(min_value, max_value + 1))
-        self.previous_value = None
-        self.reset()
-
-    def reset(self):
-        """ Shuffle the range values to start fresh """
-        np.random.shuffle(self.range_values)
-
-    def __iter__(self):
-        return self
-
+class NonRepeatingRandomListSelector:
+    """ Generate unique non-repeating random elements from a list """
+    def __init__(self, elements):
+        # Attempt to convert input to a list
+        try:
+            self.full_range = list(elements)
+        except TypeError:
+            raise ValueError("Input must be an iterable that can be converted to a list")               
+        self.num_samples = len(self.full_range)
+        self.previous_sample_index = None
+    
     def __next__(self):
+        if self.num_samples == 1:
+            # Only one sample in the list, not possible to non-repeat
+            return self.full_range[0]
+        
+        # Assertion to avoid infinite loop
+        assert(self.num_samples > 1) 
         while True:
-            for value in self.range_values:
-                if value != self.previous_value:
-                    self.previous_value = value
-                    return value
-            self.reset()  # Re-shuffle after a full cycle to avoid patterns
+            index = np.random.randint(0, self.num_samples)
+            if index != self.previous_sample_index:  # Ensure it's not the previous index
+                self.previous_sample_index = index
+                return self.full_range[index]
