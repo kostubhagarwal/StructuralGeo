@@ -1,9 +1,9 @@
 import numpy as np
+import itertools
 from .util import rotate
 
 class GeoModel:
     EMPTY_VALUE = -1
-    MAX_VALUE = 10
     
     def __init__(self,  bounds=(0, 16), resolution=64):
         self.resolution = resolution
@@ -39,8 +39,7 @@ class GeoModel:
         The xyz mesh is saved to a preallocated array for use in the forward pass.
         The starting state [0] is always required, additional snapshots are needed 
         at the start of any deposition process. 
-        
-        
+                
         Backward pass:
         The xyz mesh is backtracked through history using the transformations
         stored in the history list. Intermediate states are stored at required
@@ -51,17 +50,17 @@ class GeoModel:
         transformed state.        
         """
         # Determine how many snapshots are needed for memory pre-allocation
-        self.snapshot_indices = self.prepare_snapshots()
+        self.snapshot_indices = self._prepare_snapshots()
         self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
-        print(f"Intermediate mesh states saved at {self.snapshot_indices}")
+        print(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
     
         # Backward pass to reverse mesh grid of points
-        self.backward_pass()
+        self._backward_pass()
         
         # Forward pass to apply deposition events
-        self.forward_pass()
-        
-    def prepare_snapshots(self):
+        self._forward_pass()
+          
+    def _prepare_snapshots(self):
         """ Determine when to take snapshots of the mesh during the backward pass.
         
         Snapshots of the xyz mesh should be taken at end of a transformation sequence
@@ -74,7 +73,7 @@ class GeoModel:
         
         return snapshot_indices
 
-    def backward_pass(self):
+    def _backward_pass(self):
         """ Backtrack the xyz mesh through the geological history using transformations."""
         # Make a copy of the model xyz mesh to apply transformations
         current_xyz = self.xyz.copy()
@@ -94,7 +93,7 @@ class GeoModel:
                 current_xyz, _ = event.run(current_xyz, self.data)
             i -= 1
             
-    def forward_pass(self):
+    def _forward_pass(self):
         """ Apply deposition events to the mesh based on the geological history."""
         for i, event in enumerate(self.history):
             # Update mesh coordinates as required by fetching snapshot from the backward pass
@@ -159,8 +158,51 @@ class Bedrock(Deposition):
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
-
     
+class Sedimentation(Deposition):
+    """ Fill with layers of sediment, with thickness given by a random variable.
+    
+        Parameters:
+              - height: the total height of the sedimentary sequence
+              - value_list: a list of values to be assigned to the layers
+              - generator: a random number generator to use for thicknesses
+    """
+    def __init__(self, height, value_list, thickness_callable=None, value_callable=None):
+        self.height = height
+        self.value_list = value_list
+        # Initialize the thickness function, default to constant thickness of 1
+        self.thickness_callable = thickness_callable if thickness_callable else lambda: 1
+        # Set up the value generator to cycle through the values list continuously
+        self.value_generator = itertools.cycle(self.value_list)        
+        # Initialize the value sampler, default to cycling through the list
+        self.value_callable = value_callable if value_callable else lambda: next(self.value_generator)
+
+    def run(self, xyz, data):
+        # Get the lowest mesh point to build layers from the bottom up
+        current_base = np.min(xyz[:, 2])
+        
+        # Build up until the total height is reached
+        while current_base < self.height:
+            # Sample the next sediment value
+            value = self.value_callable()
+            # Sample next layer thickness
+            layer_thickness = self.thickness_callable()
+            # Do not exceed the total height
+            current_top = min(current_base + layer_thickness, self.height)
+            
+            print(f"Building layer at height {current_base} and sampled value {value}")
+            # Mask for the current layer
+            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))
+            
+            # Assign the current sediment value to the layer
+            if np.any(mask):
+                data[mask] = value
+            
+            # Update the base for the next layer
+            current_base = current_top
+        
+        return xyz, data    
+
 class Dike(Deposition):
     
     def __init__(self, strike, dip, width, point, data_value):
@@ -182,8 +224,11 @@ class Dike(Deposition):
         # Calculate distances from the dike plane
         dists = np.dot(xyz - self.point, N)
 
-        # Update data based on whether points are within the width of the dike
-        data[np.abs(dists) <= self.width / 2.0] = self.data_value
+        # Update data based on whether points are within the width of the dike and only where there
+        # is existing data to avoid sky dikes
+        mask = (np.abs(dists) <= self.width / 2.0) & (~np.isnan(data))
+        
+        data[mask] = self.data_value
 
         return xyz, data
     
