@@ -90,21 +90,19 @@ def volview(model):
     return fig, ax
 
 def volmesh(model, threshold=-0.5):
-    # Ensure the data is reshaped properly to match the grid dimensions
-    grid = pv.StructuredGrid(model.X, model.Y, model.Z)
+    # Ensure the data is reshaped properly to match the grid dimensions 
+    # X and Z seem to need to be swapped to match pyvista format when adding data values   
+    grid = pv.StructuredGrid(model.Z, model.Y, model.X)
         
     # Set data to the grid
     values = model.data
-    grid["values"] = values.flatten(order='F')  # Flatten the array if needed
-    
-    # Create a plotter object
-    plotter = pv.Plotter()
-    
-    # Add the mesh to the plotter, thresholding to exclude np.nan values or sentinel values
-    # The 
+    grid["values"] = values.flatten(order="F")  # Flatten the data in Fortran order 
+    # Create mesh thresholding to exclude np.nan values or sentinel values
     mesh = grid.threshold(threshold, all_scalars=True) 
     
-    # Add the surface mesh to the plotter, using the colormap and clim defined in color_config
+    # Create a plotter object
+    plotter = pv.Plotter()      
+   # Create a custom color bar using the colormap and clim defined in color_config
     sargs = dict(
     title = "Rock Type",
     title_font_size=16,
@@ -114,8 +112,12 @@ def volmesh(model, threshold=-0.5):
     italic=True,
     font_family="arial",
     )
-    plotter.add_mesh(mesh, scalars="values", cmap=color_config.cmap, clim=(color_config.vmin, color_config.vmax), scalar_bar_args=sargs)
-
+    # Add the mesh to the plotter
+    plotter.add_mesh(mesh, scalars="values", 
+                     cmap=color_config.cmap, 
+                     clim=(color_config.vmin, color_config.vmax), 
+                     scalar_bar_args=sargs,
+                     )
     # Show the plotter
     plotter.show()    
 
