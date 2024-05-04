@@ -2,24 +2,30 @@ import numpy as np
 import itertools
 from .util import rotate
 
+import logging
+# Set up a simple logger
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger('Geo')
+log.setLevel(logging.DEBUG)
+
 class GeoModel:
     EMPTY_VALUE = -1
     
-    def __init__(self,  bounds=(0, 16), resolution=64):
+    def __init__(self,  bounds=(0, 16), resolution=64, dtype = np.float32):
         self.resolution = resolution
         self.bounds = bounds
         self.history = []
         self.snapshots = np.empty((0, 0, 0, 0))
         # Init 3D meshgrid for X, Y, and Z coordinates of the view field
-        x = np.linspace(*self.bounds, num=self.resolution)
-        y = np.linspace(*self.bounds, num=self.resolution)
-        z = np.linspace(*self.bounds, num=self.resolution)
+        x = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
+        y = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
+        z = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
         self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
         # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
         # This gives mesh representation of the model
         self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
         # Initialize data array with NaNs
-        self.data = np.full(self.xyz.shape[0], np.nan)  
+        self.data = np.full(self.xyz.shape[0], np.nan, dtype=dtype)  
         
     def add_history(self, history):
         """Add one or more geological processes to model history."""
@@ -52,7 +58,8 @@ class GeoModel:
         # Determine how many snapshots are needed for memory pre-allocation
         self.snapshot_indices = self._prepare_snapshots()
         self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
-        print(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
+        log.info(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
+        log.info(f"Total gigabytes of memory required: {self.snapshots.nbytes * 1e-9:.2f}")
     
         # Backward pass to reverse mesh grid of points
         self._backward_pass()
@@ -87,7 +94,9 @@ class GeoModel:
                 if i != 0:
                     self.snapshots[self.snapshot_indices.index(i)] = np.copy(current_xyz)
                 else:
-                    self.snapshots[0] = current_xyz        
+                    self.snapshots[0] = current_xyz 
+                       
+                log.debug(f"Snapshot taken at index {i}")    
             # Apply transformation to the mesh (skipping depositon events that do not alter the mesh)    
             if isinstance(event, Transformation):
                 current_xyz, _ = event.run(current_xyz, self.data)
@@ -164,18 +173,24 @@ class Sedimentation(Deposition):
     
         Parameters:
               - height: the total height of the sedimentary sequence
-              - value_list: a list of values to be assigned to the layers
-              - generator: a random number generator to use for thicknesses
+              - value_list: a list of values to sample from for rock types
+              - value_selector: an optional object to sample values from the list
+              - thickness_callable: a random number generator to use for thicknesses
+
     """
-    def __init__(self, height, value_list, thickness_callable=None, value_callable=None):
+    def __init__(self, height, value_list, value_selector=None, thickness_callable=None, ):
         self.height = height
         self.value_list = value_list
+        # Set up the value generator which returns next value from the list
+        if  value_selector is None:
+            # Default is to cycle through the list
+            self.value_selector = itertools.cycle(value_list) 
+        else:
+            # User provided value selector (must be an iterator that accepts a list)
+            self.value_selector = value_selector(value_list)      
+        
         # Initialize the thickness function, default to constant thickness of 1
         self.thickness_callable = thickness_callable if thickness_callable else lambda: 1
-        # Set up the value generator to cycle through the values list continuously
-        self.value_generator = itertools.cycle(self.value_list)        
-        # Initialize the value sampler, default to cycling through the list
-        self.value_callable = value_callable if value_callable else lambda: next(self.value_generator)
 
     def run(self, xyz, data):
         # Get the lowest mesh point to build layers from the bottom up
@@ -184,13 +199,12 @@ class Sedimentation(Deposition):
         # Build up until the total height is reached
         while current_base < self.height:
             # Sample the next sediment value
-            value = self.value_callable()
+            value = next(self.value_selector)
             # Sample next layer thickness
             layer_thickness = self.thickness_callable()
             # Do not exceed the total height
             current_top = min(current_base + layer_thickness, self.height)
             
-            print(f"Building layer at height {current_base} and sampled value {value}")
             # Mask for the current layer
             mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))
             
