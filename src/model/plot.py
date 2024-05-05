@@ -92,10 +92,10 @@ def volview(model):
 def volmesh(model, threshold=-0.5):
     # Ensure the data is reshaped properly to match the grid dimensions 
     # X and Z seem to need to be swapped to match pyvista format when adding data values   
-    grid = pv.StructuredGrid(model.Z, model.Y, model.X)
+    grid = pv.StructuredGrid(model.X, model.Y, model.Z)
         
     # Set data to the grid
-    values = model.data
+    values = model.data.reshape(model.X.shape)
     grid["values"] = values.flatten(order="F")  # Flatten the data in Fortran order 
     # Create mesh thresholding to exclude np.nan values or sentinel values
     mesh = grid.threshold(threshold, all_scalars=True) 

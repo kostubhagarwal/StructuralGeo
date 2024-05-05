@@ -9,23 +9,54 @@ log = logging.getLogger('Geo')
 log.setLevel(logging.DEBUG)
 
 class GeoModel:
+    """A 3D geological model that can be built up from geological processes.
+    
+    Parameters:
+    - bounds: Tuple defining the model bounds in the form, if only one tuple is provided, 
+            it is assumed to be the same for all dimensions. 
+            (allmin, allmax) or ((xmin, xmax), (ymin, ymax), (zmin, zmax))
+    - resolution: Number of divisions in each dimension
+    - dtype: Data type for the model data array 
+    """
     EMPTY_VALUE = -1
     
     def __init__(self,  bounds=(0, 16), resolution=64, dtype = np.float32):
         self.resolution = resolution
+        self.dtype = dtype
         self.bounds = bounds
         self.history = []
         self.snapshots = np.empty((0, 0, 0, 0))
+        self.data = np.empty(0)
+        self.xyz  = np.empty((0,0))
+        self.X    = np.empty((0,0,0))
+        self.Y    = np.empty((0,0,0))
+        self.Z    = np.empty((0,0,0))
+        
+        self.setup_mesh(bounds)  
+        
+    def setup_mesh(self, bounds):
+        """Sets up the 3D meshgrid based on given bounds."""
+        # Check if bounds is a tuple of tuples or a single tuple
+        if isinstance(bounds[0], tuple):
+            # Assume bounds are provided as ((xmin, xmax), (ymin, ymax), (zmin, zmax))
+            x_bounds, y_bounds, z_bounds = bounds
+        else:
+            # Apply the same bounds to x, y, and z if only one tuple is provided
+            x_bounds = y_bounds = z_bounds = bounds
+
+        # Create linspace for x, y, z
+        x = np.linspace(*x_bounds, num=self.resolution, dtype=self.dtype)
+        y = np.linspace(*y_bounds, num=self.resolution, dtype=self.dtype)
+        z = np.linspace(*z_bounds, num=self.resolution, dtype=self.dtype)
+        
         # Init 3D meshgrid for X, Y, and Z coordinates of the view field
-        x = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
-        y = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
-        z = np.linspace(*self.bounds, num=self.resolution, dtype=dtype)
         self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
+        
         # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
-        # This gives mesh representation of the model
         self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
+        
         # Initialize data array with NaNs
-        self.data = np.full(self.xyz.shape[0], np.nan, dtype=dtype)  
+        self.data = np.full(self.xyz.shape[0], np.nan, dtype=self.dtype)  
         
     def add_history(self, history):
         """Add one or more geological processes to model history."""
