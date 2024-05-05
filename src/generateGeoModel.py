@@ -26,21 +26,23 @@ sediment0 = geo.Sedimentation(height = 0, value_list= range(0,5),
                              )
 sediment1 = geo.Sedimentation(height = 5, value_list= sediment_rock_types)
 
-list_transformations = [bedrock, sediment0, tilt, sediment1, upright_fold, dike]
+test_history0 = [bedrock, sediment0, tilt, sediment1, upright_fold, dike]
 test_history1 = [sediment0, dike, tilt, sediment1, upright_fold, upright_fold2]
 
 
 bounds = ((-20,20), (-20,20), (-10,10))
 model = geo.GeoModel(bounds = bounds, resolution = 64)
-model.add_history(test_history1)
+model.add_history(test_history0)
 model.compute_model()
 model.fill_nans()
 
-geovis.volmesh(model, threshold= -.5)
+# Three types of visualization
+geovis.volview(model, threshold= -.5)
+# geovis.orthsliceview(model, threshold= -.5)
+# geovis.nsliceview(model, axis="z", threshold= -.5)
 
-# fig, ax = geovis.volview(model)
-# plt.show()
-# geovis.plotCrossSection(model, coord='y', slice_index=32)
+
+
 
 # config = {
 #     'base_layers': {
