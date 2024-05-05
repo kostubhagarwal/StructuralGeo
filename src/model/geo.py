@@ -150,6 +150,13 @@ class GeoModel:
         return self.data  
 
 class GeoProcess:
+    """Base class for all geological processes.
+    
+    Conventions:
+    Strike, dip, and rake are in degrees.
+    
+    """
+    
     pass
 
 class Deposition(GeoProcess):
@@ -158,6 +165,15 @@ class Deposition(GeoProcess):
     
     Depositions modify the geological data (e.g., rock types) associated with a mesh point
     without altering or transforming the mesh.
+    """
+    def run(self, xyz, data):
+        raise NotImplementedError()
+    
+class Transformation(GeoProcess):
+    """
+    Base class for all transformation processes, such as tilting and folding.
+    
+    Transformations modify the mesh coordinates without altering the data contained at each point.
     """
     def run(self, xyz, data):
         raise NotImplementedError()
@@ -277,29 +293,46 @@ class Dike(Deposition):
 
         return xyz, data
     
-class Transformation(GeoProcess):
-    """
-    Base class for all transformation processes, such as tilting and folding.
+class ErosionLayer(Deposition):
+    """ Erode down to some depth from the peak of the surface."""
     
-    Transformations modify the mesh coordinates without altering the data contained at each point.
-    """
+    def __init__(self, thickness):
+        self.thickness = thickness
+        self.peak = None
+        self.value = np.nan
+        
     def run(self, xyz, data):
-        raise NotImplementedError("Transformation must implement 'run' method.")
+        # Get the highest z-coordinate that is not NaN
+        xyz_valued = xyz[~np.isnan(data)]
+        self.peak = np.max(xyz_valued[:, 2])
+        
+        # Mask for points below the peak minus the erosion depth
+        mask = xyz[:, 2] > self.peak - self.thickness
+        
+        # Apply the mask and update data where condition is met
+        data[mask] = np.nan
+
+        # Return the unchanged xyz and the potentially modified data
+        return xyz, data
 
 class Tilt(Transformation):
-    def __init__(self, strike, dip):
+    def __init__(self, strike, dip, origin=(0,0,0)):
         self.strike = np.radians(strike)  # Convert degrees to radians
         self.dip = np.radians(dip)  # Convert degrees to radians
+        self.origin = np.array(origin)
 
     def run(self, xyz, data):
         # Calculate rotation axis from strike (rotation around z-axis)
         axis = rotate([0, 0, 1], -self.strike) @ [0, 1, 0]
-
         # Calculate rotation matrix from dip (tilt)
         R = rotate(axis, -self.dip)
+        
+        # Apply rotation about origin -> translate to origin, rotate, translate back
+        # Y = R * (X - O) + O
+        xyz = xyz @ R.T + (-self.origin @ R.T + self.origin)
 
         # Apply rotation to xyz points
-        return xyz @ R.T, data  # Assuming xyz is an Nx3 numpy array
+        return xyz, data  # Assuming xyz is an Nx3 numpy array
 
 class Fold(Transformation):
     def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, point=[0, 0, 0]):
