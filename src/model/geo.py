@@ -1,6 +1,6 @@
 import numpy as np
 import itertools
-from .util import rotate
+from .util import rotate, slip_normal_vectors
 
 import logging
 # Set up a simple logger
@@ -153,10 +153,8 @@ class GeoProcess:
     """Base class for all geological processes.
     
     Conventions:
-    Strike, dip, and rake are in degrees.
-    
-    """
-    
+    Strike, dip, and rake are in degrees.    
+    """    
     pass
 
 class Deposition(GeoProcess):
@@ -344,52 +342,24 @@ class Tilt(Transformation):
         xyz = xyz @ R.T + (-self.origin @ R.T + self.origin)
 
         # Apply rotation to xyz points
-        return xyz, data  # Assuming xyz is an Nx3 numpy array
-      
-class FoldOld(Transformation):
-    """ Old version of the Fold class for reference (very slow)"""
-    def __init__(self, 
-                 strike = 0, 
-                 dip = 90, 
-                 rake = 0, 
-                 period = 50, 
-                 amplitude = 10, 
-                 shape = 0, 
-                 offset=0, 
-                 point=[0, 0, 0]):
-        self.strike = np.radians(strike)
-        self.dip = np.radians(dip)
-        self.rake = np.radians(rake)
-        self.period = period
-        self.amplitude = amplitude
-        self.shape = shape
-        self.offset = offset
-        self.point = np.array(point)
-
-    def run(self, xyz, data):
-        # Calculate rotation matrices
-        M1 = rotate([0, 0, 1], -(self.rake + np.pi / 2))
-        M2 = rotate([0, 1, 0], -(self.dip))
-        M3 = rotate([0, 0, 1], -(self.strike))
-
-        # Normal vector of the fold
-        N = M3 @ M2 @ M1 @ [0., 1.0, 0.0]
-        M1 = rotate([0, 0, 1], -(self.rake))
-        V = M3 @ M2 @ M1 @ [0., 1.0, 0.0]
-        U = np.cross(N[:3], V[:3])
-
-        new_xyz = np.empty_like(xyz)
-        for i, point in enumerate(xyz):
-            v0 = point - self.point
-            fU = np.dot(v0, U) / np.linalg.norm(U) - self.offset * self.period
-            inside = 2 * np.pi * fU / self.period
-            off = self.amplitude * (np.cos(inside) + self.shape * np.cos(3 * inside))
-            T = N * off
-            new_xyz[i] = point + T[:3]
-
-        return new_xyz, data      
+        return xyz, data  # Assuming xyz is an Nx3 numpy array 
       
 class Fold(Transformation):
+    """ Generalized fold transformation. 
+    Convention is that 0 rake with 90 dip fold creates vertical folds.
+    
+    Parameters:
+    - strike: Strike in degrees
+    - dip: Dip in degrees
+    - rake: Rake in degrees
+    - period: Period of the fold in units of the mesh
+    - amplitude: Amplitude of the fold (motion along slip_vector)
+    - shape: Shape parameter for the fold
+    - origin: Origin point for the fold
+    - periodic_func: Custom periodic function for the fold (replaces default cosine function)
+                    User provided function should be 1D and accept an array of n_cycles
+    """
+    
     def __init__(self, strike = 0, 
                  dip = 90, rake = 0, 
                  period = 50, 
@@ -408,13 +378,14 @@ class Fold(Transformation):
         self.periodic_func = periodic_func if periodic_func else self.periodic_func_default
 
     def run(self, xyz, data):
-        slip_vector, normal_vector = self.calculate_transformation_vectors()
+        # Adjust the rake to have slip vector (fold amplitude) perpendicular to the strike
+        slip_vector, normal_vector = slip_normal_vectors(self.rake + np.pi/2, self.dip, self.strike)
 
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
         # Orthogonal distance from origin along U
         fU = np.dot(v0, normal_vector)
-        # Calculate the number of cycles the point is from the origin
+        # Calculate the number of cycles orthogonal distance
         n_cycles =  fU / self.period
         # Get the displacement as a function for n_cycles
         displacement_distance = self.amplitude * self.periodic_func(n_cycles)      
@@ -425,56 +396,85 @@ class Fold(Transformation):
 
         return xyz_transformed, data  
     
-    def calculate_transformation_vectors(self):
-        # Calculate rotation matrices (Transform from fold to plane coordinates)
-        M1 = rotate([0, 0, 1], -(self.rake + np.pi / 2))
-        M2 = rotate([1, 0, 0], -(self.dip))
-        M3 = rotate([0, 0, 1], -(self.strike))
-
-        # Start in slip vector coordinate frame as [1, 0, 0]
-        slip_vector = [1.0, 0.0, 0.0]
-        # Move to fault plane coordinates
-        fault_coords = M1 @ slip_vector
-        # Fault coordinates plane is dipped along strike axis which is x-axis in fault plane
-        strike_coords = M2 @ fault_coords
-        # We need to rotate to reference north as x-axis
-        slip_vector = M3 @ strike_coords
-        
-        # Trace the normal vector through same sequence of rotations
-        U = M3 @ M2 @ M1 @ [0., 0.0, 1.0]
-        U= U / np.linalg.norm(U)
-        return slip_vector, U
-    
     def periodic_func_default(self, n_cycles):
         return np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)   
 
+class Slip(Transformation):
+    """Gereralized slip transformation.
+    
+    Parameters:
+    - displacement_func: Custom displacement function for the slip. Function should map 
+    a distance from the slip plane to a displacement value.
+    - strike: Strike in degrees
+    - dip: Dip in degrees
+    - rake: Rake in degrees
+    - amplitude: Amplitude of the slip (motion along slip_vector)
+    - origin: Origin point for the slip (local coordinate frame)
+    
+    """
+    def __init__(self,                 
+                displacement_func,
+                strike = 0, 
+                dip = 90, 
+                rake = 0, 
+                amplitude = 2, 
+                origin=[0, 0, 0],
+                ):
+        self.strike = np.radians(strike)
+        self.dip = np.radians(dip)
+        self.rake = np.radians(rake)
+        self.amplitude = amplitude
+        self.origin = np.array(origin)
+        self.displacement_func = displacement_func
+    
+    def default_displacement_func(self, distances):
+        # A simple linear displacement function as an example
+        return np.zeros(np.shape(distances))  # Displaces positively where the distance is positive
 
-class Shear(Transformation):
-    def __init__(self, shear_amount, dims=[50,50,50]):
-        self.shear_amount = shear_amount
-        self.dims = dims
-        
     def run(self, xyz, array):
-        """
-        Apply shear transformation to a 3D array along the x-axis.
-        Parameters:
-        - array: Input 3D array
-        - shear_amount: Shear amount (fraction of array size)
-
-        Returns:
-        - Sheared 3D array
-        """
-        # Get array dimensions
-        width, height, depth = self.dims
-
-        array = array.reshape(self.dims)
-        # Create sheared array
-        sheared_array = np.zeros_like(array)
-
-        # Apply shear transformation along x-axis
-        for z in range(depth):
-            for x in range(width):
-                shear = int(self.shear_amount * x)
-                sheared_array[x, :, z] = np.roll(array[x, :, z], shear)
-
-        return xyz, sheared_array.flatten()
+        slip_vector, normal_vector = slip_normal_vectors(self.rake, self.dip, self.strike)
+        
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin        
+        # Orthogonal distance from origin along U
+        distance_to_slip = np.dot(v0, normal_vector)
+        # Apply the displacement function to the distances along normal
+        displacements = self.amplitude * self.displacement_func(distance_to_slip)
+        # Calculate the movement vector along slip direction
+        displacement_vectors = displacements[:, np.newaxis] * slip_vector
+        # Return to global coordinates and apply the displacement
+        xyz_transformed = xyz + displacement_vectors + self.origin
+        return xyz_transformed, array
+    
+class Fault(Slip):
+    def __init__(self, strike = 0, 
+                dip = 90, 
+                rake = 0, 
+                amplitude = 2, 
+                origin=[0, 0, 0],
+                ):
+        super().__init__(self.fault_displacement, strike, dip, rake, amplitude, origin)
+        self.rotation = 0
+        
+    def fault_displacement(self, distances):
+        return self.amplitude * np.sign(distances)
+    
+class Shear(Slip):
+    def __init__(self, strike = 0, 
+                dip = 90, 
+                rake = 0, 
+                amplitude = 2, 
+                steepness = 1,
+                origin=[0, 0, 0],
+                ):
+        self.steepness = steepness
+        super().__init__(self.shear_displacement, strike, dip, rake, amplitude, origin)
+        
+    def shear_displacement(self, distances):
+        # The sigmoid function will be centered around zero and will scale with amplitude
+        return self.amplitude * (1 / (1 + np.exp(-self.steepness * distances)))
+    
+    def run(self, xyz, array):
+        # Apply the shear transformation
+        xyz_transformed, array = super().run(xyz, array)
+        return xyz_transformed, array

@@ -7,7 +7,6 @@ import model.plot as geovis
 import model.history as history
 import probability as rv
 
-
 # Generators
 # Create a list of numbers from 0 to 4
 sediment_rock_types = list(range(4,7))
@@ -23,28 +22,31 @@ sediment0 = geo.Sedimentation(height = 0, value_list= range(1,5),
                               thickness_callable= lambda: np.random.lognormal(.5,.5)
                              )
 sediment1 = geo.Sedimentation(height = 5, value_list= sediment_rock_types)
+erosion_process = geo.ErosionLayer(thickness=2)
 
 # Transformations
 tilt = geo.Tilt(strike=45, dip=20, origin=(-1,-1,0))
 tilt2 = geo.Tilt(strike=10, dip=20, origin = (3,0,0))
-upright_fold = geo.Fold(strike=65, dip=90, period = 20, amplitude = 1)
+upright_fold = geo.Fold(strike=65, dip=80, rake=20, period = 20, amplitude = 1)
 upright_fold2 = geo.Fold(strike=110, 
-                         dip=30, 
+                         dip=90, 
+                         rake = 80,
                          period = 40, 
                          amplitude = 2, 
                          shape=1, 
                          origin=(0,0,0), 
                          periodic_func=rv.noisy_sine_wave(frequency=3, smoothing=10, noise_scale=0.1))
-erosion_process = geo.ErosionLayer(thickness=2)
+slip0 = geo.Fault(strike=80, dip=70, rake=35, amplitude=3, origin=(0,0,0))
 
 # Histories
 test_history0 = [bedrock, sediment0, tilt, sediment1, dike, upright_fold,  upright_fold2]
-test_history1 = [sediment0, sediment1, upright_fold2]
+test_history1 = [sediment0, sediment1, upright_fold, upright_fold2]
 test_history2 = [bedrock, tilt2, sediment0]
+test_history3 = [bedrock, sediment0, dike, slip0]
 
 bounds = ((-20,20), (-20,20), (-10,10))
-model = geo.GeoModel(bounds = bounds, resolution = 256)
-model.add_history(test_history0)
+model = geo.GeoModel(bounds = bounds, resolution = 128)
+model.add_history(test_history3)
 model.compute_model()
 model.fill_nans()
 
