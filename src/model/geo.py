@@ -174,10 +174,11 @@ class Transformation(GeoProcess):
     Base class for all transformation processes, such as tilting and folding.
     
     Transformations modify the mesh coordinates without altering the data contained at each point.
+    Frame convention is that north is strike on positive x-axis
     """
     def run(self, xyz, data):
         raise NotImplementedError()
-    
+        
 class Layer(Deposition):
     def __init__(self, base, width, value):
         self.base = base
@@ -294,7 +295,11 @@ class Dike(Deposition):
         return xyz, data
     
 class ErosionLayer(Deposition):
-    """ Erode down to some depth from the peak of the surface."""
+    """ Erode down to some depth from the peak of the surface.
+    
+    Parameters:
+    - thickness: Thickness of the erosion layer, measured from the peak of the surface
+    """
     
     def __init__(self, thickness):
         self.thickness = thickness
@@ -310,12 +315,19 @@ class ErosionLayer(Deposition):
         mask = xyz[:, 2] > self.peak - self.thickness
         
         # Apply the mask and update data where condition is met
-        data[mask] = np.nan
+        data[mask] = self.value
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
 
 class Tilt(Transformation):
+    """ Tilt the model by a given strike and dip and an origin point.
+    
+    Parameters:
+    - strike: Strike of the tilt in degrees
+    - dip: Dip of the tilt in degrees
+    - origin: Origin point for the tilt
+    """
     def __init__(self, strike, dip, origin=(0,0,0)):
         self.strike = np.radians(strike)  # Convert degrees to radians
         self.dip = np.radians(dip)  # Convert degrees to radians
@@ -323,7 +335,7 @@ class Tilt(Transformation):
 
     def run(self, xyz, data):
         # Calculate rotation axis from strike (rotation around z-axis)
-        axis = rotate([0, 0, 1], -self.strike) @ [0, 1, 0]
+        axis = rotate([0, 0, 1], -self.strike) @ [1, 0, 0]
         # Calculate rotation matrix from dip (tilt)
         R = rotate(axis, -self.dip)
         
@@ -333,8 +345,9 @@ class Tilt(Transformation):
 
         # Apply rotation to xyz points
         return xyz, data  # Assuming xyz is an Nx3 numpy array
-
-class Fold(Transformation):
+      
+class FoldOld(Transformation):
+    """ Old version of the Fold class for reference (very slow)"""
     def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, point=[0, 0, 0]):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -366,7 +379,53 @@ class Fold(Transformation):
             T = N * off
             new_xyz[i] = point + T[:3]
 
-        return new_xyz, data
+        return new_xyz, data      
+      
+class Fold(Transformation):
+    def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, origin=[0, 0, 0]):
+        self.strike = np.radians(strike)
+        self.dip = np.radians(dip)
+        self.rake = np.radians(rake)
+        self.period = period
+        self.amplitude = amplitude
+        self.shape = shape
+        self.offset = offset
+        self.origin = np.array(origin)
+
+    def run(self, xyz, data):
+        # Calculate rotation matrices (Transform from fold to plane coordinates)
+        M1 = rotate([0, 0, 1], -(self.rake + np.pi / 2))
+        M2 = rotate([1, 0, 0], -(self.dip))
+        M3 = rotate([0, 0, 1], -(self.strike))
+
+        # Start in slip vector coordinate frame as [1, 0, 0]
+        slip_vector = [1.0, 0.0, 0.0]
+        # Move to fault plane coordinates
+        fault_coords = M1 @ slip_vector
+        # Fault coordinates plane is dipped along strike axis which is x-axis in fault plane
+        strike_coords = M2 @ fault_coords
+        # We need to rotate to reference north as x-axis
+        slip_vector = M3 @ strike_coords
+        
+        # Trace the normal vector through same sequence of rotations
+        U = M3 @ M2 @ M1 @ [0., 0.0, 1.0]
+        U= U / np.linalg.norm(U) # Normalize the normal vector
+
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin
+        # Orthogonal distance from origin along U
+        fU = np.dot(v0, U)
+        # Calculate the number of cycles the point is from the origin
+        n_cycles = 2 * np.pi * fU / self.period
+        # Apply the displacement function
+        off = self.amplitude * (np.cos(n_cycles) + self.shape * np.cos(3 * n_cycles))        
+        # Calculate total displacement for each point
+        displacement = slip_vector * off[:, np.newaxis]  # Ensure proper broadcasting
+        # Return to global coordinates
+        xyz_transformed = xyz + displacement + self.origin
+
+        return xyz_transformed, data     
+
 
 class Shear(Transformation):
     def __init__(self, shear_amount, dims=[50,50,50]):

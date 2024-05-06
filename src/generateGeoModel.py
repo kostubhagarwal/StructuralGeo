@@ -9,29 +9,35 @@ import model.plot as geovis
 import model.history as history
 import probability as rv
 
-bedrock = geo.Bedrock(base=-5, value=0)
-tilt = geo.Tilt(strike=0, dip=20)
-upright_fold = geo.Fold(strike=0, dip=90, period = 20, amplitude = 2)
-dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=7)
-upright_fold2 = geo.Fold(strike=110, dip=60, period = 40, amplitude = 2)
 
+bedrock = geo.Bedrock(base=-5, value=0)
+dike  = geo.Dike(strike=0, dip=60, width=3, point=[0, 0, 0], data_value=7)
+
+# Sediments 
 # Create a list of numbers from 0 to 4
 sediment_rock_types = list(range(4,7))
 # Shuffle the list in place
 np.random.shuffle(sediment_rock_types)
-
-sediment0 = geo.Sedimentation(height = 0, value_list= range(0,5),  
+sediment0 = geo.Sedimentation(height = 0, value_list= range(1,5),  
                               value_selector= rv.NonRepeatingRandomListSelector,
                               thickness_callable= lambda: np.random.lognormal(.5,.5)
                              )
 sediment1 = geo.Sedimentation(height = 5, value_list= sediment_rock_types)
 
-test_history0 = [bedrock, sediment0, tilt, sediment1, upright_fold, dike]
-test_history1 = [sediment0, dike, tilt, sediment1, upright_fold, upright_fold2]
+# Transformations
+tilt = geo.Tilt(strike=45, dip=20, origin=(-1,-1,0))
+tilt2 = geo.Tilt(strike=10, dip=20, origin = (3,0,0))
+upright_fold = geo.Fold(strike=0, dip=90, period = 20, amplitude = 2)
+upright_fold2 = geo.Fold(strike=110, dip=90, period = 40, amplitude = 2, shape=1)
+erosion_process = geo.ErosionLayer(thickness=2)
 
+# Histories
+test_history0 = [bedrock, sediment0, tilt, sediment1, upright_fold, dike, upright_fold2, erosion_process]
+test_history1 = [sediment0, sediment1, upright_fold2]
+test_history2 = [bedrock, tilt2, sediment0]
 
 bounds = ((-20,20), (-20,20), (-10,10))
-model = geo.GeoModel(bounds = bounds, resolution = 64)
+model = geo.GeoModel(bounds = bounds, resolution = 128)
 model.add_history(test_history0)
 model.compute_model()
 model.fill_nans()
