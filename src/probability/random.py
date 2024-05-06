@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.ndimage import gaussian_filter1d
 import itertools
 
 class NonRepeatingRandomListSelector:
@@ -24,3 +25,20 @@ class NonRepeatingRandomListSelector:
             if index != self.previous_sample_index:  # Ensure it's not the previous index
                 self.previous_sample_index = index
                 return self.full_range[index]
+
+def noisy_sine_wave(frequency=1, smoothing=20, noise_scale=0.1):
+    # Noisy sine
+    def customized_wave_func(n_cycles):
+        # Deterministic sinusoidal component
+        deterministic = np.sin(2 * np.pi * frequency * n_cycles)
+        
+        # Generate random noise
+        random_noise = np.random.normal(scale=noise_scale, size=n_cycles.shape)
+        
+        # Smooth the random noise
+        smoothed_noise = gaussian_filter1d(random_noise, sigma=smoothing)
+        
+        # Combine the deterministic and random parts
+        return deterministic + smoothed_noise
+
+    return customized_wave_func

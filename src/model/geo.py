@@ -348,7 +348,15 @@ class Tilt(Transformation):
       
 class FoldOld(Transformation):
     """ Old version of the Fold class for reference (very slow)"""
-    def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, point=[0, 0, 0]):
+    def __init__(self, 
+                 strike = 0, 
+                 dip = 90, 
+                 rake = 0, 
+                 period = 50, 
+                 amplitude = 10, 
+                 shape = 0, 
+                 offset=0, 
+                 point=[0, 0, 0]):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.rake = np.radians(rake)
@@ -382,17 +390,42 @@ class FoldOld(Transformation):
         return new_xyz, data      
       
 class Fold(Transformation):
-    def __init__(self, strike = 0, dip = 90, rake = 0, period = 50, amplitude = 10, shape = 0, offset=0, origin=[0, 0, 0]):
+    def __init__(self, strike = 0, 
+                 dip = 90, rake = 0, 
+                 period = 50, 
+                 amplitude = 10, 
+                 shape = 0, 
+                 origin=[0, 0, 0],
+                 periodic_func=None):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.rake = np.radians(rake)
         self.period = period
         self.amplitude = amplitude
         self.shape = shape
-        self.offset = offset
         self.origin = np.array(origin)
+        # Accept a custom periodic function or use the default otherwise
+        self.periodic_func = periodic_func if periodic_func else self.periodic_func_default
 
     def run(self, xyz, data):
+        slip_vector, normal_vector = self.calculate_transformation_vectors()
+
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin
+        # Orthogonal distance from origin along U
+        fU = np.dot(v0, normal_vector)
+        # Calculate the number of cycles the point is from the origin
+        n_cycles =  fU / self.period
+        # Get the displacement as a function for n_cycles
+        displacement_distance = self.amplitude * self.periodic_func(n_cycles)      
+        # Calculate total displacement for each point, recast off as a column vector
+        displacement_vector = slip_vector * displacement_distance[:, np.newaxis] 
+        # Return to global coordinates
+        xyz_transformed = xyz + displacement_vector + self.origin
+
+        return xyz_transformed, data  
+    
+    def calculate_transformation_vectors(self):
         # Calculate rotation matrices (Transform from fold to plane coordinates)
         M1 = rotate([0, 0, 1], -(self.rake + np.pi / 2))
         M2 = rotate([1, 0, 0], -(self.dip))
@@ -409,22 +442,11 @@ class Fold(Transformation):
         
         # Trace the normal vector through same sequence of rotations
         U = M3 @ M2 @ M1 @ [0., 0.0, 1.0]
-        U= U / np.linalg.norm(U) # Normalize the normal vector
-
-        # Translate points to origin coordinate frame
-        v0 = xyz - self.origin
-        # Orthogonal distance from origin along U
-        fU = np.dot(v0, U)
-        # Calculate the number of cycles the point is from the origin
-        n_cycles = 2 * np.pi * fU / self.period
-        # Apply the displacement function
-        off = self.amplitude * (np.cos(n_cycles) + self.shape * np.cos(3 * n_cycles))        
-        # Calculate total displacement for each point
-        displacement = slip_vector * off[:, np.newaxis]  # Ensure proper broadcasting
-        # Return to global coordinates
-        xyz_transformed = xyz + displacement + self.origin
-
-        return xyz_transformed, data     
+        U= U / np.linalg.norm(U)
+        return slip_vector, U
+    
+    def periodic_func_default(self, n_cycles):
+        return np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)   
 
 
 class Shear(Transformation):
