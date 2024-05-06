@@ -1,11 +1,10 @@
 import numpy as np
 import time 
-import matplotlib.pyplot as plt
 
-import model.geo as geo
-import model.plot as geovis
-import model.history as history
-import probability as rv
+import structgeo.model.geo as geo
+import structgeo.model.plot as geovis
+import structgeo.model.history as history
+import structgeo.probability as rv
 
 # Generators
 # Create a list of numbers from 0 to 4
@@ -15,7 +14,7 @@ np.random.shuffle(sediment_rock_types)
 
 # Depostions
 bedrock = geo.Bedrock(base=-5, value=0)
-dike  = geo.Dike(strike=45, dip=75, width=3, point=[0, 0, 0], data_value=7)
+dike  = geo.Dike(strike=45, dip=75, width=3, origin=[0, 0, 0], value=7)
 
 sediment0 = geo.Sedimentation(height = 0, value_list= range(1,5),  
                               value_selector= rv.NonRepeatingRandomListSelector,

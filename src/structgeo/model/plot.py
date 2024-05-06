@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import pyvista as pv
-from mpl_toolkits.mplot3d import Axes3D
 
 class ColorMapConfig:
     """Configuration for discrete colormap with sentinel value (white) for non-rock areas."""

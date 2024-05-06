@@ -197,6 +197,12 @@ class Layer(Deposition):
         return xyz, data
     
 class Bedrock(Deposition):
+    """ Fill the model with a base level of bedrock.
+    
+    Parameters:
+    - base: The z-coordinate of the base level (top of the rock layer)
+    - value: The rock type value to assign to the bedrock layer
+    """
     def __init__(self, base, value):
         self.base = base
         self.value = value
@@ -264,13 +270,21 @@ class Sedimentation(Deposition):
         return xyz, data    
 
 class Dike(Deposition):
+    """ Insert a dike to overwrite existing data values.
     
-    def __init__(self, strike, dip, width, point, data_value):
+    Parameters:
+    - strike: Strike angle in degrees (center-line of the dike)
+    - dip: Dip angle in degrees
+    - width: Net Width of the dike
+    - origin: Origin point of the local coordinate frame
+    - value: Value of rock-type to assign to the dike 
+    """
+    def __init__(self, strike, dip, width, origin, value):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.width = width
-        self.point = np.array(point)
-        self.data_value = data_value
+        self.origin = np.array(origin)
+        self.value = value
 
     def run(self, xyz, data):
         # Calculate rotation matrices
@@ -282,13 +296,13 @@ class Dike(Deposition):
         N /= np.linalg.norm(N)  # Normalize the normal vector
 
         # Calculate distances from the dike plane
-        dists = np.dot(xyz - self.point, N)
+        dists = np.dot(xyz - self.origin, N)
 
         # Update data based on whether points are within the width of the dike and only where there
         # is existing data to avoid sky dikes
         mask = (np.abs(dists) <= self.width / 2.0) & (~np.isnan(data))
         
-        data[mask] = self.data_value
+        data[mask] = self.value
 
         return xyz, data
     
@@ -365,7 +379,7 @@ class Fold(Transformation):
                  period = 50, 
                  amplitude = 10, 
                  shape = 0, 
-                 origin=[0, 0, 0],
+                 origin=(0, 0, 0),
                  periodic_func=None):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -418,7 +432,7 @@ class Slip(Transformation):
                 dip = 90, 
                 rake = 0, 
                 amplitude = 2, 
-                origin=[0, 0, 0],
+                origin=(0, 0, 0),
                 ):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -447,11 +461,32 @@ class Slip(Transformation):
         return xyz_transformed, array
     
 class Fault(Slip):
-    def __init__(self, strike = 0, 
+    """
+    A subclass of Slip specifically for modeling brittle fault transformations where
+    displacement occurs as a sharp step function across the fault plane. This class
+    implements a binary displacement function that represents the sudden shift
+    characteristic of brittle faults.
+
+    Parameters:
+    - strike (float): Strike angle in degrees
+    - dip (float): Dip angle in degrees
+    - rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+    - amplitude (float): The maximum displacement magnitude along the slip_vector.
+    - origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    
+    This implementation causes a displacement strictly on one side of the fault, making it suitable for
+    simulating scenarios where a clear delineation between displaced and stationary geological strata is necessary.
+    
+    Example:
+        # Creating a Fault instance with specific geological parameters
+        fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
+    """
+    def __init__(self, 
+                strike = 0, 
                 dip = 90, 
                 rake = 0, 
                 amplitude = 2, 
-                origin=[0, 0, 0],
+                origin=(0, 0, 0),
                 ):
         super().__init__(self.fault_displacement, strike, dip, rake, amplitude, origin)
         self.rotation = 0
@@ -460,12 +495,13 @@ class Fault(Slip):
         return self.amplitude * np.sign(distances)
     
 class Shear(Slip):
-    def __init__(self, strike = 0, 
+    def __init__(self, 
+                strike = 0, 
                 dip = 90, 
                 rake = 0, 
                 amplitude = 2, 
                 steepness = 1,
-                origin=[0, 0, 0],
+                origin=(0, 0, 0),
                 ):
         self.steepness = steepness
         super().__init__(self.shear_displacement, strike, dip, rake, amplitude, origin)
