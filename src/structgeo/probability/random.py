@@ -107,3 +107,6 @@ def random_point_in_ellipsoid(bounds):
     
     return x, y, z
 
+def random_angle_degrees():
+    """Generate a random angle in degrees from 0 to 360."""
+    return np.random.uniform(0, 360)
