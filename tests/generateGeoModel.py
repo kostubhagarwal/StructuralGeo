@@ -1,4 +1,5 @@
 import numpy as np
+import pyvista as pv
 import time 
 
 import structgeo.model.geo as geo
@@ -45,28 +46,14 @@ test_history3 = [bedrock, sediment0, dike, slip0]
 
 bounds = ((-20,20), (-20,20), (-10,10))
 model = geo.GeoModel(bounds = bounds, resolution = 128)
-model.add_history(test_history3)
+model.add_history(test_history0)
 model.compute_model()
 model.fill_nans()
 
 # Three types of visualization
-geovis.volview(model, threshold= -.5)
-# geovis.orthsliceview(model, threshold= -.5)
-#geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
+# p = geovis.volview(model, threshold= -.5)
+# p = geovis.orthsliceview(model, threshold= -.5)
+p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
+p.show()
 
-
-
-
-# config = {
-#     'base_layers': {
-#         'base_init': -5,
-#         'mean_num': 4,    
-#         'sigma_num': 1, 
-#         'mean_width': 3,
-#         'sigma_width': 1,
-#     },
-#     # Additional configuration parameters can be added as needed
-# }
-
-# sedimentary_history = history.SedimentaryHistory(config)
 

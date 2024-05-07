@@ -31,11 +31,10 @@ class ColorMapConfig:
 color_config = ColorMapConfig(vmin=-1, vmax=10)
     
 def volview(model, threshold=-0.5):
-
     mesh = get_mesh_from_model(model, threshold)
     
     # Create a plotter object
-    plotter = pv.Plotter()      
+    plotter = pv.Plotter()       # type: ignore
     color_config = get_color_config()
     # Add the mesh to the plotter
     plotter.add_mesh(mesh, scalars="values", 
@@ -48,7 +47,7 @@ def orthsliceview(model, threshold=-0.5):
     mesh = get_mesh_from_model(model, threshold)
     
     # Create a plotter object
-    plotter = pv.Plotter()    
+    plotter = pv.Plotter()    # type: ignore
     color_config = get_color_config()     
     # Adding an interactive slicing tool
     plotter.add_mesh_slice_orthogonal(
@@ -56,19 +55,19 @@ def orthsliceview(model, threshold=-0.5):
                     **color_config,
                     )    
     _ = plotter.add_axes(line_width=5)
-    plotter.show() 
+    return plotter
     
     
 def nsliceview(model, n=5, axis="x", threshold=-0.5):
     mesh = get_mesh_from_model(model, threshold)
-    slices = mesh.slice_along_axis(n=n, axis=axis)
+    slices = mesh.slice_along_axis(n=n, axis=axis) # type: ignore
     
     # Create a plotter object
-    plotter = pv.Plotter()    
+    plotter = pv.Plotter()    # type: ignore
     color_config = get_color_config()     
     # Adding an interactive slicing tool
     plotter.add_mesh(slices, **color_config)  
-    plotter.show()
+    return plotter
 
 def get_color_config(): 
     settings = {
