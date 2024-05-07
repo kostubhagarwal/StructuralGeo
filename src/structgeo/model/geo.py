@@ -512,6 +512,17 @@ class Fault(Slip):
         return self.amplitude * np.sign(distances)
     
 class Shear(Slip):
+    """ A subclass of Slip for modeling shear transformations, a plastic deformation process.
+    Displacement is modeled as a sigmoid function that increases with distance from the slip plane.
+    
+    Parameters:
+    - strike (float): Strike angle in degrees
+    - dip (float): Dip angle in degrees
+    - rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+    - amplitude (float): The maximum displacement magnitude along the slip_vector.
+    - origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    - steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
+    """
     def __init__(self, 
                 strike = 0., 
                 dip = 90., 
