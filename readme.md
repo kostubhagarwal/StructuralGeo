@@ -15,4 +15,15 @@ After installation, the package can be imported into your Python environment wit
 import structgeo
 ```
 
+##### Jupyter Notebook Viewing
+
+The visualization is handled with Pyvista which requires additional configuration for Jupyter Notebook to view the model iteractively. 
+
+To install the required framework, use the following command:
+
+```bash
+pip install 'jupyterlab>=3' ipywidgets 'pyvista[all,trame]'   
+```
+
+If `trame` is not installed the jupyter backend should be set to static which will render non-interactive plots. To activate interactive plots set the backend to `trame` at the import header. See examples folder for implementation, or read more at the [Pyvista documentation](https://tutorial.pyvista.org/tutorial/00_jupyter/index.html).
 
