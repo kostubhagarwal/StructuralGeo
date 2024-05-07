@@ -4,9 +4,10 @@ from .util import rotate, slip_normal_vectors
 
 import logging
 # Set up a simple logger
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('Geo')
 log.setLevel(logging.DEBUG)
+logging.disable()
 
 class GeoModel:
     """A 3D geological model that can be built up from geological processes.
@@ -31,8 +32,6 @@ class GeoModel:
         self.X    = np.empty((0,0,0))
         self.Y    = np.empty((0,0,0))
         self.Z    = np.empty((0,0,0))
-        
-        self.setup_mesh(bounds)  
         
     def setup_mesh(self, bounds):
         """Sets up the 3D meshgrid based on given bounds."""
@@ -59,15 +58,26 @@ class GeoModel:
         self.data = np.full(self.xyz.shape[0], np.nan, dtype=self.dtype)  
         
     def add_history(self, history):
-        """Add one or more geological processes to model history."""
+        """Add one or more geological processes to model history.
+        
+        Parameters:
+            history (GeoProcess or list of GeoProcess): A GeoProcess instance or a list of GeoProcess instances to be added to the model's history.
+        """
+        # Check if the input is not a list, make it a list
+        if not isinstance(history, list):
+            history = [history]  # Convert a single GeoProcess instance into a list
+
+        # Check if all elements in the list are instances of GeoProcess
         if not all(isinstance(event, GeoProcess) for event in history):
-            raise TypeError("All items in the history list must be instances of the GeoProcess class.")                
-        else:
-            self.history.extend(history)
+            raise TypeError("All items in the history list must be instances of the GeoProcess class.")
+        
+        # Extend the existing history with the new history
+        self.history.extend(history)
             
     def clear_history(self):
         """Clear all geological process from history."""
-        self.history = []                
+        self.history = []  
+                      
 
     def compute_model(self):
         """Compute the present day model based on the geological history
@@ -86,6 +96,10 @@ class GeoModel:
         The deposition events are applied to the xyz mesh in its intermediate 
         transformed state.        
         """
+        if len(self.history) == 0:
+            raise ValueError("No geological history to compute.")
+        
+        self.setup_mesh(self.bounds)        
         # Determine how many snapshots are needed for memory pre-allocation
         self.snapshot_indices = self._prepare_snapshots()
         self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
@@ -273,13 +287,13 @@ class Dike(Deposition):
     """ Insert a dike to overwrite existing data values.
     
     Parameters:
-    - strike: Strike angle in degrees (center-line of the dike)
+    - strike: Strike angle in CW degrees (center-line of the dike) from north
     - dip: Dip angle in degrees
     - width: Net Width of the dike
     - origin: Origin point of the local coordinate frame
     - value: Value of rock-type to assign to the dike 
     """
-    def __init__(self, strike, dip, width, origin, value):
+    def __init__(self, strike=0., dip=90., width=1., origin=(0,0,0), value=0.):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.width = width
@@ -288,10 +302,9 @@ class Dike(Deposition):
 
     def run(self, xyz, data):
         # Calculate rotation matrices
-        M1 = rotate([0, 0, 1], -self.strike)  # Rotation around z-axis for strike
-        M2 = rotate([0, 1, 0], self.dip)      # Rotation around y-axis for dip
+        M1 = rotate([0, 0, 1.], -self.strike)  # Rotation around z-axis for strike
+        M2 = rotate([0., 1., 0], self.dip)     # Rotation around y-axis in strike frame for dip
 
-        # Normal vector of the dike plane
         N = M1 @ M2 @ [0.0, 0.0, 1.0]
         N /= np.linalg.norm(N)  # Normalize the normal vector
 
@@ -336,8 +349,8 @@ class Tilt(Transformation):
     """ Tilt the model by a given strike and dip and an origin point.
     
     Parameters:
-    - strike: Strike of the tilt in degrees
-    - dip: Dip of the tilt in degrees
+    - strike: Strike angle in CW degrees (center-line of the dike) from north
+    - dip: Dip of the tilt in degrees (CW from the strike axis)
     - origin: Origin point for the tilt
     """
     def __init__(self, strike, dip, origin=(0,0,0)):
@@ -347,7 +360,7 @@ class Tilt(Transformation):
 
     def run(self, xyz, data):
         # Calculate rotation axis from strike (rotation around z-axis)
-        axis = rotate([0, 0, 1], -self.strike) @ [1, 0, 0]
+        axis = rotate([0, 0, 1], -self.strike) @ [0, 1., 0]
         # Calculate rotation matrix from dip (tilt)
         R = rotate(axis, -self.dip)
         
@@ -374,11 +387,11 @@ class Fold(Transformation):
                     User provided function should be 1D and accept an array of n_cycles
     """
     
-    def __init__(self, strike = 0, 
-                 dip = 90, rake = 0, 
-                 period = 50, 
-                 amplitude = 10, 
-                 shape = 0, 
+    def __init__(self, strike = 0., 
+                 dip = 90., rake = 0., 
+                 period = 50., 
+                 amplitude = 10., 
+                 shape = 0.0, 
                  origin=(0, 0, 0),
                  periodic_func=None):
         self.strike = np.radians(strike)
@@ -411,7 +424,10 @@ class Fold(Transformation):
         return xyz_transformed, data  
     
     def periodic_func_default(self, n_cycles):
-        return np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)   
+        # Normalize to amplitude of 1
+        norm = (1 + self.shape**2)**0.5
+        func = np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)  
+        return func / norm   
 
 class Slip(Transformation):
     """Gereralized slip transformation.
@@ -428,10 +444,10 @@ class Slip(Transformation):
     """
     def __init__(self,                 
                 displacement_func,
-                strike = 0, 
-                dip = 90, 
-                rake = 0, 
-                amplitude = 2, 
+                strike = 0., 
+                dip = 90., 
+                rake = 0., 
+                amplitude = 2., 
                 origin=(0, 0, 0),
                 ):
         self.strike = np.radians(strike)
@@ -446,7 +462,8 @@ class Slip(Transformation):
         return np.zeros(np.shape(distances))  # Displaces positively where the distance is positive
 
     def run(self, xyz, array):
-        slip_vector, normal_vector = slip_normal_vectors(self.rake, self.dip, self.strike)
+        # Slip is measured from dip vector, while the slip_normal convention is from strike vector, add 90 degrees
+        slip_vector, normal_vector = slip_normal_vectors(self.rake , self.dip, self.strike)
         
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin        
@@ -482,10 +499,10 @@ class Fault(Slip):
         fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
     """
     def __init__(self, 
-                strike = 0, 
-                dip = 90, 
-                rake = 0, 
-                amplitude = 2, 
+                strike = 0., 
+                dip = 90., 
+                rake = 0., 
+                amplitude = 2., 
                 origin=(0, 0, 0),
                 ):
         super().__init__(self.fault_displacement, strike, dip, rake, amplitude, origin)
@@ -496,11 +513,11 @@ class Fault(Slip):
     
 class Shear(Slip):
     def __init__(self, 
-                strike = 0, 
-                dip = 90, 
-                rake = 0, 
-                amplitude = 2, 
-                steepness = 1,
+                strike = 0., 
+                dip = 90., 
+                rake = 0., 
+                amplitude = 2., 
+                steepness = 1.,
                 origin=(0, 0, 0),
                 ):
         self.steepness = steepness

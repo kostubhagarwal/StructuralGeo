@@ -7,7 +7,7 @@ import structgeo.model.history as history
 import structgeo.probability as rv
 
 # Generators
-# Create a list of numbers from 0 to 4
+# Create a list of numbers from 4 to 6
 sediment_rock_types = list(range(4,7))
 # Shuffle the list in place
 np.random.shuffle(sediment_rock_types)

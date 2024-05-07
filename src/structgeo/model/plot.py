@@ -31,6 +31,7 @@ class ColorMapConfig:
 color_config = ColorMapConfig(vmin=-1, vmax=10)
     
 def volview(model, threshold=-0.5):
+
     mesh = get_mesh_from_model(model, threshold)
     
     # Create a plotter object
@@ -40,8 +41,8 @@ def volview(model, threshold=-0.5):
     plotter.add_mesh(mesh, scalars="values", 
                      **color_config,
                      )
-    # Show the plotter   
-    plotter.show()    
+    _ = plotter.add_axes(line_width=5)
+    return plotter    
     
 def orthsliceview(model, threshold=-0.5):
     mesh = get_mesh_from_model(model, threshold)
@@ -54,7 +55,9 @@ def orthsliceview(model, threshold=-0.5):
                     mesh, scalars="values",
                     **color_config,
                     )    
+    _ = plotter.add_axes(line_width=5)
     plotter.show() 
+    
     
 def nsliceview(model, n=5, axis="x", threshold=-0.5):
     mesh = get_mesh_from_model(model, threshold)
@@ -84,6 +87,8 @@ def get_color_config():
     return settings
     
 def get_mesh_from_model(model, threshold=-0.5):
+    if model.data is None or model.data.size == 0:
+        raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
     # Ensure the data is reshaped properly to match the grid dimensions 
     # X and Z seem to need to be swapped to match pyvista format when adding data values   
     grid = pv.StructuredGrid(model.X, model.Y, model.Z)
