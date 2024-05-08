@@ -21,8 +21,15 @@ class FileManager:
             return max(indexes) + 1
         return 0
 
-    def save_geo_model(self, geo_model):
-        """Save a GeoModel instance to a file."""
+    def save_geo_model(self, geo_model, lean = True):
+        """Save a GeoModel instance to a file.
+        
+        If lean is True, the models will be saved without the data attribute and only the 
+        essential generating parameters (history, bounds, etc. )
+        """       
+        if lean:
+            # Implement clear_data if needed to remove unnecessary large data
+            geo_model.clear_data()
         file_path = os.path.join(self.base_dir, f"model_{self.file_index}.pkl")
         with open(file_path, 'wb') as file:
             pickle.dump(geo_model, file)
@@ -38,12 +45,13 @@ class FileManager:
         return model
 
     def save_history_models(self, models, lean=True):
-        """Save a list of GeoModel instances."""
+        """Save a list of GeoModel instances.
+        
+        If lean is True, the models will be saved without the data attribute and only the 
+        essential generating parameters (history, bounds, etc. )
+        """
         for model in models:
-            if lean:
-                # Implement clear_data if needed to remove unnecessary large data
-                model.clear_data()
-            self.save_geo_model(model)
+            self.save_geo_model(model, lean=lean)
 
     def load_history_models(self):
         """Load all GeoModel instances from a directory."""

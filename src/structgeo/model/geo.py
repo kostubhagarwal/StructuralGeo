@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('Geo')
 log.setLevel(logging.DEBUG)
-# logging.disable()
+logging.disable()
 
 class GeoModel:
     """A 3D geological model that can be built up from geological processes.
