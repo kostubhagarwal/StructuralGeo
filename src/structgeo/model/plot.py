@@ -71,16 +71,15 @@ def nsliceview(model, n=5, axis="x", threshold=-0.5):
 
 def get_color_config(): 
     settings = {
-        'cmap': color_config.cmap,
-        'clim': (color_config.vmin, color_config.vmax),
+        'cmap': "gist_ncar",  # Using a perceptually uniform colormap
         'scalar_bar_args': {
             'title': "Rock Type",
             'title_font_size': 16,
             'label_font_size': 10,
             'shadow': True,
-            'n_labels': color_config.vmax - color_config.vmin + 1,
             'italic': True,
             'font_family': "arial",
+            'n_labels': 5   # Reducing the number of labels for clarity
         }
     }
     return settings
