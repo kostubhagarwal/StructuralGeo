@@ -73,6 +73,17 @@ class GeoModel:
         
         # Extend the existing history with the new history
         self.history.extend(history)
+        
+    def get_history_string(self):
+        """Returns a string describing the geological history of the model."""
+        if not self.history:
+            return "No geological history to display."
+        
+        history_str = "Geological History:\n"
+        for index, process in enumerate(self.history):
+            history_str += f"{index + 1}: {str(process)}\n"
+        
+        return history_str
             
     def clear_history(self):
         """Clear all geological process from history."""
@@ -228,6 +239,9 @@ class Bedrock(Deposition):
     def __init__(self, base, value):
         self.base = base
         self.value = value
+    
+    def __str__(self):
+        return f"Bedrock: with z <= {self.base:.1f} and value {self.value:.1f}"
 
     def run(self, xyz, data):
         # Extract z-coordinates
@@ -268,6 +282,14 @@ class Sedimentation(Deposition):
         self.values_sequence_used = []
         self.thickness_sequence_used = []
         self.rebuild = False
+        
+    def __str__(self):
+        values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
+        values_summary += "..." if len(self.value_list) > 3 else ""
+        thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_sequence_used[:3])
+        thicknesses += "..." if len(self.thickness_sequence_used) > 3 else ""
+        return (f"Sedimentation: total height {self.height:.1f}, rock type values [{values_summary}], "
+                f"and thicknesses {thicknesses}.")
         
     def thickness_callable_default(self):
         return 1.0
@@ -368,6 +390,15 @@ class Dike(Deposition):
         self.width = width
         self.origin = np.array(origin)
         self.value = value
+        
+    def __str__(self):
+        # Convert radians back to degrees for more intuitive understanding
+        strike_deg = np.degrees(self.strike)
+        dip_deg = np.degrees(self.dip)
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)  # Format each coordinate component
+
+        return (f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, width {self.width:.1f}, "
+                f"origin ({origin_str}), value {self.value:.1f}.")
 
     def run(self, xyz, data):
         # Calculate rotation matrices
@@ -426,6 +457,15 @@ class Tilt(Transformation):
         self.strike = np.radians(strike)  # Convert degrees to radians
         self.dip = np.radians(dip)  # Convert degrees to radians
         self.origin = np.array(origin)
+        
+    def __str__(self):
+        # Convert radians back to degrees for more intuitive understanding
+        strike_deg = np.degrees(self.strike)
+        dip_deg = np.degrees(self.dip)
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)  # Format each coordinate component
+
+        return (f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°,"
+                f"origin ({origin_str})")
 
     def run(self, xyz, data):
         # Calculate rotation axis from strike (rotation around z-axis)
@@ -472,6 +512,16 @@ class Fold(Transformation):
         self.origin = np.array(origin)
         # Accept a custom periodic function or use the default otherwise
         self.periodic_func = periodic_func if periodic_func else self.periodic_func_default
+        
+    def __str__(self):
+        # Convert radians back to degrees for more intuitive understanding
+        strike_deg = np.degrees(self.strike)
+        dip_deg = np.degrees(self.dip)
+        rake_deg = np.degrees(self.rake)
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        
+        return (f"Fold: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, period {self.period:.1f},"
+                f"amplitude {self.amplitude:.1f}, origin ({origin_str}).")
 
     def run(self, xyz, data):
         # Adjust the rake to have slip vector (fold amplitude) perpendicular to the strike
@@ -525,6 +575,14 @@ class Slip(Transformation):
         self.amplitude = amplitude
         self.origin = np.array(origin)
         self.displacement_func = displacement_func
+        
+    def __str__(self):
+        strike_deg = np.degrees(self.strike)
+        dip_deg = np.degrees(self.dip)
+        rake_deg = np.degrees(self.rake)
+        origin_str = ", ".join(map(str, self.origin))
+        return (f"{self.__class__.__name__} with strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, "
+                f"amplitude {self.amplitude:.1f}, origin ({origin_str:.1f}).")
     
     def default_displacement_func(self, distances):
         # A simple linear displacement function as an example
