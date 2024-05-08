@@ -77,7 +77,15 @@ class GeoModel:
     def clear_history(self):
         """Clear all geological process from history."""
         self.history = []  
-                      
+        
+    def clear_data(self):
+        """ Clear the model but retain build parameters."""
+        self.snapshots = np.empty((0, 0, 0, 0))
+        self.data = np.empty(0)
+        self.xyz  = np.empty((0,0))
+        self.X    = np.empty((0,0,0))
+        self.Y    = np.empty((0,0,0))
+        self.Z    = np.empty((0,0,0))                  
 
     def compute_model(self):
         """Compute the present day model based on the geological history
@@ -256,10 +264,13 @@ class Sedimentation(Deposition):
             self.value_selector = value_selector(value_list)      
         
         # Initialize the thickness function, default to constant thickness of 1
-        self.thickness_callable = thickness_callable if thickness_callable else lambda: 1
+        self.thickness_callable = thickness_callable if thickness_callable else self.thickness_callable_default
         self.values_sequence_used = []
         self.thickness_sequence_used = []
         self.rebuild = False
+        
+    def thickness_callable_default(self):
+        return 1.0
 
     def run(self, xyz, data):
         if self.rebuild:
