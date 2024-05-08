@@ -17,9 +17,12 @@ class FileManager:
             return 0
         # Extract indexes from file names assuming the format 'model_<index>.pkl'
         indexes = [int(f.split('_')[-1].split('.')[0]) for f in existing_files]
-        if indexes:
-            return max(indexes) + 1
-        return 0
+        return max(indexes) + 1 if indexes else 0
+    
+    def sorted_by_index(files):
+        """Sort a list of filenames based on the numerical index in their name."""
+        sort_key = lambda x: int(x.split('_')[-1].split('.')[0])
+        return sorted(files, key=sort_key)  # type: ignore
 
     def save_geo_model(self, geo_model, lean = True):
         """Save a GeoModel instance to a file.
@@ -54,9 +57,15 @@ class FileManager:
             self.save_geo_model(model, lean=lean)
 
     def load_history_models(self):
-        """Load all GeoModel instances from a directory."""
+        """Load all GeoModel instances from a directory, sorted by index."""
         models = []
-        for filename in os.listdir(self.base_dir):
-            if filename.endswith(".pkl"):
-                models.append(self.load_geo_model(filename))
+        # Collect all filenames that end with '.pkl'
+        file_list = [filename for filename in os.listdir(self.base_dir) if filename.endswith(".pkl")]
+        
+        # Sort the list in-place based on the numerical index
+        file_list.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+
+        # Load models from sorted filenames
+        for filename in file_list:
+            models.append(self.load_geo_model(filename))
         return models
