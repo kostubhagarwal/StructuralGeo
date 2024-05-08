@@ -271,6 +271,20 @@ class Sedimentation(Deposition):
         
     def thickness_callable_default(self):
         return 1.0
+    
+    def __getstate__(self):
+        """Return state values to be pickled."""
+        state = self.__dict__.copy()
+        # Remove the thickness_callable from the state because it may not be pickleable.
+        state['thickness_callable'] = None
+        return state
+
+    def __setstate__(self, state):
+        """Restore state from the unpickled state values."""
+        self.__dict__.update(state)
+        # Restore the default thickness_callable if it was None.
+        if self.thickness_callable is None:
+            self.thickness_callable = self.thickness_callable_default
 
     def run(self, xyz, data):
         if self.rebuild:
