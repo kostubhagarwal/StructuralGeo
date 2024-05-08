@@ -7,7 +7,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('Geo')
 log.setLevel(logging.DEBUG)
-logging.disable()
+# logging.disable()
 
 class GeoModel:
     """A 3D geological model that can be built up from geological processes.
@@ -257,17 +257,28 @@ class Sedimentation(Deposition):
         
         # Initialize the thickness function, default to constant thickness of 1
         self.thickness_callable = thickness_callable if thickness_callable else lambda: 1
+        self.values_sequence_used = []
+        self.thickness_sequence_used = []
+        self.rebuild = False
 
     def run(self, xyz, data):
-        # Get the lowest mesh point to build layers from the bottom up
-        current_base = np.min(xyz[:, 2])
+        if self.rebuild:
+            return self.rebuild_sequence(xyz, data)
+        else:
+            return self.generate_sequence(xyz, data)
+
+    def generate_sequence(self, xyz, data):
+        # Get the lowest mesh point to build layers from the bottom up        
+        current_base = self.get_lowest_nan(xyz, data)
         
         # Build up until the total height is reached
         while current_base < self.height:
             # Sample the next sediment value
             value = next(self.value_selector)
+            self.values_sequence_used.append(value)
             # Sample next layer thickness
             layer_thickness = self.thickness_callable()
+            self.thickness_sequence_used.append(layer_thickness)
             # Do not exceed the total height
             current_top = min(current_base + layer_thickness, self.height)
             
@@ -279,9 +290,42 @@ class Sedimentation(Deposition):
                 data[mask] = value
             
             # Update the base for the next layer
-            current_base = current_top
+            current_base = current_top   
+            
+        # Flag to rebuild the sequence if needed
+        self.rebuild = True
+             
+        return xyz, data 
+
+    def rebuild_sequence(self, xyz, data):
+        # Get the lowest mesh point to build layers from the bottom up        
+        current_base = self.get_lowest_nan(xyz, data)
         
-        return xyz, data    
+        # Build up until the total height is reached
+        for val, thickness in zip(self.values_sequence_used, self.thickness_sequence_used):
+            # Do not exceed the total height
+            current_top = min(current_base + thickness, self.height)
+            
+            # Mask for the current layer
+            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))
+            
+            # Assign the current sediment value to the layer
+            if np.any(mask):
+                data[mask] = val
+            
+            # Update the base for the next layer
+            current_base = current_top
+        return xyz, data
+            
+    def get_lowest_nan(self, xyz, data):
+        # Get the lowest mesh point with NaN in data to build layers from the bottom up
+        nan_mask = np.isnan(data)
+        if np.any(nan_mask):
+            lowest = np.min(xyz[nan_mask, 2])
+            return lowest
+        else:
+            log.warning("No NaN values found in data; no layers will be added.")
+            return float('Inf')  # Return early if there are no NaN values to process   
 
 class Dike(Deposition):
     """ Insert a dike to overwrite existing data values.
