@@ -1,9 +1,8 @@
 import ipywidgets as widgets
 import pyvista as pv
-import structgeo.model.plot as geovis
+import structgeo.plot.plot as geovis
 from IPython.display import display, clear_output
 from .file_manager import FileManager
-import time
 
 class ModelReviewer:
     def __init__(self, generate_model_func, base_dir="../saved_models", show_history=True):
@@ -78,5 +77,4 @@ class ModelReviewer:
         self.init_buttons()  # Initialize buttons
         self.refresh_model()  # Start the review by displaying the first model
         display(self.output)  # Display the output widget which will contain everything
-        
-
+    
