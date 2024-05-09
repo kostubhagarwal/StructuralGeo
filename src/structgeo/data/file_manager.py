@@ -1,5 +1,5 @@
 import os
-import pickle
+import dill as pickle
 
 class FileManager:
 
@@ -39,15 +39,14 @@ class FileManager:
         print(f"Model saved to {file_path}")
         self.file_index += 1
 
-    def load_geo_model(self, file_name):
+    def load_geo_model(self, file_path):
         """Load a GeoModel instance from a file."""
-        file_path = os.path.join(self.base_dir, file_name)
         with open(file_path, 'rb') as file:
             model = pickle.load(file)
         print(f"Model loaded from {file_path}")
         return model
 
-    def save_history_models(self, models, lean=True):
+    def save_all_models(self, models, lean=True):
         """Save a list of GeoModel instances.
         
         If lean is True, the models will be saved without the data attribute and only the 
@@ -56,16 +55,14 @@ class FileManager:
         for model in models:
             self.save_geo_model(model, lean=lean)
 
-    def load_history_models(self):
-        """Load all GeoModel instances from a directory, sorted by index."""
+    def load_all_models(self):
+        """Load all GeoModel instances from a directory and its subdirectories, sorted by index."""
         models = []
-        # Collect all filenames that end with '.pkl'
-        file_list = [filename for filename in os.listdir(self.base_dir) if filename.endswith(".pkl")]
-        
-        # Sort the list in-place based on the numerical index
-        file_list.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
-
-        # Load models from sorted filenames
-        for filename in file_list:
-            models.append(self.load_geo_model(filename))
+        for root, dirs, files in os.walk(self.base_dir):
+            print(f"Loading models from {root}")
+            file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
+            file_list.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+            for file_path in file_list:
+                model = self.load_geo_model(file_path)
+                models.append(model)
         return models
