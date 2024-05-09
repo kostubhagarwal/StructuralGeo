@@ -3,7 +3,7 @@ import pyvista as pv
 import time 
 
 import structgeo.model.geo as geo
-import structgeo.model.plot as geovis
+import structgeo.plot.plot as geovis
 import structgeo.model.history as history
 import structgeo.probability as rv
 
