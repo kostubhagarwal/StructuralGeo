@@ -184,17 +184,21 @@ class GeoModel:
         self.data[indnan] = value
         return self.data  
     
-    def renormalize_height(self, new_max):
+    def renormalize_height(self, new_max = 0, auto = False):
         """ Renormalize the model height to a new range.
         
         Parameters:
         - new_max: The new maximum height for the model.
+        - optional auto: Automatically select a new maximum height based on the model's current height.
         """
         assert self.data is not None, "Data array is empty."
         #Find the highest point
         valid_indices = ~np.isnan(self.data)
         valid_z_values = self.xyz[valid_indices, 2]
         current_max_z = np.max(valid_z_values)
+        
+        if auto:
+            new_max = self.get_target_normalization()
 
         # Calculate the model shift required to shift to a desired maximum height
         shift_z = new_max - current_max_z
@@ -204,6 +208,20 @@ class GeoModel:
         self.clear_data()
         self.compute_model()
     
+    def get_target_normalization(self, target_max=.8, std_dev = 0.05):
+        """ Get the normalization factor to scale the model to a target maximum height.
+        
+        Parameters:
+        - target_max: The target maximum height for the model as a fraction of total height.
+        - std_dev: The standard deviation of the normal distribution used to add variation.
+        """
+        bounds = self.get_z_bounds()
+        zmin, zmax = bounds
+        z_range = zmax - zmin
+        target_height = zmin + z_range*np.random.normal(target_max, std_dev) 
+        print(f"Target height: {target_height:.2f}")
+        return target_height
+        
     def get_z_bounds(self):
         """Return the minimum and maximum z-coordinates of the model."""
                 # Check if bounds is a tuple of tuples (multi-dimensional)
@@ -214,8 +232,8 @@ class GeoModel:
             # Single-dimensional bounds
             z_vals = self.bounds
         
-        return self.bounds
-
+        return z_vals
+    
 class GeoProcess:
     """Base class for all geological processes.
     
@@ -740,7 +758,7 @@ class Slip(Transformation):
         rake_deg = np.degrees(self.rake)
         origin_str = ", ".join(map(str, self.origin))
         return (f"{self.__class__.__name__} with strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, "
-                f"amplitude {self.amplitude:.1f}, origin ({origin_str:.1f}).")
+                f"amplitude {self.amplitude:.1f}, origin ({origin_str}).")
     
     def default_displacement_func(self, distances):
         # A simple linear displacement function as an example
