@@ -455,16 +455,38 @@ class Sedimentation(Deposition):
             return float('Inf')  # Return early if there are no NaN values to process   
         
 class SedimentationDeterministic(Deposition):
-    """ Deterministic version of class to help with auto-generation
+    """ Deterministic version of sediment class with fixed layer number and thicknesses
+    
+    Parameters:
+    - value_list: A list of values to use for each layer, total layers will be len(value_list)
+    - thickness_list (optional): A list of thicknesses to apply for each layer. 
+    - thickness_callable (optional): A callable that returns the thickness for each layer if no list is provided
     """
-    def __init__(self, value_list, thickness_callable=None, ):
+    def __init__(self, value_list, thickness_list = None, thickness_callable=None, ):
         self.height = 0 # To be determined at generation time
-        self.value_list = value_list      
+        self.value_list = value_list  
+        self.thickness_list = thickness_list    
         # Initialize the thickness function, default to constant thickness of 1
-        self.thickness_callable = thickness_callable if thickness_callable else self.thickness_callable_default
+        self.thickness_callable = self.handle_thickness_callable(thickness_callable)
         self.values_sequence_used = []
         self.thickness_sequence_used = []
         self.rebuild = False
+        
+    def handle_thickness_callable(self, thickness_callable):
+        """ Handle the thickness_callable parameter.
+        
+        If thickness_callable is None, set it to the default thickness_callable.
+        """
+        if self.thickness_list is not None:
+            # If a list is passed, create an iterator and return a callable that cycles the values
+            cyclic_iterator = itertools.cycle(self.thickness_list)
+            return lambda: next(cyclic_iterator)
+        elif callable(thickness_callable):
+            # If a callable is passed, return it directly
+            return thickness_callable
+        else:
+            # If no argument passed, used the default thickness determination
+            return self.thickness_callable_default
         
     def __str__(self):
         values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
