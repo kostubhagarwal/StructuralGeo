@@ -68,8 +68,10 @@ class GeoModel:
             history = [history]  # Convert a single GeoProcess instance into a list
 
         # Check if all elements in the list are instances of GeoProcess
-        if not all(isinstance(event, GeoProcess) for event in history):
-            raise TypeError("All items in the history list must be instances of the GeoProcess class.")
+        for event in history:
+            if not isinstance(event, GeoProcess):
+                msg = f"All items in the history list must be instances of the GeoProcess class. Found {type(event)}. for {event}"
+                raise TypeError(msg)  
         
         # Extend the existing history with the new history
         self.history.extend(history)
@@ -181,6 +183,38 @@ class GeoModel:
         indnan = np.isnan(self.data)
         self.data[indnan] = value
         return self.data  
+    
+    def renormalize_height(self, new_max):
+        """ Renormalize the model height to a new range.
+        
+        Parameters:
+        - new_max: The new maximum height for the model.
+        """
+        assert self.data is not None, "Data array is empty."
+        #Find the highest point
+        valid_indices = ~np.isnan(self.data)
+        valid_z_values = self.xyz[valid_indices, 2]
+        current_max_z = np.max(valid_z_values)
+
+        # Calculate the model shift required to shift to a desired maximum height
+        shift_z = new_max - current_max_z
+        
+        # Add a shift transformation to the history and recompute
+        self.add_history(Shift([0, 0, -shift_z]))
+        self.clear_data()
+        self.compute_model()
+    
+    def get_z_bounds(self):
+        """Return the minimum and maximum z-coordinates of the model."""
+                # Check if bounds is a tuple of tuples (multi-dimensional)
+        if isinstance(self.bounds[0], tuple):
+            # Multi-dimensional bounds, assuming the last tuple represents the z-dimension
+            z_vals = self.bounds[-1]
+        else:
+            # Single-dimensional bounds
+            z_vals = self.bounds
+        
+        return self.bounds
 
 class GeoProcess:
     """Base class for all geological processes.
@@ -227,6 +261,34 @@ class Layer(Deposition):
         data[mask] = self.value
 
         # Return the unchanged xyz and the potentially modified data
+        return xyz, data
+    
+class Shift(Transformation):
+    """ Shift the model by a given vector. """
+    def __init__(self, vector):
+        self.vector = np.array(vector)
+        
+    def __str__(self):
+        return f"Shift: vector {self.vector}"
+    
+    def run(self, xyz, data):
+        # Apply the shift to the xyz points
+        xyz_transformed = xyz + self.vector
+        return xyz_transformed, data
+    
+class Rotate(Transformation):
+    """ Rotate the model by a given angle about an axis. """
+    def __init__(self, axis, angle):
+        self.angle = np.radians(angle)
+        self.axis = np.array(axis)
+        
+    def __str__(self):
+        return f"Rotation: angle {np.degrees(self.angle):.1f}°, axis {self.axis}"
+    
+    def run(self, xyz, data):
+        R = rotate(self.axis, self.angle)
+        # Apply the rotation to the xyz points
+        xyz = xyz @ R.T
         return xyz, data
     
 class Bedrock(Deposition):
@@ -373,7 +435,103 @@ class Sedimentation(Deposition):
         else:
             log.warning("No NaN values found in data; no layers will be added.")
             return float('Inf')  # Return early if there are no NaN values to process   
+        
+class SedimentationDeterministic(Deposition):
+    """ Deterministic version of class to help with auto-generation
+    """
+    def __init__(self, value_list, thickness_callable=None, ):
+        self.height = 0 # To be determined at generation time
+        self.value_list = value_list      
+        # Initialize the thickness function, default to constant thickness of 1
+        self.thickness_callable = thickness_callable if thickness_callable else self.thickness_callable_default
+        self.values_sequence_used = []
+        self.thickness_sequence_used = []
+        self.rebuild = False
+        
+    def __str__(self):
+        values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
+        values_summary += "..." if len(self.value_list) > 3 else ""
+        thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_sequence_used[:3])
+        thicknesses += "..." if len(self.thickness_sequence_used) > 3 else ""
+        return (f"Sedimentation: total height {self.height:.1f}, rock type values [{values_summary}], "
+                f"and thicknesses {thicknesses}.")
+        
+    def thickness_callable_default(self):
+        return 1.0
+    
+    def __getstate__(self):
+        """Return state values to be pickled."""
+        state = self.__dict__.copy()
+        # Remove the thickness_callable from the state because it may not be pickleable.
+        state['thickness_callable'] = None
+        return state
 
+    def __setstate__(self, state):
+        """Restore state from the unpickled state values."""
+        self.__dict__.update(state)
+        # Restore the default thickness_callable if it was None.
+        if self.thickness_callable is None:
+            self.thickness_callable = self.thickness_callable_default
+
+    def run(self, xyz, data):
+        if self.rebuild:
+            return self.rebuild_sequence(xyz, data)
+        else:
+            return self.generate_sequence(xyz, data)
+
+    def generate_sequence(self, xyz, data):
+        # Get the lowest non-nan value in the data to sediment overtop
+        current_base = self.get_lowest_nan(xyz, data)       
+         
+        for value in self.value_list:
+            self.values_sequence_used.append(value)
+            # Sample next layer thickness
+            layer_thickness = self.thickness_callable()
+            self.thickness_sequence_used.append(layer_thickness)
+            # Do not exceed the total height
+            current_top = current_base + layer_thickness
+            
+            # Mask for the current layer
+            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))            
+            # Assign the current sediment value to the layer
+            if np.any(mask):
+                data[mask] = value            
+            # Update the base for the next layer
+            current_base = current_top
+        
+        # Store the final height of the sediment sequence
+        self.height = current_top            
+        # Flag to rebuild the sequence if needed
+        self.rebuild = True
+             
+        return xyz, data 
+
+    def rebuild_sequence(self, xyz, data):
+        # Get the lowest mesh point to build layers from the bottom up        
+        current_base = self.get_lowest_nan(xyz, data)
+        
+        # Build up until the total height is reached
+        for val, thickness in zip(self.values_sequence_used, self.thickness_sequence_used):
+            # Do not exceed the total height
+            current_top = min(current_base + thickness, self.height)            
+            # Mask for the current layer
+            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))            
+            # Assign the current sediment value to the layer
+            if np.any(mask):
+                data[mask] = val            
+            # Update the base for the next layer
+            current_base = current_top
+        return xyz, data
+    
+    def get_lowest_nan(self, xyz, data):
+        # Get the lowest mesh point with NaN in data to build layers from the bottom up
+        nan_mask = np.isnan(data)
+        if np.any(nan_mask):
+            lowest = np.min(xyz[nan_mask, 2])
+            return lowest
+        else:
+            log.warning("No NaN values found in data; no layers will be added.")
+            return float('Inf')  # Return early if there are no NaN values to process  
 class Dike(Deposition):
     """ Insert a dike to overwrite existing data values.
     
@@ -464,7 +622,7 @@ class Tilt(Transformation):
         dip_deg = np.degrees(self.dip)
         origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)  # Format each coordinate component
 
-        return (f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°,"
+        return (f"Tilt: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°,"
                 f"origin ({origin_str})")
 
     def run(self, xyz, data):
@@ -669,3 +827,4 @@ class Shear(Slip):
         # Apply the shear transformation
         xyz_transformed, array = super().run(xyz, array)
         return xyz_transformed, array
+        

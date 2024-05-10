@@ -1,5 +1,5 @@
 import numpy as np
-from .geo import Layer, Tilt, Fold, Dike, Slip
+from .geo import *
 
 class GeoHistory:
     def __init__(self):
@@ -25,6 +25,8 @@ class SedimentaryHistory(GeoHistory):
             width = np.random.normal(self.config['mean_width'], self.config['sigma_width'])
             value = np.random.choice(value)
             self.add_transformation(Layer(base, width, value))
+            
+
             
         
         

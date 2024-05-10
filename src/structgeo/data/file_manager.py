@@ -43,7 +43,6 @@ class FileManager:
         """Load a GeoModel instance from a file."""
         with open(file_path, 'rb') as file:
             model = pickle.load(file)
-        print(f"Model loaded from {file_path}")
         return model
 
     def save_all_models(self, models, lean=True):

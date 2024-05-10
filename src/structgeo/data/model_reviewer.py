@@ -58,8 +58,9 @@ class ModelReviewer:
     def save_action(self, b):
         """Save the current model and refresh the review."""
         self.fm.save_geo_model(self.current_model)  # Save the current model
-        print("Model saved!")
-        self.refresh_model()  # Refresh to get a new model displayed
+        with self.output:
+            print(f"Model saved to {self.base_dir}")
+            self.refresh_model()  # Refresh to get a new model displayed
 
     def discard_action(self, b):
         """Discard the current model and refresh the review."""
