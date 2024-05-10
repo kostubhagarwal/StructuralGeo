@@ -1,35 +1,22 @@
-import numpy as np
-from .geo import *
+import structgeo.model.geo as geo
 
-class GeoHistory:
-    def __init__(self):
-        self.transformations = []
+""" Collection of useful higher abstraction geo structures."""
 
-    def add_transformation(self, transformation):
-        self.transformations.append(transformation)
+class FaultSequence:
+    def __init__(self, faults):
+        self.faults = faults
 
-    def generate_history(self):
-        raise NotImplementedError("Subclasses should implement specific history generation methods.")
-    
+    def get_faults(self):
+        return self.faults
 
-class SedimentaryHistory(GeoHistory):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
+    def get_fault_count(self):
+        return len(self.faults)
 
-    def generate_history(self):
-        # Generate base layers with sequential values
-        base = self.config['base_layers']['base_init']
-        base_layers = np.random.lognormal(self.config['mean_log'], self.config['sigma_log'])
-        for count in enumerate(base_layers):
-            width = np.random.normal(self.config['mean_width'], self.config['sigma_width'])
-            value = np.random.choice(value)
-            self.add_transformation(Layer(base, width, value))
-            
+    def get_fault(self, index):
+        return self.faults[index]
 
-            
-        
-        
+    def get_faults_as_geo_models(self):
+        return [geo.Fault(f) for f in self.faults]
 
 
 
