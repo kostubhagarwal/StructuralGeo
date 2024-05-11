@@ -16,6 +16,7 @@ class ModelViewer:
         self.models = self.fm.load_all_models()
         self.curr_model = None 
         self.curr_mesh = None 
+        self.sliced = False
 
         # Initialize the PyVista plotter
         self.plotter = pv.Plotter()  # type: ignore
@@ -29,6 +30,9 @@ class ModelViewer:
         self.plotter.add_slider_widget(
             self.update_plot, [0, len(self.models) - 1], title="Model Index",
             fmt="%0.0f",
+        )
+        self.plotter.add_checkbox_button_widget(
+            self.toggle_slice, value=self.sliced
         )
 
         # Show the plotter window
@@ -51,12 +55,25 @@ class ModelViewer:
             self.curr_model = model
             model.compute_model()  # Assuming there is a function to compute the model
             mesh = geovis.get_mesh_from_model(model)  # Assuming get_mesh() prepares the mesh
-            color_config = geovis.get_color_config()  # Assuming there is a function to get color config
+            color_config = geovis.get_plot_config()  # Assuming there is a function to get color config
 
             # Add the new mesh to the plotter and store the actor for removal later
-            self.curr_mesh = self.plotter.add_mesh(mesh, **color_config)
+            if self.sliced:
+                slices = mesh.slice_along_axis(n=5, axis="x")
+                self.curr_mesh = self.plotter.add_mesh(slices, **color_config)
+            else:
+                self.curr_mesh = self.plotter.add_mesh(mesh, **color_config)
             self.plotter.render()  # Ensure the plotter re-renders the scene
+        
+    def toggle_slice(self, state):
+        """
+        Toggle the slicing state and update the plot.
+        """
+        self.sliced = state
+        if self.curr_model is not None:
+            # Re-render the current model with the new slicing setting
+            self.update_plot(self.models.index(self.curr_model))
 
 
 if __name__ == "__main__":
-    viewer = ModelViewer(base_dir="database")
+    viewer = ModelViewer(base_dir="new_database3/")

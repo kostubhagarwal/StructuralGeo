@@ -35,7 +35,7 @@ class ModelReviewer:
     def plot_model(self):
         with self.output:
             mesh = geovis.get_mesh_from_model(self.current_model)
-            color_config = geovis.get_color_config()
+            color_config = geovis.get_plot_config()
             clear_output(wait=True)  # Clear the output before starting to plot the new model
             if hasattr(self.plotter, 'last_mesh'):
                 self.plotter.remove_actor(self.plotter.last_mesh)  # Remove the last mesh if it exists
