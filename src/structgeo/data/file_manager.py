@@ -92,10 +92,7 @@ class FileManager:
                 model._validate_model_params()
                 
                 # Make any alterations needed here
-                self.update_model_version(model)
-                
-                model.compute_model()
-                model.clear_data()                
+                self.update_model_version(model)              
                 # Create a new file path by replacing the base directory with the save directory
                 new_file_path = os.path.join(save_dir, os.path.relpath(file_path, self.base_dir))
                 
@@ -110,14 +107,12 @@ class FileManager:
     def update_model_version(self, model):
         """Update the model version by replacing Sedimentation with Sedimentation2."""
         for i, event in enumerate(model.history):
-            if isinstance(event, geo.Sedimentation):
+            if isinstance(event, geo.Sedimentation2):
                 # Create a new instance of Sedimentation2 using the same parameters
-                new_event = geo.Sedimentation2(event.values_sequence_used, event.thickness_sequence_used)
+                new_event = geo.Sedimentation(event.value_list, event.thickness_list)
                 model.history[i] = new_event  # Replace the old event with the new one directly
-                print(f"Replaced Sedimentation at index {i} with Sedimentation2.")
-
-                
-            
-        
-file_manager = FileManager(base_dir="./database")
-file_manager.renew_all_models("./new_database")
+                print(f"Replaced SedimentationD at index {i} with Sedimentation2.")
+    
+if __name__ == "__main__":
+    file_manager = FileManager(base_dir="./database")
+    file_manager.renew_all_models("./new_database")    

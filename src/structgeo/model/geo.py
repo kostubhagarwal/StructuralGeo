@@ -13,40 +13,60 @@ class GeoModel:
     """A 3D geological model that can be built up from geological processes.
     
     Parameters:
-    - bounds: Tuple defining the model bounds in the form, if only one tuple is provided, 
-            it is assumed to be the same for all dimensions. 
-            (allmin, allmax) or ((xmin, xmax), (ymin, ymax), (zmin, zmax))
-    - resolution: Number of divisions in each dimension
-    - dtype: Data type for the model data array 
+    bounds (Tuple): (allmin, allmax) or ((xmin, xmax), (ymin, ymax), (zmin, zmax))
+    resolution (int): Number of divisions in each dimension, 
+                        or a tuple of 3 values for x, y, and z dimensions
+    dtype (dtype): Data type for the model data array 
     """
     EMPTY_VALUE = -1
     
-    def __init__(self,  bounds=(0, 16), resolution=64, dtype = np.float32):
-        self.resolution = resolution
+    def __init__(self,  bounds=(0, 16), resolution=128, dtype = np.float32):
         self.dtype = dtype
         self.bounds = bounds
+        self.resolution = resolution
         self.history = []
-        self.snapshots = np.empty((0, 0, 0, 0))
-        self.data = np.empty(0)
-        self.xyz  = np.empty((0,0))
-        self.X    = np.empty((0,0,0))
-        self.Y    = np.empty((0,0,0))
-        self.Z    = np.empty((0,0,0))
+        self.data = np.empty(0) # Vector of data values on mesh points
+        self.xyz  = np.empty((0,0)) # nx3 matrix of mesh points (x, y, z)
+        self.X    = np.empty((0,0,0)) # 3D meshgrid for X coordinates
+        self.Y    = np.empty((0,0,0)) # 3D meshgrid for Y coordinates
+        self.Z    = np.empty((0,0,0)) # 3D meshgrid for Z coordinates
+        self.snapshots = np.empty((0, 0, 0, 0)) # 4D array to store intermediate mesh states
+        self._validate_model_params()
         
-    def setup_mesh(self, bounds):
-        """Sets up the 3D meshgrid based on given bounds."""
-        # Check if bounds is a tuple of tuples or a single tuple
-        if isinstance(bounds[0], tuple):
-            # Assume bounds are provided as ((xmin, xmax), (ymin, ymax), (zmin, zmax))
-            x_bounds, y_bounds, z_bounds = bounds
+    def _validate_model_params(self):
+        """Validate the model parameters."""
+        # Check and accept resolution as a single value or a tuple of 3 values
+        if isinstance(self.resolution, int):
+            self.resolution = (self.resolution, self.resolution, self.resolution)
+        elif isinstance(self.resolution, tuple):
+            assert len(self.resolution) == 3, "Resolution must be a single value or a tuple of 3 values."
         else:
-            # Apply the same bounds to x, y, and z if only one tuple is provided
-            x_bounds = y_bounds = z_bounds = bounds
+            raise ValueError("Resolution must be a single value or a tuple of 3 values.")
+        # Check and accept bounds as a single tuple of 2 values or a tuple of 3 tuples
+        if isinstance(self.bounds[0], tuple):
+            assert len(self.bounds) == 3, "Bounds must be a tuple of 3 tuples for x, y, and z dimensions."
+        elif isinstance(self.bounds, tuple):
+            assert len(self.bounds) == 2, "Bounds must be a tuple of 2 values for a single dimension."
+            self.bounds = (self.bounds, self.bounds, self.bounds)
+        else:
+            raise ValueError("Bounds must be a tuple of 2 values or a tuple of 3 tuples.")
+        
+    def setup_mesh(self):
+        """Sets up the 3D meshgrid based on given bounds and resolution."""
+        # Unpack bounds and resolution
+        try:
+            x_bounds, y_bounds, z_bounds = self.bounds  
+        except ValueError:
+            print("Bounds must be a tuple of 3 tuples for x, y, and z dimensions.")
+            print("Bounds: ", self.bounds)
+            print(f"Length: {len(self.bounds)}")
+            raise
+        x_res, y_res, z_res = self.resolution
 
         # Create linspace for x, y, z
-        x = np.linspace(*x_bounds, num=self.resolution, dtype=self.dtype)
-        y = np.linspace(*y_bounds, num=self.resolution, dtype=self.dtype)
-        z = np.linspace(*z_bounds, num=self.resolution, dtype=self.dtype)
+        x = np.linspace(*x_bounds, num=x_res, dtype=self.dtype)
+        y = np.linspace(*y_bounds, num=y_res, dtype=self.dtype)
+        z = np.linspace(*z_bounds, num=z_res, dtype=self.dtype)
         
         # Init 3D meshgrid for X, Y, and Z coordinates of the view field
         self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing='ij')
@@ -77,7 +97,7 @@ class GeoModel:
         self.history.extend(history)
         
     def get_history_string(self):
-        """Returns a string describing the geological history of the model."""
+        """Returns a string describing the complete geological history of the model."""
         if not self.history:
             return "No geological history to display."
         
@@ -120,7 +140,8 @@ class GeoModel:
         if len(self.history) == 0:
             raise ValueError("No geological history to compute.")
         
-        self.setup_mesh(self.bounds)        
+        # Allocate memory for the mesh and data
+        self.setup_mesh()        
         # Determine how many snapshots are needed for memory pre-allocation
         self.snapshot_indices = self._prepare_snapshots()
         self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
@@ -132,6 +153,9 @@ class GeoModel:
         
         # Forward pass to apply deposition events
         self._forward_pass()
+        
+        # Clean up snapshots taken during the backward pass
+        self.snapshots = np.empty((0, 0, 0, 0))
           
     def _prepare_snapshots(self):
         """ Determine when to take snapshots of the mesh during the backward pass.
@@ -195,8 +219,13 @@ class GeoModel:
         #Find the highest point
         valid_indices = ~np.isnan(self.data)
         valid_z_values = self.xyz[valid_indices, 2]
-        current_max_z = np.max(valid_z_values)
-        
+        try:
+            current_max_z = np.max(valid_z_values)
+        except ValueError:
+            print("All data values are NaN, cannot renormalize.")
+            zmin, zmax = self.get_z_bounds()
+            current_max_z = zmin
+
         if auto:
             new_max = self.get_target_normalization()
 
@@ -234,6 +263,10 @@ class GeoModel:
         
         return z_vals
     
+    def get_data_grid(self):
+        """Return the model data."""
+        return self.data.reshape(self.X.shape)
+    
 class GeoProcess:
     """Base class for all geological processes.
     
@@ -263,6 +296,7 @@ class Transformation(GeoProcess):
         raise NotImplementedError()
         
 class Layer(Deposition):
+    """ Fill the model with a layer of rock. """
     def __init__(self, base, width, value):
         self.base = base
         self.width = width
@@ -337,230 +371,42 @@ class Bedrock(Deposition):
         return xyz, data
     
 class Sedimentation(Deposition):
-    """ Fill with layers of sediment, with thickness given by a random variable.
+    """ Fill with layers of sediment, with rock values and thickness of layers given as lists.
+    The sedimentataion starts at the lowest point in the mesh and builds up sequentially.
     
         Parameters:
-              - height: the total height of the sedimentary sequence
-              - value_list: a list of values to sample from for rock types
-              - value_selector: an optional object to sample values from the list
-              - thickness_callable: a random number generator to use for thicknesses
-
+              value_list: a list of values to sample from for rock types
+              value_selector: an optional object to sample values from the list
+              thickness_callable: a random number generator to use for thicknesses
     """
-    def __init__(self, height, value_list, value_selector=None, thickness_callable=None, ):
-        self.height = height
+    def __init__(self, value_list, thickness_list):
         self.value_list = value_list
-        # Set up the value generator which returns next value from the list
-        if  value_selector is None:
-            # Default is to cycle through the list
-            self.value_selector = itertools.cycle(value_list) 
-        else:
-            # User provided value selector (must be an iterator that accepts a list)
-            self.value_selector = value_selector(value_list)      
-        
-        # Initialize the thickness function, default to constant thickness of 1
-        self.thickness_callable = thickness_callable if thickness_callable else self.thickness_callable_default
-        self.values_sequence_used = []
-        self.thickness_sequence_used = []
-        self.rebuild = False
+        self.thickness_list = thickness_list
+        # Initialize the base and top of layer, to be computed at generation time
+        self.base = np.nan
         
     def __str__(self):
         values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
         values_summary += "..." if len(self.value_list) > 3 else ""
-        thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_sequence_used[:3])
-        thicknesses += "..." if len(self.thickness_sequence_used) > 3 else ""
-        return (f"Sedimentation: total height {self.height:.1f}, rock type values [{values_summary}], "
+        thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_list[:3])
+        thicknesses += "..." if len(self.thickness_list) > 3 else ""
+        return (f"Sedimentation: rock type values [{values_summary}], "
                 f"and thicknesses {thicknesses}.")
         
-    def thickness_callable_default(self):
-        return 1.0
-    
-    def __getstate__(self):
-        """Return state values to be pickled."""
-        state = self.__dict__.copy()
-        # Remove the thickness_callable from the state because it may not be pickleable.
-        state['thickness_callable'] = None
-        return state
-
-    def __setstate__(self, state):
-        """Restore state from the unpickled state values."""
-        self.__dict__.update(state)
-        # Restore the default thickness_callable if it was None.
-        if self.thickness_callable is None:
-            self.thickness_callable = self.thickness_callable_default
-
     def run(self, xyz, data):
-        if self.rebuild:
-            return self.rebuild_sequence(xyz, data)
-        else:
-            return self.generate_sequence(xyz, data)
-
-    def generate_sequence(self, xyz, data):
-        # Get the lowest mesh point to build layers from the bottom up        
+        # Get the lowest mesh point to build layers from the bottom up
         current_base = self.get_lowest_nan(xyz, data)
         
-        # Build up until the total height is reached
-        while current_base < self.height:
-            # Sample the next sediment value
-            value = next(self.value_selector)
-            self.values_sequence_used.append(value)
-            # Sample next layer thickness
-            layer_thickness = self.thickness_callable()
-            self.thickness_sequence_used.append(layer_thickness)
-            # Do not exceed the total height
-            current_top = min(current_base + layer_thickness, self.height)
-            
-            # Mask for the current layer
-            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))
-            
-            # Assign the current sediment value to the layer
-            if np.any(mask):
-                data[mask] = value
-            
-            # Update the base for the next layer
-            current_base = current_top   
-            
-        # Flag to rebuild the sequence if needed
-        self.rebuild = True
-             
-        return xyz, data 
-
-    def rebuild_sequence(self, xyz, data):
-        # Get the lowest mesh point to build layers from the bottom up        
-        current_base = self.get_lowest_nan(xyz, data)
-        
-        # Build up until the total height is reached
-        for val, thickness in zip(self.values_sequence_used, self.thickness_sequence_used):
-            # Do not exceed the total height
-            current_top = min(current_base + thickness, self.height)
-            
-            # Mask for the current layer
-            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))
-            
-            # Assign the current sediment value to the layer
-            if np.any(mask):
-                data[mask] = val
-            
-            # Update the base for the next layer
-            current_base = current_top
-        return xyz, data
-            
-    def get_lowest_nan(self, xyz, data):
-        # Get the lowest mesh point with NaN in data to build layers from the bottom up
-        nan_mask = np.isnan(data)
-        if np.any(nan_mask):
-            lowest = np.min(xyz[nan_mask, 2])
-            return lowest
-        else:
-            log.warning("No NaN values found in data; no layers will be added.")
-            return float('Inf')  # Return early if there are no NaN values to process   
-        
-class SedimentationDeterministic(Deposition):
-    """ Deterministic version of sediment class with fixed layer number and thicknesses
-    
-    Parameters:
-    - value_list: A list of values to use for each layer, total layers will be len(value_list)
-    - thickness_list (optional): A list of thicknesses to apply for each layer. 
-    - thickness_callable (optional): A callable that returns the thickness for each layer if no list is provided
-    """
-    def __init__(self, value_list, thickness_list = None, thickness_callable=None, ):
-        self.height = 0 # To be determined at generation time
-        self.value_list = value_list  
-        self.thickness_list = thickness_list    
-        # Initialize the thickness function, default to constant thickness of 1
-        self.thickness_callable = self.handle_thickness_callable(thickness_callable)
-        self.values_sequence_used = []
-        self.thickness_sequence_used = []
-        self.rebuild = False
-        
-    def handle_thickness_callable(self, thickness_callable):
-        """ Handle the thickness_callable parameter.
-        
-        If thickness_callable is None, set it to the default thickness_callable.
-        """
-        if self.thickness_list is not None:
-            # If a list is passed, create an iterator and return a callable that cycles the values
-            cyclic_iterator = itertools.cycle(self.thickness_list)
-            return lambda: next(cyclic_iterator)
-        elif callable(thickness_callable):
-            # If a callable is passed, return it directly
-            return thickness_callable
-        else:
-            # If no argument passed, used the default thickness determination
-            return self.thickness_callable_default
-        
-    def __str__(self):
-        values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
-        values_summary += "..." if len(self.value_list) > 3 else ""
-        thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_sequence_used[:3])
-        thicknesses += "..." if len(self.thickness_sequence_used) > 3 else ""
-        return (f"Sedimentation: total height {self.height:.1f}, rock type values [{values_summary}], "
-                f"and thicknesses {thicknesses}.")
-        
-    def thickness_callable_default(self):
-        return 1.0
-    
-    def __getstate__(self):
-        """Return state values to be pickled."""
-        state = self.__dict__.copy()
-        # Remove the thickness_callable from the state because it may not be pickleable.
-        state['thickness_callable'] = None
-        return state
-
-    def __setstate__(self, state):
-        """Restore state from the unpickled state values."""
-        self.__dict__.update(state)
-        # Restore the default thickness_callable if it was None.
-        if self.thickness_callable is None:
-            self.thickness_callable = self.thickness_callable_default
-
-    def run(self, xyz, data):
-        if self.rebuild:
-            return self.rebuild_sequence(xyz, data)
-        else:
-            return self.generate_sequence(xyz, data)
-
-    def generate_sequence(self, xyz, data):
-        # Get the lowest non-nan value in the data to sediment overtop
-        current_base = self.get_lowest_nan(xyz, data)       
-         
-        for value in self.value_list:
-            self.values_sequence_used.append(value)
-            # Sample next layer thickness
-            layer_thickness = self.thickness_callable()
-            self.thickness_sequence_used.append(layer_thickness)
-            # Do not exceed the total height
-            current_top = current_base + layer_thickness
-            
-            # Mask for the current layer
+        for value, thickness in zip(self.value_list, self.thickness_list):
+            current_top = current_base + thickness                       
+            # Mask for the current layer of deposit
             mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))            
-            # Assign the current sediment value to the layer
+            # Assign mapped value to the layer
             if np.any(mask):
                 data[mask] = value            
-            # Update the base for the next layer
+            # Update the base for the next layer (sequential deposition)
             current_base = current_top
-        
-        # Store the final height of the sediment sequence
-        self.height = current_top            
-        # Flag to rebuild the sequence if needed
-        self.rebuild = True
-             
-        return xyz, data 
-
-    def rebuild_sequence(self, xyz, data):
-        # Get the lowest mesh point to build layers from the bottom up        
-        current_base = self.get_lowest_nan(xyz, data)
-        
-        # Build up until the total height is reached
-        for val, thickness in zip(self.values_sequence_used, self.thickness_sequence_used):
-            # Do not exceed the total height
-            current_top = min(current_base + thickness, self.height)            
-            # Mask for the current layer
-            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))            
-            # Assign the current sediment value to the layer
-            if np.any(mask):
-                data[mask] = val            
-            # Update the base for the next layer
-            current_base = current_top
+            
         return xyz, data
     
     def get_lowest_nan(self, xyz, data):
@@ -571,16 +417,17 @@ class SedimentationDeterministic(Deposition):
             return lowest
         else:
             log.warning("No NaN values found in data; no layers will be added.")
-            return float('Inf')  # Return early if there are no NaN values to process  
+            return float('Inf')  
+     
 class Dike(Deposition):
     """ Insert a dike to overwrite existing data values.
     
     Parameters:
-    - strike: Strike angle in CW degrees (center-line of the dike) from north
-    - dip: Dip angle in degrees
-    - width: Net Width of the dike
-    - origin: Origin point of the local coordinate frame
-    - value: Value of rock-type to assign to the dike 
+    strike (float): Strike angle in CW degrees (center-line of the dike) from north
+    dip (float): Dip angle in degrees
+    width (float): Net Width of the dike
+    origin (float): Origin point of the local coordinate frame
+    value (float): Value of rock-type to assign to the dike 
     """
     def __init__(self, strike=0., dip=90., width=1., origin=(0,0,0), value=0.):
         self.strike = np.radians(strike)
@@ -621,11 +468,11 @@ class ErosionLayer(Deposition):
     """ Erode down to some depth from the peak of the surface.
     
     Parameters:
-    - thickness: Thickness of the erosion layer, measured from the peak of the surface
+    depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
     """
     
-    def __init__(self, thickness):
-        self.thickness = thickness
+    def __init__(self, depth):
+        self.depth = depth
         self.peak = None
         self.value = np.nan
         
@@ -635,7 +482,7 @@ class ErosionLayer(Deposition):
         self.peak = np.max(xyz_valued[:, 2])
         
         # Mask for points below the peak minus the erosion depth
-        mask = xyz[:, 2] > self.peak - self.thickness
+        mask = xyz[:, 2] > self.peak - self.depth
         
         # Apply the mask and update data where condition is met
         data[mask] = self.value
@@ -647,9 +494,9 @@ class Tilt(Transformation):
     """ Tilt the model by a given strike and dip and an origin point.
     
     Parameters:
-    - strike: Strike angle in CW degrees (center-line of the dike) from north
-    - dip: Dip of the tilt in degrees (CW from the strike axis)
-    - origin: Origin point for the tilt
+    strike (float): Strike angle in CW degrees (center-line of the dike) from north
+    dip    (float): Dip of the tilt in degrees (CW from the strike axis)
+    origin (tuple): Origin point for the tilt (x,z,y)
     """
     def __init__(self, strike, dip, origin=(0,0,0)):
         self.strike = np.radians(strike)  # Convert degrees to radians
@@ -683,21 +530,24 @@ class Fold(Transformation):
     Convention is that 0 rake with 90 dip fold creates vertical folds.
     
     Parameters:
-    - strike: Strike in degrees
-    - dip: Dip in degrees
-    - rake: Rake in degrees
-    - period: Period of the fold in units of the mesh
-    - amplitude: Amplitude of the fold (motion along slip_vector)
-    - shape: Shape parameter for the fold
-    - origin: Origin point for the fold
-    - periodic_func: Custom periodic function for the fold (replaces default cosine function)
+    strike: Strike in degrees
+    dip: Dip in degrees
+    rake: Rake in degrees
+    period: Period of the fold in units of the mesh
+    amplitude: Amplitude of the fold (motion along slip_vector)
+    phase: Phase shift of the fold (in units of the period) [0,1)
+    shape: Shape parameter for the fold (enhances 3rd harmonic component in the fold)
+    origin: Origin point for the fold
+    periodic_func: Custom periodic function for the fold (replaces default cosine function)
                     User provided function should be 1D and accept an array of n_cycles
+                    Does not require being periodic, but should be normalized to 1 amplitude
     """
     
     def __init__(self, strike = 0., 
                  dip = 90., rake = 0., 
                  period = 50., 
                  amplitude = 10., 
+                 phase = 0.0,
                  shape = 0.0, 
                  origin=(0, 0, 0),
                  periodic_func=None):
@@ -706,6 +556,7 @@ class Fold(Transformation):
         self.rake = np.radians(rake)
         self.period = period
         self.amplitude = amplitude
+        self.phase = phase
         self.shape = shape
         self.origin = np.array(origin)
         # Accept a custom periodic function or use the default otherwise
@@ -741,6 +592,7 @@ class Fold(Transformation):
         return xyz_transformed, data  
     
     def periodic_func_default(self, n_cycles):
+        """ Default periodic function for the fold transformation. uses shaping from 3rd harmonic."""
         # Normalize to amplitude of 1
         norm = (1 + self.shape**2)**0.5
         func = np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)  
@@ -750,13 +602,13 @@ class Slip(Transformation):
     """Gereralized slip transformation.
     
     Parameters:
-    - displacement_func: Custom displacement function for the slip. Function should map 
+    displacement_func (callable): Custom displacement function for the slip. Function should map 
     a distance from the slip plane to a displacement value.
-    - strike: Strike in degrees
-    - dip: Dip in degrees
-    - rake: Rake in degrees
-    - amplitude: Amplitude of the slip (motion along slip_vector)
-    - origin: Origin point for the slip (local coordinate frame)
+    strike (float): Strike in degrees
+    dip (float): Dip in degrees
+    rake (float): Rake in degrees
+    amplitude (float): Amplitude of the slip (motion along slip_vector)
+    origin (tuple): Origin point for the slip (local coordinate frame), (x,y,z)
     
     """
     def __init__(self,                 
