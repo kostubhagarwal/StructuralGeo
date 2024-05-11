@@ -1,12 +1,14 @@
 import os
 import dill as pickle
+import structgeo.model as geo
 
 class FileManager:
+    """ A class to interface between GeoModel instances and pickled files on disk."""
 
     def __init__(self, base_dir="../saved_models"):
         self.base_dir = base_dir
-        self.file_index = self._get_initial_file_index()
-
+        self.file_index = None
+        
     def _get_initial_file_index(self):
         """Determine the starting file index based on existing files in the directory."""
         if not os.path.exists(self.base_dir):
@@ -18,22 +20,31 @@ class FileManager:
         # Extract indexes from file names assuming the format 'model_<index>.pkl'
         indexes = [int(f.split('_')[-1].split('.')[0]) for f in existing_files]
         return max(indexes) + 1 if indexes else 0
-    
-    def sorted_by_index(files):
-        """Sort a list of filenames based on the numerical index in their name."""
-        sort_key = lambda x: int(x.split('_')[-1].split('.')[0])
-        return sorted(files, key=sort_key)  # type: ignore
-
-    def save_geo_model(self, geo_model, lean = True):
+        
+    def _file_save_string(self, model_index):
+        """Format for saving model files."""
+        return f"model_{model_index}.pkl"
+   
+    def save_geo_model(self, geo_model, save_dir, lean = True):
         """Save a GeoModel instance to a file.
+        
+        Parameters:
+        geo_model: GeoModel instance
+        lean: bool
+        
+        Description:
+        Saves a Geomodel to disk in the base directory.
         
         If lean is True, the models will be saved without the data attribute and only the 
         essential generating parameters (history, bounds, etc. )
-        """       
+        """
+        if self.file_index is None:
+            self.file_index = self._get_initial_file_index()
+               
         if lean:
             # Implement clear_data if needed to remove unnecessary large data
             geo_model.clear_data()
-        file_path = os.path.join(self.base_dir, f"model_{self.file_index}.pkl")
+        file_path = os.path.join(save_dir, self._file_save_string(self.file_index))
         with open(file_path, 'wb') as file:
             pickle.dump(geo_model, file)
         print(f"Model saved to {file_path}")
@@ -52,16 +63,61 @@ class FileManager:
         essential generating parameters (history, bounds, etc. )
         """
         for model in models:
-            self.save_geo_model(model, lean=lean)
-
-    def load_all_models(self):
-        """Load all GeoModel instances from a directory and its subdirectories, sorted by index."""
-        models = []
+            self.save_geo_model(model, self.base_dir, lean=lean)
+    
+    def walk_and_process_models(self, action_callback, *args, **kwargs):
+        """Walk through directories and apply a callback to each model file."""
+        print(f"Processing models in {self.base_dir}")
         for root, dirs, files in os.walk(self.base_dir):
-            print(f"Loading models from {root}")
             file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
-            file_list.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+            file_list.sort(key=lambda x: (os.path.dirname(x), int(os.path.basename(x).split('_')[-1].split('.')[0])))
+            for file_path in file_list:
+                action_callback(file_path, *args, **kwargs)
+    
+    def load_all_models(self):
+        """Load all models."""
+        models = []
+        self.walk_and_process_models(lambda file_path: models.append(self.load_geo_model(file_path)))
+        return models
+    
+    def renew_all_models(self, save_dir):
+        """Process each model and save it to a new directory while preserving the directory structure.
+        
+        Used for updating models with new features or changes in the model class."""
+        for root, dirs, files in os.walk(self.base_dir):
+            file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
+            file_list.sort(key=lambda x: (os.path.dirname(x), int(os.path.basename(x).split('_')[-1].split('.')[0])))
             for file_path in file_list:
                 model = self.load_geo_model(file_path)
-                models.append(model)
-        return models
+                model._validate_model_params()
+                
+                # Make any alterations needed here
+                self.update_model_version(model)
+                
+                model.compute_model()
+                model.clear_data()                
+                # Create a new file path by replacing the base directory with the save directory
+                new_file_path = os.path.join(save_dir, os.path.relpath(file_path, self.base_dir))
+                
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(new_file_path), exist_ok=True)
+                
+                # Save the model to the new location
+                with open(new_file_path, 'wb') as file:
+                    pickle.dump(model, file)
+                    print(f"Model saved to {new_file_path}")
+                    
+    def update_model_version(self, model):
+        """Update the model version by replacing Sedimentation with Sedimentation2."""
+        for i, event in enumerate(model.history):
+            if isinstance(event, geo.Sedimentation):
+                # Create a new instance of Sedimentation2 using the same parameters
+                new_event = geo.Sedimentation2(event.values_sequence_used, event.thickness_sequence_used)
+                model.history[i] = new_event  # Replace the old event with the new one directly
+                print(f"Replaced Sedimentation at index {i} with Sedimentation2.")
+
+                
+            
+        
+file_manager = FileManager(base_dir="./database")
+file_manager.renew_all_models("./new_database")
