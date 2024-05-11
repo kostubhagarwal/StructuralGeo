@@ -3,75 +3,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 import pyvista as pv
 
-class ColorMapConfig:
-    """Configuration for discrete colormap with sentinel value (white) for non-rock areas."""
-    def __init__(self, vmin=-1, vmax=10):
-        self.vmin = vmin
-        self.vmax = vmax
-        num_colors = vmax - vmin    # Number of colors for the valid data range
-        sentinel_color = np.array([1, 1, 1, 1])  # RGBA for non-rock sentinel color
-        self.ticks = np.arange(vmin, vmax + 1)  # Adjusted ticks
-        self.cmap = self.create_colormap(num_colors, sentinel_color)
-        self.norm = self.create_norm()
-
-    def create_colormap(self, num_colors, sentinel_color):
-        # Use the viridis colormap for the valid data range
-        viridis = plt.cm.get_cmap('viridis', num_colors)
-        # Generate the colors for the valid data range
-        colors = viridis(np.linspace(0, 1, num_colors))
-        # Prepend the sentinel color
-        all_colors = np.vstack((sentinel_color, colors))
-        return ListedColormap(all_colors)
-
-    def create_norm(self):
-        # Define boundaries to accommodate sentinel at -1 and data values from vmin to vmax
-        boundaries = np.linspace(self.vmin - .5, self.vmax + 0.5, self.vmax - self.vmin + 2)
-        return BoundaryNorm(boundaries, len(boundaries) - 1)
-
-color_config = ColorMapConfig(vmin=-1, vmax=10)
-    
-def volview(model, threshold=-0.5):
-    mesh = get_mesh_from_model(model, threshold)
-    
-    # Create a plotter object
-    plotter = pv.Plotter()       # type: ignore
-    color_config = get_color_config()
-    # Add the mesh to the plotter
-    plotter.add_mesh(mesh, scalars="values", 
-                     **color_config,
-                     )
-    _ = plotter.add_axes(line_width=5)
-    return plotter    
-    
-def orthsliceview(model, threshold=-0.5):
-    mesh = get_mesh_from_model(model, threshold)
-    
-    # Create a plotter object
-    plotter = pv.Plotter()    # type: ignore
-    color_config = get_color_config()     
-    # Adding an interactive slicing tool
-    plotter.add_mesh_slice_orthogonal(
-                    mesh, scalars="values",
-                    **color_config,
-                    )    
-    _ = plotter.add_axes(line_width=5)
-    return plotter
-    
-    
-def nsliceview(model, n=5, axis="x", threshold=-0.5):
-    mesh = get_mesh_from_model(model, threshold)
-    slices = mesh.slice_along_axis(n=n, axis=axis) # type: ignore
-    
-    # Create a plotter object
-    plotter = pv.Plotter()    # type: ignore
-    color_config = get_color_config()     
-    # Adding an interactive slicing tool
-    plotter.add_mesh(slices, **color_config)  
-    return plotter
-
-def get_color_config(): 
+def get_plot_config(): 
+    """ Central color configurations and appearance settings for the plotter"""
     settings = {
-        'cmap': "gist_ncar",  # Using a perceptually uniform colormap
+        # Color map for the rock types
+        'cmap': "gist_ncar",  # Vibrant color map to differentiate rock types
+        # Scalar bar settings
         'scalar_bar_args': {
             'title': "Rock Type",
             'title_font_size': 16,
@@ -82,13 +19,50 @@ def get_color_config():
             'n_labels': 5   # Reducing the number of labels for clarity
         }
     }
-    return settings
+    return settings 
+    
+def volview(model, threshold=-0.5):
+    mesh = get_mesh_from_model(model, threshold)
+    
+    # Create a plotter object
+    plotter = pv.Plotter()       # type: ignore
+    plot_config = get_plot_config()
+    # Add the mesh to the plotter
+    plotter.add_mesh(mesh, scalars="values", 
+                     **plot_config,
+                     )
+    _ = plotter.add_axes(line_width=5)
+    return plotter    
+    
+def orthsliceview(model, threshold=-0.5):
+    mesh = get_mesh_from_model(model, threshold)
+    
+    # Create a plotter object
+    plotter = pv.Plotter()    # type: ignore
+    color_config = get_plot_config()     
+    # Adding an interactive slicing tool
+    plotter.add_mesh_slice_orthogonal(
+                    mesh, scalars="values",
+                    **color_config,
+                    )    
+    _ = plotter.add_axes(line_width=5)
+    return plotter    
+    
+def nsliceview(model, n=5, axis="x", threshold=-0.5):
+    mesh = get_mesh_from_model(model, threshold)
+    slices = mesh.slice_along_axis(n=n, axis=axis) # type: ignore
+    
+    # Create a plotter object
+    plotter = pv.Plotter()    # type: ignore
+    color_config = get_plot_config()     
+    # Adding an interactive slicing tool
+    plotter.add_mesh(slices, **color_config)  
+    return plotter
     
 def get_mesh_from_model(model, threshold=-0.5):
     if model.data is None or model.data.size == 0:
         raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
-    # Ensure the data is reshaped properly to match the grid dimensions 
-    # X and Z seem to need to be swapped to match pyvista format when adding data values   
+ 
     grid = pv.StructuredGrid(model.X, model.Y, model.Z)
         
     # Set data to the grid
