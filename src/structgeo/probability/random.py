@@ -1,31 +1,6 @@
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
-import itertools
-
-class NonRepeatingRandomListSelector:
-    """ Generate unique non-repeating random elements from a list """
-    def __init__(self, elements):
-        # Attempt to convert input to a list
-        try:
-            self.full_range = list(elements)
-        except TypeError:
-            raise ValueError("Input must be an iterable that can be converted to a list")               
-        self.num_samples = len(self.full_range)
-        self.previous_sample_index = None
-    
-    def __next__(self):
-        if self.num_samples == 1:
-            # Only one sample in the list, not possible to non-repeat
-            return self.full_range[0]
-        
-        # Assertion to avoid infinite loop
-        assert(self.num_samples > 1) 
-        while True:
-            index = np.random.randint(0, self.num_samples)
-            if index != self.previous_sample_index:  # Ensure it's not the previous index
-                self.previous_sample_index = index
-                return self.full_range[index]
-            
+           
 def fourier_series_wave(num_harmonics, frequency=1, smoothness=1.):
     """
     Generates a Fourier series function with given number of harmonics.
@@ -52,7 +27,7 @@ def fourier_series_wave(num_harmonics, frequency=1, smoothness=1.):
             result += amplitude * np.sin(2 * np.pi * frequency * n * n_cycles + phase)
             total_power += amplitude**2  # Power of each component, RMS^2
 
-        # Normalize the total RMS of the series to be 1
+        # Normalize the total RMS of the series to be the same as a sine wave
         rms_scale = np.sqrt(1 / total_power)
         normalized_result = result * rms_scale
 
@@ -77,14 +52,18 @@ def noisy_sine_wave(frequency=1, smoothing=20, noise_scale=0.1):
 
     return noisy_sin_wave_func
 
-def parse_bounds(bounds):
-    """ Parse the bounds input which can be a single tuple or a tuple of three tuples. """
-    if isinstance(bounds[0], (int, float)):  # Single tuple for all dimensions
-        return (bounds, bounds, bounds)
-    return bounds  # Tuple of three tuples
-
 def random_point_in_ellipsoid(bounds):
     """ Generate a random point within an ellipsoid defined by bounds on x, y, z axes. """
+    
+    def parse_bounds(bounds):
+        """ Ensure bounds are in the form of ((x_min, x_max), (y_min, y_max), (z_min, z_max)). """
+        if isinstance(bounds[0], tuple):
+            assert len(bounds) == 3 and all(len(b) == 2 for b in bounds), "Invalid bounds format."
+        elif isinstance(bounds, tuple) and len(bounds) == 2:
+            bounds = (bounds, bounds, bounds)
+        else:
+            raise ValueError("Bounds must be a tuple of 2 values or a tuple of three 2-tuples.")
+        return bounds
     
     # Parse bounds and calculate centers and radii
     (x_min, x_max), (y_min, y_max), (z_min, z_max) = parse_bounds(bounds)

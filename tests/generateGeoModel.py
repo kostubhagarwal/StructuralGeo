@@ -2,9 +2,8 @@ import numpy as np
 import pyvista as pv
 import time 
 
-import structgeo.model.geo as geo
-import structgeo.plot.plot as geovis
-import structgeo.model.history as history
+import structgeo.model as geo
+import structgeo.plot as geovis
 import structgeo.probability as rv
 
 # Generators
@@ -17,12 +16,11 @@ np.random.shuffle(sediment_rock_types)
 bedrock = geo.Bedrock(base=-5, value=0)
 dike  = geo.Dike(strike=45, dip=75, width=3, origin=[0, 0, 0], value=7)
 
-sediment0 = geo.Sedimentation(height = 0, value_list= range(1,5),  
-                              value_selector= rv.NonRepeatingRandomListSelector,
-                              thickness_callable= lambda: np.random.lognormal(.5,.5)
+sediment0 = geo.Sedimentation(value_list= range(1,5),  
+                              thickness_list=[2, 3, 2, 1],
                              )
-sediment1 = geo.Sedimentation(height = 5, value_list= sediment_rock_types)
-erosion_process = geo.ErosionLayer(thickness=2)
+sediment1 = geo.Sedimentation(value_list= [4,5,6], thickness_list=[1,2,1])
+erosion_process = geo.ErosionLayer(depth=2)
 
 # Transformations
 tilt = geo.Tilt(strike=45, dip=20, origin=(-1,-1,0))
@@ -51,8 +49,10 @@ model.compute_model()
 model.fill_nans()
 
 # Three types of visualization
-# p = geovis.volview(model, threshold= -.5)
-# p = geovis.orthsliceview(model, threshold= -.5)
+p = geovis.volview(model, threshold= -.5)
+p.show()
+p = geovis.orthsliceview(model, threshold= -.5)
+p.show()
 p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
 p.show()
 

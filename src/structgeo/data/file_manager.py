@@ -79,7 +79,9 @@ class FileManager:
         models = []
         self.walk_and_process_models(lambda file_path: models.append(self.load_geo_model(file_path)))
         return models
-    
+
+    """ Model renewal functions for updating or pickled models with changes in the model class."""
+
     def renew_all_models(self, save_dir):
         """Process each model and save it to a new directory while preserving the directory structure.
         
@@ -103,15 +105,22 @@ class FileManager:
                 with open(new_file_path, 'wb') as file:
                     pickle.dump(model, file)
                     print(f"Model saved to {new_file_path}")
-                    
+               
     def update_model_version(self, model):
-        """Update the model version by replacing Sedimentation with Sedimentation2."""
-        for i, event in enumerate(model.history):
-            if isinstance(event, geo.Sedimentation2):
-                # Create a new instance of Sedimentation2 using the same parameters
-                new_event = geo.Sedimentation(event.value_list, event.thickness_list)
-                model.history[i] = new_event  # Replace the old event with the new one directly
-                print(f"Replaced SedimentationD at index {i} with Sedimentation2.")
+        """Update the model version to the latest version."""
+        pass
+                
+    def custom_unpickle(file_path):
+        """Temporary function to handle unpickling with a custom class remapping."""
+        class CustomUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                if module == "structgeo.model.geo":
+                    module = "structgeo.model"
+                return super().find_class(module, name)
+        with open(file_path, 'rb') as file:
+            unpickler = CustomUnpickler(file)
+            model = unpickler.load()
+        return model
     
 if __name__ == "__main__":
     file_manager = FileManager(base_dir="./database")

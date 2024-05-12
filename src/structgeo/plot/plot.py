@@ -1,7 +1,5 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm
 import pyvista as pv
+import numpy as np
 
 def get_plot_config(): 
     """ Central color configurations and appearance settings for the plotter"""
@@ -27,10 +25,14 @@ def volview(model, threshold=-0.5):
     # Create a plotter object
     plotter = pv.Plotter()       # type: ignore
     plot_config = get_plot_config()
-    # Add the mesh to the plotter
-    plotter.add_mesh(mesh, scalars="values", 
-                     **plot_config,
-                     )
+    
+    if np.all(np.isnan(model.data)):
+        plotter.add_text("No data to show, all values are NaN.", font_size=20)
+    else:
+        # Add the mesh to the plotter
+        plotter.add_mesh(mesh, scalars="values", 
+                        **plot_config,
+                        )
     _ = plotter.add_axes(line_width=5)
     return plotter    
     
@@ -39,12 +41,15 @@ def orthsliceview(model, threshold=-0.5):
     
     # Create a plotter object
     plotter = pv.Plotter()    # type: ignore
-    color_config = get_plot_config()     
-    # Adding an interactive slicing tool
-    plotter.add_mesh_slice_orthogonal(
-                    mesh, scalars="values",
-                    **color_config,
-                    )    
+    color_config = get_plot_config()   
+    if np.all(np.isnan(model.data)):
+        plotter.add_text("No data to show, all values are NaN.", font_size=20)
+    else:  
+        # Adding an interactive slicing tool
+        plotter.add_mesh_slice_orthogonal(
+                        mesh, scalars="values",
+                        **color_config,
+                        )    
     _ = plotter.add_axes(line_width=5)
     return plotter    
     
@@ -56,7 +61,11 @@ def nsliceview(model, n=5, axis="x", threshold=-0.5):
     plotter = pv.Plotter()    # type: ignore
     color_config = get_plot_config()     
     # Adding an interactive slicing tool
-    plotter.add_mesh(slices, **color_config)  
+    if np.all(np.isnan(model.data)):
+        plotter.add_text("No data to show, all values are NaN.", font_size=20)
+    else:
+        plotter.add_mesh(slices, **color_config)  
+    _ = plotter.add_axes(line_width=5)
     return plotter
     
 def get_mesh_from_model(model, threshold=-0.5):

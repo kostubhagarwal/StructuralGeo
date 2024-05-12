@@ -1,8 +1,8 @@
 import unittest
 import numpy as np
 
-import structgeo.model.geo as geo
-import structgeo.plot.plot as geovis
+import structgeo.model as geo
+import structgeo.plot as geovis
 
 class TestGeoModel(unittest.TestCase):
 
@@ -31,12 +31,14 @@ class TestGeoModel(unittest.TestCase):
 
     def test_mesh_setup(self):
         """Test the mesh grid setup based on provided bounds and resolution."""
-        model = geo.GeoModel(bounds=((0, 1), (0, 1), (0, 1)), resolution=(10, 10, 10))
-        model.setup_mesh(model.bounds)
-        self.assertEqual(model.X.shape, (10, 10, 10))
-        self.assertEqual(model.Y.shape, (10, 10, 10))
-        self.assertEqual(model.Z.shape, (10, 10, 10))
-        self.assertEqual(len(model.xyz), 1000)  # Check if XYZ is correctly flattened
+        resolution = (3,5,7)
+        model = geo.GeoModel(bounds=((0, 1), (0, 1), (0, 1)), resolution=resolution)
+        model.setup_mesh()
+        self.assertEqual(model.X.shape, resolution)
+        self.assertEqual(model.Y.shape, resolution)
+        self.assertEqual(model.Z.shape, resolution)
+        prod = np.prod(resolution)
+        self.assertEqual(len(model.xyz), prod)  # Check if XYZ is correctly flattened
 
 if __name__ == '__main__':
     unittest.main()
