@@ -31,7 +31,8 @@ class GeoModel:
         self.X    = np.empty((0,0,0)) # 3D meshgrid for X coordinates
         self.Y    = np.empty((0,0,0)) # 3D meshgrid for Y coordinates
         self.Z    = np.empty((0,0,0)) # 3D meshgrid for Z coordinates
-        self.snapshots = np.empty((0, 0, 0, 0)) # 4D array to store intermediate mesh states
+        self.mesh_snapshots = np.empty((0, 0, 0, 0)) # 4D array to store intermediate mesh states
+        self.data_snapshots = np.empty((0, 0)) # 2D array to store intermediate data states
         self._validate_model_params()
         
     def _validate_model_params(self):
@@ -115,7 +116,8 @@ class GeoModel:
         
     def clear_data(self):
         """ Clear the model but retain build parameters."""
-        self.snapshots = np.empty((0, 0, 0, 0))
+        self.mesh_snapshots = np.empty((0, 0, 0, 0))
+        self.data_snapshots = np.empty((0, 0))
         self.data = np.empty(0)
         self.xyz  = np.empty((0,0))
         self.X    = np.empty((0,0,0))
@@ -162,7 +164,7 @@ class GeoModel:
         
         Snapshots of the xyz mesh should be taken at end of a transformation sequence
         """  
-        # Always include the time start state of mesh      
+        # Always include the oldest time state of mesh      
         snapshot_indices = [0]
         for i in range(1,len(self.history)):
             if isinstance(self.history[i], Deposition) and isinstance(self.history[i-1], Transformation):
@@ -170,9 +172,10 @@ class GeoModel:
         
         self.snapshot_indices = snapshot_indices
         
-        self.snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
+        self.mesh_snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
+        self.data_snapshots = np.empty((len(self.snapshot_indices), *self.data.shape))
         log.info(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
-        log.info(f"Total gigabytes of memory required: {self.snapshots.nbytes * 1e-9:.2f}")
+        log.info(f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}")
         
         return snapshot_indices
 
@@ -188,9 +191,9 @@ class GeoModel:
                 # The final state (index 0) uses the actual xyz since no further modifications are made,
                 # avoiding unnecessary copying for efficiency.
                 if i != 0:
-                    self.snapshots[self.snapshot_indices.index(i)] = np.copy(current_xyz)
+                    self.mesh_snapshots[self.snapshot_indices.index(i)] = np.copy(current_xyz)
                 else:
-                    self.snapshots[0] = current_xyz 
+                    self.mesh_snapshots[0] = current_xyz 
                        
                 log.debug(f"Snapshot taken at index {i}")    
             # Apply transformation to the mesh (skipping depositon events that do not alter the mesh)    
@@ -204,7 +207,8 @@ class GeoModel:
             # Update mesh coordinates as required by fetching snapshot from the backward pass
             if i in self.snapshot_indices:
                 snapshot_index = self.snapshot_indices.index(i)
-                current_xyz = self.snapshots[snapshot_index,...]
+                current_xyz = self.mesh_snapshots[snapshot_index,...]
+                self.data_snapshots[snapshot_index] = self.data.copy()
             if isinstance(event, Deposition):
                 _, self.data = event.run(current_xyz, self.data)
         

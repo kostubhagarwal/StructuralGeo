@@ -47,15 +47,19 @@ bounds = ((-20,20), (-20,20), (-10,10))
 model = geo.GeoModel(bounds = bounds, resolution = 128)
 model.add_history(test_history0)
 model.compute_model()
-model.fill_nans()
 
 mesh = np.load('tests/elevation_data.npy')
 mesh_scaled = mesh * 6
-model.add_topography(mesh_scaled)
+# model.add_topography(mesh_scaled)
 
-# Three types of visualization
-p = geovis.volview(model, threshold= -.5)
+print(np.shape(model.data_snapshots))
+
+
+p = geovis.transformationview(model, threshold= -.5)
 p.show()
+# Three types of visualization
+# p = geovis.volview(model, threshold= -.5)
+# p.show()
 # p = geovis.orthsliceview(model, threshold= -.5)
 # p.show()
 # p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)

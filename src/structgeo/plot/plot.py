@@ -94,8 +94,15 @@ def _add_snapshots_to_plotter(plotter, model, cmap):
      # Calculate the offset to separate each snapshot
     # The offset is chosen based on the overall size of the model
     x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
+    
+    # Remove first data time entry which is empty, add the final data time entry
+    data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
+    
+    # Reverse the snapshots
+    mesh_snapshots = model.mesh_snapshots[::-1]
+    data_snapshots = data_snapshots[::-1]
         
-    for i, (mesh_snapshot, data_snapshot) in enumerate(zip(reversed(model.mesh_snapshots), reversed(model.data_snapshots))):
+    for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snapshots)):
         # Assuming snapshots are stored as Nx3 arrays
         deformed_points = mesh_snapshot.reshape(resolution + (3,))
         grid = pv.StructuredGrid(deformed_points[..., 0] + (i+1) * x_offset * 1.3,  # Shift along x
