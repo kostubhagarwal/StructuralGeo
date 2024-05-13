@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
+from scipy.ndimage import gaussian_filter
 
 def rotate(axis, theta):
     """
@@ -34,3 +36,41 @@ def slip_normal_vectors(rake, dip, strike):
     U = M3 @ M2 @ M1 @ [0.0, 0.0, 1.0]
     U= U / np.linalg.norm(U)
     return slip_vector, U
+
+def resample_mesh(mesh, resolution):
+    """ Resample a mesh to match a new x,y resolution.
+    
+    Parameters: 
+    mesh (np.ndarray): A 2D numpy array representing the mesh.
+    resolution (tuple): A tuple of the new x and y resolution.
+    """
+            
+    # Interpolate the topography mesh to match the model resolution
+    mesh_x, mesh_y = mesh.shape
+    resx, resy = resolution
+    
+    # Check for downsampling if a LPF is needed
+    downsampling = resx < mesh_x or resy < mesh_y
+    
+    # TODO: Ask about the ideal sigma value when downsampling data
+    if downsampling:
+        # Apply Gaussian smoothing as a low-pass filter
+        downsample_factor = (resx / mesh_x + resy / mesh_y) / 2
+        # Popular choice online is to use sigma = 0.5 * downsample_factor
+        sigma = 0.5 * downsample_factor
+        mesh = gaussian_filter(mesh, sigma=sigma)
+    
+    # Define the original grid points, normalized between 0 and 1
+    x = np.linspace(0, 1, mesh_x)
+    y = np.linspace(0, 1, mesh_y)
+    
+    # Define the new grid points, normalized between 0 and 1
+    model_x = np.linspace(0, 1, resx)
+    model_y = np.linspace(0, 1, resy)
+    X,Y = np.meshgrid(model_x, model_y, indexing='ij')
+     
+    # Sample the interpolalor at the given model mesh points        
+    interp = RegularGridInterpolator((x, y), mesh)
+    model_mesh = interp((X,Y))
+    
+    return model_mesh

@@ -1,6 +1,6 @@
 import numpy as np
 from .geoprocess import *
-from .util import rotate, slip_normal_vectors
+from .util import rotate, slip_normal_vectors, resample_mesh
 
 import logging
 # Set up a simple logger
@@ -284,13 +284,11 @@ class GeoModel:
         Parameters:
         - mesh: A 2D numpy array representing the topography mesh.
         """
-        
-        # Ensure the mesh is 2D and matches the dimensions of the X and Y grids
-        if mesh.shape != self.X.shape[:2]:
-            raise ValueError("Topography mesh shape must match the X and Y dimensions of the model.")
+        # Interpolate the topography mesh to match the model resolution
+        resampled_mesh = resample_mesh(mesh, self.resolution[:2])
 
         # Expand the 2D topography mesh to match the 3D volume
-        expanded_mesh = np.repeat(mesh[:, :, np.newaxis], self.resolution[2], axis=2)
+        expanded_mesh = np.repeat(resampled_mesh[:, :, np.newaxis], self.resolution[2], axis=2)
         
         # Set all z-values higher than the corresponding topo point at the xy column to np.nan
         above_topo_mask = self.Z > expanded_mesh

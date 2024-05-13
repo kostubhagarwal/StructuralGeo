@@ -44,22 +44,18 @@ test_history2 = [bedrock, tilt2, sediment0]
 test_history3 = [bedrock, sediment0, dike, slip0]
 
 bounds = ((-20,20), (-20,20), (-10,10))
-model = geo.GeoModel(bounds = bounds, resolution = 128)
+model = geo.GeoModel(bounds = bounds, resolution = 256)
 model.add_history(test_history0)
 model.compute_model()
 
 mesh = np.load('tests/elevation_data.npy')
 mesh_scaled = mesh * 6
-# model.add_topography(mesh_scaled)
-
-print(np.shape(model.data_snapshots))
-
-
-p = geovis.transformationview(model, threshold= -.5)
-p.show()
-# Three types of visualization
-# p = geovis.volview(model, threshold= -.5)
+model.add_topography(mesh_scaled)
+# p = geovis.transformationview(model, threshold= -.5)
 # p.show()
+# Three types of visualization
+p = geovis.volview(model, threshold= -.5)
+p.show()
 # p = geovis.orthsliceview(model, threshold= -.5)
 # p.show()
 # p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
