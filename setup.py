@@ -11,5 +11,7 @@ setup(
         'matplotlib',
         'pyvista',
         'ipywidgets',
+        'ipykernel',
+        'scipy',
     ],
 )
