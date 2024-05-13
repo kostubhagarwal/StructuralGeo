@@ -24,6 +24,8 @@ class SedimentBuilder:
 
     def build_layers(self):
         n_layers = np.random.randint(self.min_layers, self.max_layers + 1)
+        
+        # desired mean and std of the layer thicknesses
         target_mean = self.total_thickness / n_layers
         target_std = self.std * target_mean
         
@@ -53,20 +55,9 @@ class SedimentBuilder:
         return self.values[-1]
     
 class FaultSequence:
-    def __init__(self, faults):
-        self.faults = faults
+    """ Layout a sequence of faults from a starting point and direction"""
 
-    def get_faults(self):
-        return self.faults
-
-    def get_fault_count(self):
-        return len(self.faults)
-
-    def get_fault(self, index):
-        return self.faults[index]
-
-    def get_faults_as_geo_models(self):
-        return [Fault(f) for f in self.faults]
+pass
 
 
 

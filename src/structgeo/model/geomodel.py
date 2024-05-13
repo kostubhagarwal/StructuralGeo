@@ -272,4 +272,28 @@ class GeoModel:
     
     def get_data_grid(self):
         """Return the model data."""
-        return self.data.reshape(self.X.shape)        
+        return self.data.reshape(self.X.shape)   
+    
+    def add_topography(self, mesh):
+        """Add a topography mesh to the model.
+        
+        Parameters:
+        - mesh: A 2D numpy array representing the topography mesh.
+        """
+        
+        # Ensure the mesh is 2D and matches the dimensions of the X and Y grids
+        if mesh.shape != self.X.shape[:2]:
+            raise ValueError("Topography mesh shape must match the X and Y dimensions of the model.")
+
+        # Expand the 2D topography mesh to match the 3D volume
+        expanded_mesh = np.repeat(mesh[:, :, np.newaxis], self.resolution[2], axis=2)
+        
+        # Set all z-values higher than the corresponding topo point at the xy column to np.nan
+        above_topo_mask = self.Z > expanded_mesh
+        
+        # Reshape the data mesh points into a volume
+        data = self.get_data_grid()
+        # Add the topography mesh to the model by setting  
+        
+        data[above_topo_mask] = np.nan
+        self.data = data.flatten()

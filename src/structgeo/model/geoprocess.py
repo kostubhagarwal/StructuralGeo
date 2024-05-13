@@ -215,32 +215,49 @@ class Dike(Deposition):
     def last_value(self):
         return self.value
     
-class ErosionLayer(Deposition):
-    """ Erode down to some depth from the peak of the surface.
+class UnconformityBase(Deposition):
+    """ Erode the model from a given base level upwards
     
     Parameters:
-    depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
+    base (float): base level of erosion
     """
     
-    def __init__(self, depth):
-        self.depth = depth
-        self.peak = None
-        self.value = np.nan
-        
-    def run(self, xyz, data):
-        # Get the highest z-coordinate that is not NaN
-        xyz_valued = xyz[~np.isnan(data)]
-        self.peak = np.max(xyz_valued[:, 2])
-        
-        # Mask for points below the peak minus the erosion depth
-        mask = xyz[:, 2] > self.peak - self.depth
-        
+    def __init__(self, base, value=np.nan):
+        self.base = base
+        self.value = value
+                
+    def run(self, xyz, data):                
+        # Mask for points above the base level
+        mask = xyz[:, 2] > self.base        
         # Apply the mask and update data where condition is met
         data[mask] = self.value
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
+    
+class UnconformityDepth(Deposition):
+    """ Erode the model from the highest point downwards by a thickness.
+    
+    Parameters:
+    depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
+    """
+    
+    def __init__(self, depth, value=np.nan):
+        self.depth = depth
+        self.value = value
+        self.peak = None
+    
+    def run(self, xyz, data):
+        # Find the peak of non-NaN data
+        self.peak = np.max(xyz[:, 2][~np.isnan(data)])
+        
+        # Erode down
+        mask = xyz[:, 2] > self.peak - self.depth
+        data[mask] = self.value
 
+        # Return the unchanged xyz and the potentially modified data
+        return xyz, data
+   
 class Tilt(Transformation):
     """ Tilt the model by a given strike and dip and an origin point.
     

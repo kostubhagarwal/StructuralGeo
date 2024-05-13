@@ -1,6 +1,6 @@
 import numpy as np
 import pyvista as pv
-import time 
+import os
 
 import structgeo.model as geo
 import structgeo.plot as geovis
@@ -20,7 +20,8 @@ sediment0 = geo.Sedimentation(value_list= range(1,5),
                               thickness_list=[2, 3, 2, 1],
                              )
 sediment1 = geo.Sedimentation(value_list= [4,5,6], thickness_list=[1,2,1])
-erosion_process = geo.ErosionLayer(depth=2)
+erosion_process0 = geo.UnconformityDepth(depth=2)
+erosion_process1 = geo.UnconformityBase(base=0)
 
 # Transformations
 tilt = geo.Tilt(strike=45, dip=20, origin=(-1,-1,0))
@@ -37,7 +38,7 @@ upright_fold2 = geo.Fold(strike=110,
 slip0 = geo.Fault(strike=80, dip=70, rake=35, amplitude=3, origin=(0,0,0))
 
 # Histories
-test_history0 = [bedrock, sediment0, tilt, sediment1, dike, upright_fold,  upright_fold2]
+test_history0 = [bedrock, sediment0, tilt, sediment1, dike, upright_fold,  upright_fold2, erosion_process0]
 test_history1 = [sediment0, sediment1, upright_fold, upright_fold2]
 test_history2 = [bedrock, tilt2, sediment0]
 test_history3 = [bedrock, sediment0, dike, slip0]
@@ -48,12 +49,16 @@ model.add_history(test_history0)
 model.compute_model()
 model.fill_nans()
 
+mesh = np.load('tests/elevation_data.npy')
+mesh_scaled = mesh * 6
+model.add_topography(mesh_scaled)
+
 # Three types of visualization
 p = geovis.volview(model, threshold= -.5)
 p.show()
-p = geovis.orthsliceview(model, threshold= -.5)
-p.show()
-p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
-p.show()
+# p = geovis.orthsliceview(model, threshold= -.5)
+# p.show()
+# p = geovis.nsliceview(model, n=6, axis="x", threshold= -.5)
+# p.show()
 
 
