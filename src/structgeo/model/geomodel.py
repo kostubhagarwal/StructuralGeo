@@ -155,7 +155,7 @@ class GeoModel:
         
         # TODO: Might be nice to have an option to visualize the model at different stages
         # Clean up snapshots taken during the backward pass
-        self.snapshots = np.empty((0, 0, 0, 0))
+        # self.snapshots = np.empty((0, 0, 0, 0))
           
     def _prepare_snapshots(self):
         """ Determine when to take snapshots of the mesh during the backward pass.
