@@ -1,10 +1,10 @@
 ## Project Description
 StructuralGeo is a Python package for creating and visualizing synthetic structural geology data. The model data is handeled with a NumPy framework and the visualization is done with Pyvista.
 #### Project Installation
-To install StructuralGeo to your Python environment, clone the repo and then use the `setup.py` file in the root folder. 
+To install StructuralGeo to your Python environment, clone the repo first. Then go into the root StructuralGeo directory and then use the `setup.py` file in the root folder to install the package as editable. 
 
 ```bash
-git clone https://github.com/yourusername/StructuralGeo.git
+git clone https://github.com/eldadHaber/StructuralGeo
 cd StructuralGeo
 pip install -e .
 ```
