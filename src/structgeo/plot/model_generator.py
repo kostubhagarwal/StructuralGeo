@@ -60,7 +60,7 @@ class ModelGenerator:
 
     def save_action(self, b):
         """Save the current model and refresh the review."""
-        self.fm.save_geo_model(self.current_model)  # Save the current model
+        self.fm.save_geo_model(self.current_model, self.base_dir)  # Save the current model
         with self.output:
             print(f"Model saved to {self.base_dir}")
             self.refresh_model()  # Refresh to get a new model displayed

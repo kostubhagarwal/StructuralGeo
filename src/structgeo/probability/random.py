@@ -1,40 +1,53 @@
 import numpy as np
+import functools
 from scipy.ndimage import gaussian_filter1d
-           
-def fourier_series_wave(num_harmonics, frequency=1, smoothness=1.):
+
+def damped_fourier_wave_fun(n_cycles, num_harmonics, frequency, amplitudes, phases, rms_scale):
+    result = np.zeros_like(n_cycles)
+    for n, (amplitude, phase) in enumerate(zip(amplitudes, phases), start=1):
+        result += amplitude * np.sin(2 * np.pi * frequency * n * n_cycles + phase)
+    return result * rms_scale
+
+class FourierWaveGenerator:
     """
     Generates a Fourier series function with given number of harmonics.
     Amplitudes decrease with frequency and the total RMS is normalized 
     to sqrt(2)/2 like a normal sine wave.
+    
+    This is a required hack to make the random generated functions pickleable.
     """
-    def damped_fourier_wave_func(n_cycles):
-        result = np.zeros_like(n_cycles)
-        total_power = 0
+    def __init__(self, num_harmonics, frequency=1, smoothness=1.):
+        self.num_harmonics = num_harmonics
+        self.frequency = frequency
+        self.smoothness = smoothness
+
+    def generate(self):
         amplitudes = []
         phases = []
-        order = smoothness
-
-        # Generate harmonics with random amplitudes influenced by harmonic number
-        for n in range(1, num_harmonics + 1):
-            # Higher order harmonics have lower amplitudes
-            amplitude = np.random.normal(loc=1.0/(n**order), scale=0.5/(n**order))  
+        total_power = 0
+        order = self.smoothness
+        for n in range(1, self.num_harmonics + 1):
+            amplitude = np.random.normal(loc=1.0/(n**order), scale=0.5/(n**order))
             amplitude = abs(amplitude)  # Ensure non-negative amplitude
             phase = np.random.uniform(0, 2 * np.pi)
             amplitudes.append(amplitude)
             phases.append(phase)
+            total_power += amplitude**2
 
-            # Adding the harmonic to the series
-            result += amplitude * np.sin(2 * np.pi * frequency * n * n_cycles + phase)
-            total_power += amplitude**2  # Power of each component, RMS^2
-
-        # Normalize the total RMS of the series to be the same as a sine wave
         rms_scale = np.sqrt(1 / total_power)
-        normalized_result = result * rms_scale
+        return functools.partial(damped_fourier_wave_fun, 
+                                 num_harmonics=self.num_harmonics, 
+                                 frequency=self.frequency, 
+                                 amplitudes=amplitudes, 
+                                 phases=phases, 
+                                 rms_scale=rms_scale)
 
-        return normalized_result
+    def __getstate__(self):
+        return self.__dict__
 
-    return damped_fourier_wave_func
-
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+           
 def noisy_sine_wave(frequency=1, smoothing=20, noise_scale=0.1):
     # Noisy sine
     def noisy_sin_wave_func(n_cycles):

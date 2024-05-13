@@ -1,5 +1,5 @@
 import os
-import dill as pickle
+import pickle as pickle
 import structgeo.model as geo
 
 class FileManager:
@@ -91,8 +91,7 @@ class FileManager:
             file_list.sort(key=lambda x: (os.path.dirname(x), int(os.path.basename(x).split('_')[-1].split('.')[0])))
             for file_path in file_list:
                 model = self.load_geo_model(file_path)
-                model._validate_model_params()
-                
+                model._validate_model_params()        
                 # Make any alterations needed here
                 self.update_model_version(model)              
                 # Create a new file path by replacing the base directory with the save directory

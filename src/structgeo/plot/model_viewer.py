@@ -76,6 +76,5 @@ class ModelViewer:
             # Re-render the current model with the new slicing setting
             self.update_plot(self.models.index(self.curr_model))
 
-
 if __name__ == "__main__":
     viewer = ModelViewer(base_dir="database/")
