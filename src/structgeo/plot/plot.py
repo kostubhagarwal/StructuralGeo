@@ -70,16 +70,12 @@ def nsliceview(model, n=5, axis="x", threshold=-0.5):
 
 def transformationview(model, threshold=-0.5):
     """ Plot the model with the snapshots of the transformation history."""
-    
-    resolution = model.resolution
-    # Calculate the offset to separate each snapshot
-    # The offset is chosen based on the overall size of the model
-    x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
-    final_mesh = get_mesh_from_model(model, threshold)  
-    
+        
     # Create the plotter
     plotter = pv.Plotter()
 
+    # Get final present-day mesh of model
+    final_mesh = get_mesh_from_model(model, threshold)  
     plot_config = get_plot_config()    
     if np.all(np.isnan(model.data)):
         plotter.add_text("No data to show, all values are NaN.", font_size=20)
@@ -89,21 +85,26 @@ def transformationview(model, threshold=-0.5):
                         **plot_config,
                         )
     _ = plotter.add_axes(line_width=5)
+    
+    _add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
+    return plotter
 
-    # Add each snapshot to the plotter
-    for i, snapshot in enumerate(reversed(model.snapshots)):
+def _add_snapshots_to_plotter(plotter, model, cmap):
+    resolution = model.resolution
+     # Calculate the offset to separate each snapshot
+    # The offset is chosen based on the overall size of the model
+    x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
+        
+    for i, (mesh_snapshot, data_snapshot) in enumerate(zip(reversed(model.mesh_snapshots), reversed(model.data_snapshots))):
         # Assuming snapshots are stored as Nx3 arrays
-        deformed_points = snapshot.reshape(resolution + (3,))
+        deformed_points = mesh_snapshot.reshape(resolution + (3,))
         grid = pv.StructuredGrid(deformed_points[..., 0] + (i+1) * x_offset * 1.3,  # Shift along x
                                 deformed_points[..., 1], 
                                 deformed_points[..., 2])
         # Set the same values to the new grid
-        grid["values"] = model.data.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
-        
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid       
         # Add grid to plotter with a unique color and using the same scalar values
-        plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = plot_config['cmap'], line_width=1, show_scalar_bar=False)
-
-    return plotter
+        plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = cmap, line_width=1, show_scalar_bar=False)
     
 def get_mesh_from_model(model, threshold=-0.5):
     if model.data is None or model.data.size == 0:
