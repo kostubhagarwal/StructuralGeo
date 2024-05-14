@@ -86,10 +86,10 @@ def transformationview(model, threshold=-0.5):
                         )
     _ = plotter.add_axes(line_width=5)
     
-    _add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
+    add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
     return plotter
 
-def _add_snapshots_to_plotter(plotter, model, cmap):
+def add_snapshots_to_plotter(plotter, model, cmap):
     resolution = model.resolution
      # Calculate the offset to separate each snapshot
     # The offset is chosen based on the overall size of the model
@@ -101,7 +101,8 @@ def _add_snapshots_to_plotter(plotter, model, cmap):
     # Reverse the snapshots
     mesh_snapshots = model.mesh_snapshots[::-1]
     data_snapshots = data_snapshots[::-1]
-        
+    
+    actors = []    
     for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snapshots)):
         # Assuming snapshots are stored as Nx3 arrays
         deformed_points = mesh_snapshot.reshape(resolution + (3,))
@@ -111,7 +112,10 @@ def _add_snapshots_to_plotter(plotter, model, cmap):
         # Set the same values to the new grid
         grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid       
         # Add grid to plotter with a unique color and using the same scalar values
-        plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = cmap, line_width=1, show_scalar_bar=False)
+        a = plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = cmap, line_width=1, show_scalar_bar=False)
+        actors.append(a)
+    
+    return actors
     
 def get_mesh_from_model(model, threshold=-0.5):
     if model.data is None or model.data.size == 0:
