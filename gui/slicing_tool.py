@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from structgeo.data import FileManager
+from datetime import datetime
 
 def generate_slices(model, n, axis):    
     # Convert axis text to the corresponding axis index
@@ -78,8 +79,9 @@ def plot_slices(slices, max_cols=8):
 def save_slices_as_images(slices, output_dir, prefix="slice"):
     """Save slices as PNG images."""
     os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for i, slice_data in enumerate(slices):
-        image_path = os.path.join(output_dir, f"{prefix}_{i}.png")
+        image_path = os.path.join(output_dir, f"{prefix}_{timestamp}_{i}.png")
         # Convert slice data to uint8 for image saving
         slice_image = (255 * (slice_data - np.min(slice_data)) / np.ptp(slice_data)).astype(np.uint8)
         Image.fromarray(slice_image).save(image_path)
@@ -88,8 +90,9 @@ def save_slices_as_images(slices, output_dir, prefix="slice"):
 def save_slices_as_npy(slices, output_dir, prefix="slice"):
     """Save slices as .npy files."""
     os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for i, slice_data in enumerate(slices):
-        npy_path = os.path.join(output_dir, f"{prefix}_{i}.npy")
+        npy_path = os.path.join(output_dir, f"{prefix}_{timestamp}_{i}.npy")
         np.save(npy_path, slice_data)
     print(f"Saved {len(slices)} slices as .npy files in {output_dir}.")
         
