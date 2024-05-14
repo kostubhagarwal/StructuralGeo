@@ -48,7 +48,7 @@ class SedimentBuilder:
 
     def get_total_thickness(self):
         """Calculate and return the sum of the thicknesses of all layers."""
-        return sum(thickness for _, thickness in self.layers)
+        return sum(self.thicknesses)
     
     def get_last_value(self):
         """Return the value of the last layer."""

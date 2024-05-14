@@ -61,7 +61,7 @@ class ModelViewer:
 
             # Add the new mesh to the plotter and store the actor for removal later
             if self.sliced:
-                slices = mesh.slice_along_axis(n=5, axis="x")
+                slices = mesh.slice_along_axis(n=5, axis="x") # type: ignore
                 self.curr_mesh = self.plotter.add_mesh(slices, **color_config)
             else:
                 self.curr_mesh = self.plotter.add_mesh(mesh, **color_config)
