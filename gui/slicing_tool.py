@@ -94,7 +94,7 @@ def save_slices_as_npy(slices, output_dir, prefix="slice"):
     print(f"Saved {len(slices)} slices as .npy files in {output_dir}.")
         
 if __name__ == "__main__":
-    # Load a model from a file
+    # Testing the slicing tool
     fm = FileManager(base_dir="C:/Users/sghys/2024 Summer Work/StructuralGeo/database/faulted_models")
     models = fm.load_all_models()
     
@@ -114,8 +114,4 @@ if __name__ == "__main__":
     plot_slices(slices)
     
     # Save slices to file
-    save_dir = "C:/Users/sghys/2024 Summer Work/test_slicing"
-    
-    
-
-    
+    save_dir = "C:/Users/sghys/2024 Summer Work/test_slicing"    

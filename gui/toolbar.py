@@ -140,9 +140,4 @@ class ToolBarWidget(QtWidgets.QWidget):
         axis = self.axis_combo.currentText()
         model = self.plotter.curr_model
         slices = sm.generate_slices(model, n, axis)
-        return slices
-        
-        
-        
-
-
+        return slices    
