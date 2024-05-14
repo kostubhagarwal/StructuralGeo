@@ -85,5 +85,5 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    win = MyMainWindow(base_dir='C:/Users/sghys/2024 Summer Work/StructuralGeo/database/faulted_models')
+    win = MyMainWindow(base_dir=os.getcwd())  # Pass the base directory to the main window')
     sys.exit(app.exec_())

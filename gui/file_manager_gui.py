@@ -25,16 +25,17 @@ class FileManagerGUI:
         self.file_tree.clear()
         root_item = QtWidgets.QTreeWidgetItem(self.file_tree, [os.path.basename(self.base_dir)])
         self._populate_tree_widget(root_item, self.base_dir)
-        self.file_tree.expandAll()
+        self.file_tree.collapseAll()
 
     def _populate_tree_widget(self, parent_item, path):
         """Recursively populate the tree widget with the directory structure."""
         for item in os.listdir(path):
             item_path = os.path.join(path, item)
-            tree_item = QtWidgets.QTreeWidgetItem(parent_item, [item])
             if os.path.isdir(item_path):
+                tree_item = QtWidgets.QTreeWidgetItem(parent_item, [item])
                 self._populate_tree_widget(tree_item, item_path)
-            else:
+            elif item_path.endswith('.pkl'):
+                tree_item = QtWidgets.QTreeWidgetItem(parent_item, [item])
                 tree_item.setData(0, QtCore.Qt.UserRole, item_path)
 
     def on_file_selected(self):
@@ -51,5 +52,3 @@ class FileManagerGUI:
         model = self.fm.load_geo_model(file_path)
         if model:
             self.parent.plotter.update_plot(model)
-            
-    
