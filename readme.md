@@ -22,11 +22,18 @@ The project is structured with the following directories:
 | Directory          | Description                                                       |
 |--------------------|-------------------------------------------------------------------|
 | `database/`        | Contains a database of pickled GeoModels                          |
+| `gui/`             | Contains a gui for viewing and slicing models                     |
 | `code_examples/`   | Contains example Jupyter Notebooks that demonstrate package functionality |
 | `model_generation/`| Contains notebooks that have been used to generate models for the database |
 | `tests/`           | Contains some basic tests for the package                         |
 | `src/structgeo/`   | Contains the main package code                                    |
 
+### GUI Operation
+Launch the gui by running the main.py. By default it opens a file tree viewer in the present working directory. Use the menu to select a database of .pkl models: `File->Select Models Folder`. 
+
+The file tree will only show .pkl files and directories. Select a .pkl file to load it into the plotter window. Use the dropdown menu at the bottom to change between plotting modes.
+
+In n-slice mode, select the number of slices and hit enter. Choose the slicing axis. Slices can be saved to a directory as both npy arrays and png files.
 
 ### Project Source
 
