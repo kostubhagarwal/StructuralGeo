@@ -16,10 +16,11 @@ def get_plot_config():
             'font_family': "arial",
             'n_labels': 5   # Reducing the number of labels for clarity
         }
+        ,
     }
     return settings 
     
-def volview(model, threshold=-0.5):
+def volview(model, threshold=-0.5, show_bounds = False):
     mesh = get_mesh_from_model(model, threshold)
     
     # Create a plotter object
@@ -34,6 +35,25 @@ def volview(model, threshold=-0.5):
                         **plot_config,
                         )
     _ = plotter.add_axes(line_width=5)
+    if show_bounds:
+        plotter.show_bounds(
+            grid='back',
+            location='outer',
+            ticks='outside',
+            n_xlabels=4,
+            n_ylabels=4,
+            n_zlabels=4,
+            xtitle='Easting',
+            ytitle='Northing',
+            ztitle='Elevation',
+            all_edges=True,
+        )
+    
+    # add a bounding box
+    flat_bounds = [item for sublist in model.bounds for item in sublist]
+    bounding_box = pv.Box(flat_bounds)
+    plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=5)
+    
     return plotter    
     
 def orthsliceview(model, threshold=-0.5):
@@ -68,7 +88,7 @@ def nsliceview(model, n=5, axis="x", threshold=-0.5):
     _ = plotter.add_axes(line_width=5)
     return plotter
 
-def transformationview(model, threshold=-0.5):
+def transformationview(model, threshold=None):
     """ Plot the model with the snapshots of the transformation history."""
         
     # Create the plotter
@@ -113,7 +133,7 @@ def _add_snapshots_to_plotter(plotter, model, cmap):
         # Add grid to plotter with a unique color and using the same scalar values
         plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = cmap, line_width=1, show_scalar_bar=False)
     
-def get_mesh_from_model(model, threshold=-0.5):
+def get_mesh_from_model(model, threshold=None):
     if model.data is None or model.data.size == 0:
         raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
  
