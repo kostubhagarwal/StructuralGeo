@@ -454,7 +454,7 @@ class Fault(Slip):
         self.rotation = 0
         
     def fault_displacement(self, distances):
-        return self.amplitude * np.sign(distances)
+        return np.sign(distances)
     
 class Shear(Slip):
     """ A subclass of Slip for modeling shear transformations, a plastic deformation process.
@@ -481,7 +481,7 @@ class Shear(Slip):
         
     def shear_displacement(self, distances):
         # The sigmoid function will be centered around zero and will scale with amplitude
-        return self.amplitude * (1 / (1 + np.exp(-self.steepness * distances)))
+        return (1 / (1 + np.exp(-self.steepness * distances)))
     
     def run(self, xyz, array):
         # Apply the shear transformation
