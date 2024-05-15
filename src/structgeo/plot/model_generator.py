@@ -4,9 +4,12 @@ from IPython.display import display, clear_output
 
 from structgeo.data import FileManager
 import structgeo.plot as geovis
+from structgeo.model.util import rotate
+import matplotlib.pyplot as plt
+import math
 
 class ModelGenerator:
-    def __init__(self, generate_model_func, base_dir="../saved_models", show_history=True):
+    def __init__(self, generate_model_func, base_dir="../saved_models", show_history=True, single_view=False):
         """
         Initialize the ModelReviewer with specific model generation and plotting functions.
 
@@ -17,7 +20,8 @@ class ModelGenerator:
         self.generate_model = generate_model_func
         self.base_dir = base_dir
         self.output = widgets.Output()
-        self.plotter = pv.Plotter(notebook = True)     # type: ignore # 
+        self.single_view = single_view
+        self.plotter = pv.Plotter(off_screen=True)  # Create an off-screen plotter
         self.plotter.add_axes(line_width=5)
         self.fm = FileManager(base_dir=self.base_dir)  
         self.show_history = show_history
@@ -40,15 +44,50 @@ class ModelGenerator:
             mesh = geovis.get_mesh_from_model(self.current_model)
             color_config = geovis.get_plot_config()
             clear_output(wait=True)  # Clear the output before starting to plot the new model
-            if hasattr(self.plotter, 'last_mesh'):
-                self.plotter.remove_actor(self.plotter.last_mesh)  # Remove the last mesh if it exists
-         
-            self.plotter.last_mesh = self.plotter.add_mesh(mesh, scalars="values", **color_config)  
-            # INFO: For some outrageous reason the PyVista plotter needs to be shown twice or it will
-            # lag by one render and show the previous mesh. This is sadly the workaround for now.   
-            self.plotter.show(window_size=[600, 400], jupyter_backend='static')
-            clear_output(wait=True)
-            self.plotter.show(window_size=[600, 400], jupyter_backend='static')
+            self.remove_all_actors(self.plotter)
+            self.plotter.add_mesh(mesh, scalars="values", **color_config)
+
+            if self.single_view:
+                # INFO: For some outrageous reason the PyVista plotter needs to be shown twice or it will
+                # lag by one render and show the previous mesh. This is sadly the workaround for now.   
+                self.plotter.show(window_size=[600, 400], jupyter_backend='static')
+                clear_output(wait=True)
+                self.plotter.show(window_size=[600, 400], jupyter_backend='static')
+                
+            else:
+                initial_camera_position = self.plotter.camera.position
+                screenshots = []            
+                for i in range(4):
+                    cp = self.plotter.camera.position
+                    M = rotate([0,0,1], math.pi/2)
+                    new_cp = M @ cp
+                    self.plotter.camera_position = new_cp                
+                    screenshot = self.plotter.screenshot(return_img=True)
+                    screenshots.append(screenshot)
+                
+                for i in range(2):    
+                    cp = self.plotter.camera.position
+                    M = rotate([0,1,0], math.pi/4)
+                    new_cp = M @ cp
+                    self.plotter.camera_position = new_cp                
+                    screenshot = self.plotter.screenshot(return_img=True)
+                    screenshots.append(screenshot)
+                            
+                # Display the screenshots in a 2x3 grid
+                fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+                axs = axs.flatten()
+                for ax, screenshot in zip(axs, screenshots):
+                    ax.imshow(screenshot)
+                    ax.axis('off')
+                plt.show()
+                
+                # Replace the camera position to the initial position
+                self.plotter.camera_position = initial_camera_position
+    
+    def remove_all_actors(self, plotter):
+        """Remove all actors from the plotter."""
+        plotter.clear_actors()
+        plotter.clear_plane_widgets()
 
     def refresh_model(self):
         new_model = self.generate_model()  # Generate new model
