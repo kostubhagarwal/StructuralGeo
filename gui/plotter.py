@@ -37,7 +37,20 @@ class ModelPlotter:
             self.mesh = geovis.get_mesh_from_model(self.curr_model)
             a = self.plotter.add_mesh(self.mesh, **self.color_config)
             self.actors.append(a)
+            self.plotter.show_bounds(
+                grid='back',
+                location='outer',
+                ticks='outside',
+                n_xlabels=4,
+                n_ylabels=4,
+                n_zlabels=4,
+                xtitle='Easting',
+                ytitle='Northing',
+                ztitle='Elevation',
+                all_edges=True,
+            )
             self.plotter.render()
+        
 
     def plot_orthslice_view(self):
         self.remove_all_actors()  # Remove all actors before updating the plot
@@ -75,11 +88,11 @@ class ModelPlotter:
 
     def remove_all_actors(self):
         """Remove all actors from the plotter."""
-        for actor in self.actors:
-            self.plotter.remove_actor(actor)
+        self.plotter.clear_actors()
         self.plotter.clear_plane_widgets()
         
     def change_view_mode(self, mode):
+        self.remove_all_actors()
         if mode == "Volume View":
             self.plot_view_mode = self.plot_volume_view
         elif mode == "OrthSlice View":

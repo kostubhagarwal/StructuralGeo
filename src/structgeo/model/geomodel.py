@@ -20,7 +20,8 @@ class GeoModel:
     """
     EMPTY_VALUE = -1
     
-    def __init__(self,  bounds=(0, 16), resolution=128, dtype = np.float32):
+    def __init__(self,  bounds=(0, 16), resolution=128, dtype = np.float32, name = "model"):
+        self.name = name
         self.dtype = dtype
         self.bounds = bounds
         self.resolution = resolution
@@ -248,7 +249,7 @@ class GeoModel:
         self.clear_data()
         self.compute_model()
     
-    def get_target_normalization(self, target_max=.8, std_dev = 0.05):
+    def get_target_normalization(self, target_max=.85, std_dev = 0.05):
         """ Get the normalization factor to scale the model to a target maximum height.
         
         Parameters:
