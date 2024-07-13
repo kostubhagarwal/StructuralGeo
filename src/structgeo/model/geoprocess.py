@@ -26,7 +26,7 @@ class Transformation(GeoProcess):
     Base class for all transformation processes, such as tilting and folding.
     
     Transformations modify the mesh coordinates without altering the data contained at each point.
-    Frame convention is that north is strike on positive x-axis
+    Frame convention is that north is 0 strike on positive y-axis
     """
     def run(self, xyz, data):
         raise NotImplementedError()
@@ -171,7 +171,7 @@ class Dike(Deposition):
     """ Insert a dike to overwrite existing data values.
     
     Parameters:
-    strike (float): Strike angle in CW degrees (center-line of the dike) from north
+    strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
     dip (float): Dip angle in degrees
     width (float): Net Width of the dike
     origin (float): Origin point of the local coordinate frame
@@ -262,7 +262,7 @@ class Tilt(Transformation):
     """ Tilt the model by a given strike and dip and an origin point.
     
     Parameters:
-    strike (float): Strike angle in CW degrees (center-line of the dike) from north
+    strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
     dip    (float): Dip of the tilt in degrees (CW from the strike axis)
     origin (tuple): Origin point for the tilt (x,z,y)
     """
@@ -351,7 +351,7 @@ class Fold(Transformation):
         # Calculate the number of cycles orthogonal distance
         n_cycles =  fU / self.period
         # Get the displacement as a function for n_cycles
-        displacement_distance = self.amplitude * self.periodic_func(n_cycles)      
+        displacement_distance = -self.amplitude * self.periodic_func(n_cycles)      
         # Calculate total displacement for each point, recast off as a column vector
         displacement_vector = slip_vector * displacement_distance[:, np.newaxis] 
         # Return to global coordinates
@@ -415,7 +415,7 @@ class Slip(Transformation):
         # Orthogonal distance from origin along U
         distance_to_slip = np.dot(v0, normal_vector)
         # Apply the displacement function to the distances along normal
-        displacements = self.amplitude * self.displacement_func(distance_to_slip)
+        displacements = -self.amplitude * self.displacement_func(distance_to_slip)
         # Calculate the movement vector along slip direction
         displacement_vectors = displacements[:, np.newaxis] * slip_vector
         # Return to global coordinates and apply the displacement

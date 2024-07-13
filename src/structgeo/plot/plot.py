@@ -6,6 +6,7 @@ def get_plot_config():
     settings = {
         # Color map for the rock types
         'cmap': "gist_ncar",  # Vibrant color map to differentiate rock types
+        'categories': True,   # Enable categorical coloring in color bar
         # Scalar bar settings
         'scalar_bar_args': {
             'title': "Rock Type",
@@ -14,7 +15,7 @@ def get_plot_config():
             'shadow': True,
             'italic': True,
             'font_family': "arial",
-            'n_labels': 5   # Reducing the number of labels for clarity
+            'n_labels': 2   # Reducing the number of labels for clarity
         }
         ,
     }
@@ -32,7 +33,8 @@ def volview(model, threshold=-0.5, show_bounds = False):
     else:
         # Add the mesh to the plotter
         plotter.add_mesh(mesh, scalars="values", 
-                        **plot_config,
+                        **plot_config,                        
+                        interpolate_before_map=False
                         )
     _ = plotter.add_axes(line_width=5)
     if show_bounds:
@@ -40,6 +42,7 @@ def volview(model, threshold=-0.5, show_bounds = False):
             grid='back',
             location='outer',
             ticks='outside',
+            
             n_xlabels=4,
             n_ylabels=4,
             n_zlabels=4,
@@ -48,11 +51,11 @@ def volview(model, threshold=-0.5, show_bounds = False):
             ztitle='Elevation',
             all_edges=True,
         )
-    
+        
     # add a bounding box
     flat_bounds = [item for sublist in model.bounds for item in sublist]
     bounding_box = pv.Box(flat_bounds)
-    plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=5)
+    plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=1)
     
     return plotter    
     
@@ -125,6 +128,7 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     actors = []    
     for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snapshots)):
         # Assuming snapshots are stored as Nx3 arrays
+        # Reshape to 3D grid of points-- i.e. 4x4x4 grid of (x,y,z) points
         deformed_points = mesh_snapshot.reshape(resolution + (3,))
         grid = pv.StructuredGrid(deformed_points[..., 0] + (i+1) * x_offset * 1.3,  # Shift along x
                                 deformed_points[..., 1], 

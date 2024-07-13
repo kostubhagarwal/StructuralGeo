@@ -20,7 +20,7 @@ def rotate(axis, theta):
 def slip_normal_vectors(rake, dip, strike):
     # Calculate rotation matrices (Transform from fold to plane coordinates)
     M1 = rotate([0, 0, 1], -(rake))
-    M2 = rotate([0., 1.0, 0], -(dip))
+    M2 = rotate([0., 1.0, 0], (dip))
     M3 = rotate([0, 0., 1.], -(strike))
 
     # start with a north vector
