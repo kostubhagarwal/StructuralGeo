@@ -8,10 +8,13 @@ setup(
     package_dir={'': 'src'},  # Root package directory is 'structgeo'
     install_requires=[
         'numpy',
+        'scipy',
         'matplotlib',
-        'pyvista',
+        'pyvista[all]',
         'ipywidgets',
         'ipykernel',
-        'scipy',
+        'trame',
+        'trame-vuetify',
+        'trame-vtk',
     ],
 )
