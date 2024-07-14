@@ -225,6 +225,9 @@ class UnconformityBase(Deposition):
     def __init__(self, base, value=np.nan):
         self.base = base
         self.value = value
+        
+    def __str__(self):
+        return f"UnconformityBase: base {self.base:.1f}, value {self.value:.1f}"
                 
     def run(self, xyz, data):                
         # Mask for points above the base level
@@ -246,6 +249,9 @@ class UnconformityDepth(Deposition):
         self.depth = depth
         self.value = value
         self.peak = None
+        
+    def __str__(self):
+        return f"UnconformityDepth: depth {self.depth:.1f}, value {self.value:.1f}"
     
     def run(self, xyz, data):
         # Find the peak of non-NaN data

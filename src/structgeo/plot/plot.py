@@ -142,6 +142,10 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     return actors
     
 def get_mesh_from_model(model, threshold=None):
+    """ Convert GeoModel data to a mesh grid of nodes for visualization     
+    Total nodes is the same as data values, grid cells will be filled by interpolated rock type values
+    """
+    
     if model.data is None or model.data.size == 0:
         raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
  
@@ -153,3 +157,29 @@ def get_mesh_from_model(model, threshold=None):
     # Create mesh thresholding to exclude np.nan values or sentinel values
     mesh = grid.threshold(threshold, all_scalars=True) 
     return mesh
+
+def get_voxel_grid_from_model(model, threshold = None):
+    """ Convert GeoModel data to a voxel grid for visualization 
+    Total cells is the same as data values, each cell given a discrete rock type value
+    """
+    if model.data is None or model.data.size == 0:
+        raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
+    if not all(res > 1 for res in model.resolution):
+        raise ValueError("Voxel grid requires a model resolution greater than 1 in each dimension.")
+    
+    # Create a padded grid with n+1 nodes and node spacing equal to model sample spacing    
+    dimensions = tuple(x + 1 for x in model.resolution)
+    spacing = tuple((x[1] - x[0])/(r-1) for x,r in zip(model.bounds, model.resolution))
+    # pad origin with a half cell size to center the grid
+    origin = tuple(x[0] - cs/2 for x,cs in zip(model.bounds, spacing))
+       
+    # Create a structured grid with n+1 nodes in each dimension forming n^3 cells
+    grid = pv.ImageData(
+        dimensions = dimensions,
+        spacing = spacing,
+        origin = origin,
+    )    
+    # Necessary to reshape data vector in Fortran order to match the grid
+    grid['values'] = model.data.reshape(model.resolution).ravel(order='F')
+    grid = grid.threshold(threshold, all_scalars=True)
+    return grid

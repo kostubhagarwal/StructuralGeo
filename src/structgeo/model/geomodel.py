@@ -55,6 +55,31 @@ class GeoModel:
         else:
             raise ValueError("Bounds must be a tuple of 2 values or a tuple of 3 tuples.")
         
+    def __repr__(self):
+        return f"GeoModel(name={self.name}, bounds={self.bounds}, resolution={self.resolution})"
+    
+    def __str__(self):
+        return f"GeoModel: {self.name}\nBounds: {self.bounds}\nResolution: {self.resolution}\nHistory: {self.get_history_string()}"
+    
+    def _repr_html_(self):
+        """ A rich HTML representation of the GeoModel object. Useful for Jupyter notebooks."""
+        if not self.history:
+            history_html = "<p>No geological history to display.</p>"
+        else:
+            history_html = "<div style='text-align: left;'><ol>" + "".join(f"<li>{process}</li>" for process in self.history) + "</ol></div>"
+
+        table = f"""
+        <table>
+            <tr><th style="text-align: left;">Parameter</th><th style="text-align: left;">Value</th></tr>
+            <tr><td>Name</td><td>{self.name}</td></tr>
+            <tr><td>Data Type</td><td>{self.dtype}</td></tr>
+            <tr><td>Bounds</td><td>{self.bounds}</td></tr>
+            <tr><td>Resolution</td><td>{self.resolution}</td></tr>
+            <tr><td>History</td><td>{history_html}</td></tr>
+        </table>
+        """
+        return table   
+           
     def setup_mesh(self):
         """Sets up the 3D meshgrid based on given bounds and resolution."""
         # Unpack bounds and resolution

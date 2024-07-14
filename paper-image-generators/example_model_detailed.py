@@ -71,21 +71,6 @@ for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snap
     a = p.add_mesh(grid, style='wireframe', scalars="values", cmap = plot_config['cmap'], line_width=1, show_scalar_bar=False)
     actors.append(a)
 
-
-# p.show_bounds(
-#     grid='back',
-#     location='outer',
-#     ticks='outside',
-    
-#     n_xlabels=4,
-#     n_ylabels=4,
-#     n_zlabels=4,
-#     xtitle='Easting',
-#     ytitle='Northing',
-#     ztitle='Elevation',
-#     all_edges=True,
-# )
-
 # Create a plotter object
 p.subplot(0, 1)  # Right subplot (1/4 width)
 plot_config = geovis.get_plot_config()
