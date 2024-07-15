@@ -1,77 +1,7 @@
 import pyvista as pv
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import to_rgb
-
-from pyvistaqt import BackgroundPlotter
 
 import structgeo.model as geo
-import structgeo.plot as geovis
-import structgeo.probability as rv
-
-
-def volview(model, threshold=-0.5, show_bounds = False) -> pv.Plotter:
-    mesh = geovis.get_mesh_from_model(model, threshold)
-    
-    # Create a plotter object
-    plotter = pv.Plotter()       # type: ignore
-    plot_config = get_plot_config()
-    
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:
-        # Add the mesh to the plotter
-        plotter.add_mesh(mesh, scalars="values", 
-                        **plot_config,   
-                        style='points',
-                        point_size=15,                     
-                        interpolate_before_map=False
-                        )
-    _ = plotter.add_axes(line_width=5)
-    if show_bounds:
-        plotter.show_bounds(
-            grid='back',
-            location='outer',
-            ticks='outside',
-            n_xlabels=3,
-            n_ylabels=3,
-            n_zlabels=3,
-            xtitle='Easting',
-            ytitle='Northing',
-            ztitle='Elevation',
-            all_edges=True,
-        )
-        
-    # add a bounding box
-    flat_bounds = [item for sublist in model.bounds for item in sublist]
-    bounding_box = pv.Box(flat_bounds)
-    plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=1)
-    
-    return plotter   
-
-def transformationview(model, threshold=None):
-    """ Plot the model with the snapshots of the transformation history."""
-        
-    # Create the plotter
-    plotter = pv.Plotter()
-
-    # Get final present-day mesh of model
-    final_mesh = geovis.get_mesh_from_model(model, threshold)  
-    plot_config = get_plot_config()    
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:
-        # Add the mesh to the plotter
-        plotter.add_mesh(final_mesh, scalars="values", 
-                        **plot_config,
-                        point_size=15,
-                           
-                        interpolate_before_map=False
-                        )
-    _ = plotter.add_axes(line_width=5)
-    
-    add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
-    return plotter
 
 def add_snapshots_to_plotter(plotter, model, cmap):
     resolution = model.resolution
@@ -100,8 +30,6 @@ def add_snapshots_to_plotter(plotter, model, cmap):
         actors.append(a)
     
     return actors
-
-
 
 """ Plot and viewing parameters"""
 # Create a plotter object

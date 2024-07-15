@@ -1,5 +1,10 @@
+"""
+A module for plotting views and visualization of GeoModel objects.
+"""
+
 import pyvista as pv
 import numpy as np
+import functools
 
 def get_plot_config(): 
     """ Central color configurations and appearance settings for the plotter"""
@@ -15,27 +20,37 @@ def get_plot_config():
             'shadow': True,
             'italic': True,
             'font_family': "arial",
-            'n_labels': 2   # Reducing the number of labels for clarity
+            'n_labels': 2,   # Reducing the number of labels for clarity
+            'vertical': True,
         }
         ,
     }
     return settings 
-    
+
+def check_nan_data(func):
+    """Decorator to check for all NaN values in model data."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        model = args[0]  # Assuming the first argument is always the model
+        if np.all(np.isnan(model.data)):
+            plotter = pv.Plotter()
+            plotter.add_text("No data to show, all values are NaN.", font_size=20)
+            return plotter
+        return func(*args, **kwargs)
+    return wrapper
+ 
+@check_nan_data   
 def volview(model, threshold=-0.5, show_bounds = False):
+    """ Classic volume rendering view showing the outer faces of the model."""
     mesh = get_voxel_grid_from_model(model, threshold)
-    
-    # Create a plotter object
-    plotter = pv.Plotter()       # type: ignore
+    plotter = pv.Plotter()   
     plot_config = get_plot_config()
     
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:
-        # Add the mesh to the plotter
-        plotter.add_mesh(mesh, scalars="values", 
-                        **plot_config,                        
-                        interpolate_before_map=False
-                        )
+    # Add the mesh to the plotter
+    plotter.add_mesh(mesh, scalars="values", 
+                    **plot_config,                        
+                    interpolate_before_map=False
+                    )
     _ = plotter.add_axes(line_width=5)
     if show_bounds:
         plotter.show_bounds(
@@ -58,39 +73,68 @@ def volview(model, threshold=-0.5, show_bounds = False):
     plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=1)
     
     return plotter    
-    
+
+@check_nan_data      
 def orthsliceview(model, threshold=-0.5):
+    """ Orthogonal slice view of the model with widgets for interactive slicing."""
     mesh = get_voxel_grid_from_model(model, threshold)
-    
-    # Create a plotter object
     plotter = pv.Plotter()    # type: ignore
     color_config = get_plot_config()   
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:  
-        # Adding an interactive slicing tool
-        plotter.add_mesh_slice_orthogonal(
-                        mesh, scalars="values",
-                        **color_config,
-                        )    
+    
+    # Adding an interactive slicing tool
+    plotter.add_mesh_slice_orthogonal(
+                    mesh, scalars="values",
+                    **color_config,
+                    )    
     _ = plotter.add_axes(line_width=5)
     return plotter    
-    
+
+@check_nan_data     
 def nsliceview(model, n=5, axis="x", threshold=-0.5):
-    mesh = get_voxel_grid_from_model(model, threshold)
-    slices = mesh.slice_along_axis(n=n, axis=axis) # type: ignore
+    """ 
+    Static slices along a given axis of the model.
     
-    # Create a plotter object
-    plotter = pv.Plotter()    # type: ignore
-    color_config = get_plot_config()     
+    Parameters
+    ----------
+    model : GeoModel
+    n     : int, the number of slices to create
+    axis  : "x", "y", "z", the axis along which to slice
+    threshold : float, the lower threshold value for mesh data inclusion
+    """
+    mesh = get_voxel_grid_from_model(model, threshold)
+    slices = mesh.slice_along_axis(n=n, axis=axis) 
+    plotter = pv.Plotter() 
+    color_config = get_plot_config()  
+       
     # Adding an interactive slicing tool
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:
-        plotter.add_mesh(slices, **color_config)  
+    plotter.add_mesh(
+                    slices, scalars="values",
+                    **color_config
+                    )  
     _ = plotter.add_axes(line_width=5)
     return plotter
 
+@check_nan_data 
+def onesliceview(model, threshold=-0.5):
+    """
+    A single slice view with interactive widget to view model cross sections
+    """
+    mesh = get_voxel_grid_from_model(model, threshold)
+    skin = mesh.extract_surface()
+    plotter = pv.Plotter() 
+    color_config = get_plot_config()  
+       
+    # Adding an interactive slicing tool
+    plotter.add_mesh_slice(
+                    mesh,
+                    **color_config
+                    )  
+    plotter.add_mesh(skin, scalars='values', cmap = color_config['cmap'],
+                opacity=0.1, show_scalar_bar=False)
+    _ = plotter.add_axes(line_width=5)
+    return plotter
+
+@check_nan_data 
 def transformationview(model, threshold=None):
     """ Plot the model with the snapshots of the transformation history."""
         
@@ -141,17 +185,16 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     
     return actors
 
+@check_nan_data 
 def categorical_grid_view(model, threshold=None, text_annot = True):
     cfg = get_plot_config()
     
     def calculate_grid_dims(n):
         """ Calculate grid dimensions that are as square as possible. """
-        sqrt_n = int(np.sqrt(n))
-        for rows in range(sqrt_n, 0, -1):
-            if n % rows == 0:
-                cols = n // rows
-                return rows, cols
-        return 1, n  # Fallback to one row if no suitable division is found
+        sqrt_n = np.sqrt(n)
+        rows = np.ceil(sqrt_n)
+        cols = rows
+        return int(rows), int(cols)
     
     grid = get_voxel_grid_from_model(model, threshold=threshold) # Get voxel grid
     cats = np.unique(grid['values']) # Find unique categories
