@@ -22,7 +22,7 @@ def get_plot_config():
     return settings 
     
 def volview(model, threshold=-0.5, show_bounds = False):
-    mesh = get_mesh_from_model(model, threshold)
+    mesh = get_voxel_grid_from_model(model, threshold)
     
     # Create a plotter object
     plotter = pv.Plotter()       # type: ignore
@@ -60,7 +60,7 @@ def volview(model, threshold=-0.5, show_bounds = False):
     return plotter    
     
 def orthsliceview(model, threshold=-0.5):
-    mesh = get_mesh_from_model(model, threshold)
+    mesh = get_voxel_grid_from_model(model, threshold)
     
     # Create a plotter object
     plotter = pv.Plotter()    # type: ignore
@@ -77,7 +77,7 @@ def orthsliceview(model, threshold=-0.5):
     return plotter    
     
 def nsliceview(model, n=5, axis="x", threshold=-0.5):
-    mesh = get_mesh_from_model(model, threshold)
+    mesh = get_voxel_grid_from_model(model, threshold)
     slices = mesh.slice_along_axis(n=n, axis=axis) # type: ignore
     
     # Create a plotter object
