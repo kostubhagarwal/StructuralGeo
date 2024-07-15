@@ -140,6 +140,49 @@ def add_snapshots_to_plotter(plotter, model, cmap):
         actors.append(a)
     
     return actors
+
+def categorical_grid_view(model, threshold=None, text_annot = True):
+    cfg = get_plot_config()
+    
+    def calculate_grid_dims(n):
+        """ Calculate grid dimensions that are as square as possible. """
+        sqrt_n = int(np.sqrt(n))
+        for rows in range(sqrt_n, 0, -1):
+            if n % rows == 0:
+                cols = n // rows
+                return rows, cols
+        return 1, n  # Fallback to one row if no suitable division is found
+    
+    grid = get_voxel_grid_from_model(model, threshold=threshold) # Get voxel grid
+    cats = np.unique(grid['values']) # Find unique categories
+
+    num_cats = len(cats)
+    rows, cols = calculate_grid_dims(num_cats)
+    p = pv.Plotter(shape=(rows, cols), border=False) # subplot square layout
+
+    clim = [cats.min(), cats.max()] # Preset color limits for all subplots
+    skin = grid.extract_surface() # Extract surface mesh for translucent skin
+
+    for i, cat in enumerate(cats):
+        row, col = divmod(i, cols)
+        p.subplot(row, col)
+        
+        cat_mask = grid['values'] == cat # mask for a category
+        category_grid = grid.extract_cells(cat_mask) # Pull only those cells from voxel grid
+
+        # Plot the category cluster and a translucent skin for context
+        p.add_mesh(skin, scalars='values', clim=clim, cmap = cfg['cmap'],
+                opacity=0.2, show_scalar_bar=False)
+        p.add_mesh(category_grid, scalars='values', clim=clim, cmap = cfg['cmap'],
+                opacity=1.0, show_scalar_bar=False)
+
+
+        if text_annot:
+            p.add_text(f"Category {cat}", position='upper_left', font_size=4)
+
+    # Link all views to synchronize interactions such as rotation and zooming
+    p.link_views()
+    return p
     
 def get_mesh_from_model(model, threshold=None):
     """ Convert GeoModel data to a mesh grid of nodes for visualization     

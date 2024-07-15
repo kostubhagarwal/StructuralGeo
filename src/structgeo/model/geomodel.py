@@ -62,23 +62,27 @@ class GeoModel:
         return f"GeoModel: {self.name}\nBounds: {self.bounds}\nResolution: {self.resolution}\nHistory: {self.get_history_string()}"
     
     def _repr_html_(self):
-        """ A rich HTML representation of the GeoModel object. Useful for Jupyter notebooks."""
+        # Generating the history column HTML
         if not self.history:
             history_html = "<p>No geological history to display.</p>"
         else:
             history_html = "<div style='text-align: left;'><ol>" + "".join(f"<li>{process}</li>" for process in self.history) + "</ol></div>"
 
+        # Structuring the table with a dedicated history column
         table = f"""
         <table>
-            <tr><th style="text-align: left;">Parameter</th><th style="text-align: left;">Value</th></tr>
-            <tr><td>Name</td><td>{self.name}</td></tr>
+            <tr>
+                <th style="text-align: left;">Parameter</th>
+                <th style="text-align: left;">Value</th>
+                <th style="text-align: left; vertical-align: top;" rowspan="5">History</th>
+            </tr>
+            <tr><td>Name</td><td>{self.name}</td><td rowspan="5">{history_html}</td></tr>
             <tr><td>Data Type</td><td>{self.dtype}</td></tr>
             <tr><td>Bounds</td><td>{self.bounds}</td></tr>
             <tr><td>Resolution</td><td>{self.resolution}</td></tr>
-            <tr><td>History</td><td>{history_html}</td></tr>
         </table>
         """
-        return table   
+        return table  
            
     def setup_mesh(self):
         """Sets up the 3D meshgrid based on given bounds and resolution."""
