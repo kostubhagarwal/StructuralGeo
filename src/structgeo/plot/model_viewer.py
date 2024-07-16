@@ -77,4 +77,4 @@ class ModelViewer:
             self.update_plot(self.models.index(self.curr_model))
 
 if __name__ == "__main__":
-    viewer = ModelViewer(base_dir="database/")
+    viewer = ModelViewer(base_dir="C:/Users/sghys/Summer2024/new_database")

@@ -1,90 +1,97 @@
 from pyvistaqt import QtInteractor
 from qtpy import QtWidgets
 import structgeo.plot as geovis
+import structgeo.model as geo
+import numpy as np
+import torch
 
 class ModelPlotter:
     def __init__(self, parent):
+        # ----- Layout ------
         self.parent = parent
         self.frame = QtWidgets.QFrame(parent)
         self.vlayout = QtWidgets.QVBoxLayout(self.frame)
         self.plotter = QtInteractor(self.frame)
         self.vlayout.addWidget(self.plotter.interactor)
         self.frame.setLayout(self.vlayout)
-        self.curr_model = None  # Store the current model
+        
+        # ----- Data ------
+        self.curr_model: geo.GeoModel = None  # Store the current model
         self.mesh = None  # Store the current mesh
         self.actors = []  # List to track all actors added to the plotter
         self.plotter.add_axes(line_width=5)
         self.plot_view_mode = self.plot_volume_view  # Default view mode
-        self.color_config = geovis.get_plot_config()
+        self.plot_config = geovis.get_plot_config()
 
-    def update_plot(self, model):
-        self.remove_all_actors()  # Remove all actors before updating the plot
+    def update_model(self, model):
         if self.curr_model is not None:
-            self.curr_model.clear_data() # Wipe the model data
-        self.curr_model = model  # Update the current model
-        self.curr_model.compute_model() # Compute data for the model
-        self.plot_view_mode()  # Update the plot with the new model
-    
+            del self.curr_model # del prev model to free memory
+        self.curr_model = model  # Update to the current passed model
+        self.curr_model.compute_model() 
+        self.update_category_selector()
+        self.plot_view_mode()  # Refresh the plotter with the new model
+            
     def renormalize_height(self):
         if self.curr_model:
             self.curr_model.renormalize_height(auto = True)
-            self.remove_all_actors()  # Remove all actors before updating the plot
-            self.plot_view_mode()  # Update the plot with the new model
+            self.plot_view_mode()  # Update the plot with the changed model
 
     def plot_volume_view(self):
         self.remove_all_actors()   # Remove all actors before updating the plot
         if self.curr_model:
-            self.mesh = geovis.get_mesh_from_model(self.curr_model)
-            a = self.plotter.add_mesh(self.mesh, **self.color_config)
-            self.actors.append(a)
-            self.plotter.show_bounds(
-                grid='back',
-                location='outer',
-                ticks='outside',
-                n_xlabels=4,
-                n_ylabels=4,
-                n_zlabels=4,
-                xtitle='Easting',
-                ytitle='Northing',
-                ztitle='Elevation',
-                all_edges=True,
-            )
+            geovis.volview(self.curr_model, plotter=self.plotter)
             self.plotter.render()
         
-
     def plot_orthslice_view(self):
         self.remove_all_actors()  # Remove all actors before updating the plot
         if self.curr_model:
-            self.mesh = geovis.get_mesh_from_model(self.curr_model)
-            a = self.plotter.add_mesh_slice_orthogonal(self.mesh, **self.color_config)
-            self.actors.append(a)
+            geovis.orthsliceview(self.curr_model, plotter=self.plotter)
             self.plotter.render()
 
     def plot_nslice_view(self, n=5, axis="x"):
         self.remove_all_actors()  # Remove all actors before updating the plot
         if self.curr_model:
-            self.mesh = geovis.get_mesh_from_model(self.curr_model)
-            slices = self.get_slices(n=n, axis=axis)
-            a = self.plotter.add_mesh(slices, **self.color_config)
-            self.actors.append(a)
+            geovis.nsliceview(self.curr_model, n=n, axis=axis, plotter=self.plotter)
             self.plotter.render()
-            
-    def get_slices(self, n=5, axis="x"):
-        if self.mesh is not None:
-            slices = self.mesh.slice_along_axis(n=n, axis=axis)
-            return slices
-        return None
 
     def plot_transformation_view(self):
         self.remove_all_actors()   # Remove all actors before updating the plot
         if self.curr_model:
-            self.mesh = geovis.get_mesh_from_model(self.curr_model)
-
-            a = self.plotter.add_mesh(self.mesh, **self.color_config)
-            self.actors.append(a)
-            actors = geovis.add_snapshots_to_plotter(self.plotter, self.curr_model, self.color_config['cmap'])
-            self.actors.extend(actors)
+            geovis.transformationview(self.curr_model, plotter=self.plotter)
             self.plotter.render()
+
+    def plot_categorical_grid_view(self, cat):
+        self.remove_all_actors()  # Remove all actors before updating the plot
+        if self.curr_model:
+            
+            grid = geovis.get_voxel_grid_from_model(self.curr_model, threshold=None)    
+            skin = grid.extract_surface()
+            cat_mask = grid['values'] == cat
+            category_grid = grid.extract_cells(cat_mask)
+            
+            cats = np.unique(grid['values']) 
+            clim = [cats.min(), cats.max()]
+            cfg = geovis.get_plot_config()
+            cmap = cfg['cmap']
+            # Plot the category cluster and a translucent skin for context
+            self.plotter.add_mesh(skin, scalars='values', clim=clim, cmap=cmap,
+                    opacity=0.2, show_scalar_bar=False)
+            self.plotter.add_mesh(category_grid, scalars='values', clim=clim, cmap=cmap,
+                    opacity=1.0, show_scalar_bar=False)    
+            
+            self.plotter.render()
+
+    def update_category_selector(self):
+        unique_values = np.unique(self.curr_model.data)
+        unique_values = unique_values[~np.isnan(unique_values)]  # Filter out NaN values
+        if unique_values.size > 0:
+            min_value, max_value = int(unique_values.min()), int(unique_values.max())
+            self.parent.toolbar.category_spin_box.setRange(min_value, max_value)
+            self.parent.toolbar.category_spin_box.setValue(min_value)  # Set to the first category by default
+        else:
+            self.parent.toolbar.category_spin_box.setRange(0, 0)  # No valid categories
+            self.parent.toolbar.category_spin_box.setValue(0)
+
 
     def remove_all_actors(self):
         """Remove all actors from the plotter."""
@@ -103,4 +110,18 @@ class ModelPlotter:
             self.plot_view_mode = lambda: self.plot_nslice_view(n=n, axis=axis)
         elif mode == "Transformation View":
             self.plot_view_mode = self.plot_transformation_view
+        elif mode == "Categorical Grid View":
+            cat = self.parent.toolbar.category_spin_box.value()
+            self.plot_view_mode = lambda: self.plot_categorical_grid_view(cat)
+
         self.plot_view_mode()  # Update the view with the current model
+        
+    def get_model_tensor(self):
+        if self.curr_model:
+            np_array = self.curr_model.get_data_grid()
+            tensor = torch.tensor(np_array, dtype = torch.int8)
+            return tensor
+        else:
+            raise ValueError("No model to get tensor from")  
+
+            

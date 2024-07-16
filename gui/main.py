@@ -62,6 +62,9 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.toolbar_layout.addItem(self.toolbar_spacer)
         self.toolbar_layout.addWidget(self.toolbar)
         
+        # Set toolbar size policy to fixed height
+        self.toolbar.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        
         # Add the toolbar layout to the main layout
         self.main_layout.addLayout(self.toolbar_layout)
         

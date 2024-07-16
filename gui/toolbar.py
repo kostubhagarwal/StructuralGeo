@@ -1,5 +1,8 @@
 from qtpy import QtWidgets
 import slicing_tool as sm
+from structgeo.data import FileManager
+import torch
+from datetime import datetime
 
 class ToolBarWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, plotter=None, file_manager=None):
@@ -7,7 +10,7 @@ class ToolBarWidget(QtWidgets.QWidget):
         
         # Store references to plotter and file manager
         self.plotter = plotter
-        self.file_manager = file_manager
+        self.file_manager: FileManager = file_manager
         
         # Create the main layout for the toolbar
         self.main_layout = QtWidgets.QHBoxLayout(self)
@@ -25,7 +28,11 @@ class ToolBarWidget(QtWidgets.QWidget):
     def init_combo_box(self):
         # Add dropdown menu for plotting types
         self.plotting_type_combo = QtWidgets.QComboBox(self)
-        self.plotting_type_combo.addItems(["Volume View", "OrthSlice View", "n-Slice View", "Transformation View"])
+        self.plotting_type_combo.addItems(["Volume View", 
+                                           "OrthSlice View", 
+                                           "n-Slice View", 
+                                           "Transformation View", 
+                                           "Categorical Grid View"])
         
         # Create a layout for the combo box and add it to the main layout
         self.combo_box_layout = QtWidgets.QHBoxLayout()
@@ -51,6 +58,11 @@ class ToolBarWidget(QtWidgets.QWidget):
         self.axis_label = QtWidgets.QLabel("Axis:", self)
         self.axis_combo = QtWidgets.QComboBox(self)
         self.axis_combo.addItems(["x", "y", "z"])
+        
+        # Categorical Grid View buttons
+        self.category_label = QtWidgets.QLabel("Category:", self)
+        self.category_spin_box = QtWidgets.QSpinBox(self)
+        self.category_spin_box.setRange(0, 1)          
 
         # List of all buttons and widgets
         self.all_widgets = [
@@ -62,6 +74,8 @@ class ToolBarWidget(QtWidgets.QWidget):
             self.n_spin_box,
             self.axis_label,
             self.axis_combo,
+            self.category_label,
+            self.category_spin_box,
         ]
         
         # Add buttons to the layout and hide them initially
@@ -79,6 +93,7 @@ class ToolBarWidget(QtWidgets.QWidget):
         self.save_slices_button.clicked.connect(self.on_save_slices_clicked)
         self.n_spin_box.editingFinished.connect(self.on_n_spin_box_finished)
         self.axis_combo.currentIndexChanged.connect(self.on_axis_combo_changed)
+        self.category_spin_box.editingFinished.connect(self.on_category_changed)
                 
     def update_toolbar(self, mode):
         # Hide all widgets
@@ -89,6 +104,8 @@ class ToolBarWidget(QtWidgets.QWidget):
         if mode == "Volume View":
             self.renormalize_button.show()
             self.save_model_button.show()
+            self.view_slices_button.show()
+            self.save_slices_button.show()
         elif mode == "n-Slice View":
             self.view_slices_button.show()
             self.save_slices_button.show()
@@ -96,20 +113,37 @@ class ToolBarWidget(QtWidgets.QWidget):
             self.n_spin_box.show()
             self.axis_label.show()
             self.axis_combo.show()
+        elif mode == "Categorical Grid View":
+            self.category_label.show()
+            self.category_spin_box.show()
             
     def on_plotting_type_changed(self):
         mode = self.plotting_type_combo.currentText()
         self.update_toolbar(mode)
         QtWidgets.QApplication.processEvents()  # Force GUI update
         self.plotter.change_view_mode(mode)
-                    
+                            
     def on_renormalize_clicked(self):
         self.plotter.renormalize_height()
         pass
         
     def on_save_model_clicked(self):
-        # Logic for saving the model
-        pass
+        # Save the model as an int8 tensor
+        try:
+            tensor = self.plotter.get_model_tensor()
+        except ValueError as e:
+            print(e)
+            return
+        # Prompt the user to select a save directory
+        options = QtWidgets.QFileDialog.Options()
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
+        
+        if output_dir:
+            # Get a unique filename using timestamp
+            unique_id = datetime.now().strftime("%m%d%H%M%S")
+            # Save the tensor as a .pt file
+            torch.save(tensor, f"{output_dir}/model_{unique_id}.pt")
+            print(f"Model saved as model_{unique_id}.pt")
         
     def on_n_spin_box_finished(self):
         # Refresh the plotter with the new n value
@@ -132,12 +166,18 @@ class ToolBarWidget(QtWidgets.QWidget):
         
         if output_dir:
             # Save the slices as images and .npy files
-            sm.save_slices_as_images(slices, output_dir)
+            sm.save_slices_as_images(slices, output_dir, prefix=self.plotter.curr_model.name)
             sm.save_slices_as_npy(slices, output_dir)
     
     def get_slices_from_plotter(self):
-        n = self.n_spin_box.value()
+        n = 32
         axis = self.axis_combo.currentText()
         model = self.plotter.curr_model
-        slices = sm.generate_slices(model, n, axis)
+        # slices = sm.generate_slices(model, n, axis)
+        slices = sm.generate_slices(model, n, "x") + sm.generate_slices(model, n, "y")
+        
         return slices    
+    
+    def on_category_changed(self):
+        # Update the plotter with the new category
+        self.plotter.change_view_mode("Categorical Grid View")

@@ -6,12 +6,11 @@ import pyvista as pv
 import numpy as np
 import functools
 
-def get_plot_config(): 
+def get_plot_config(n_colors=10): 
     """ Central color configurations and appearance settings for the plotter"""
     settings = {
         # Color map for the rock types
         'cmap': "gist_ncar",  # Vibrant color map to differentiate rock types
-        'categories': True,   # Enable categorical coloring in color bar
         # Scalar bar settings
         'scalar_bar_args': {
             'title': "Rock Type",
@@ -22,42 +21,40 @@ def get_plot_config():
             'font_family': "arial",
             'n_labels': 2,   # Reducing the number of labels for clarity
             'vertical': True,
+            'n_colors': n_colors,
         }
         ,
     }
     return settings 
 
-def check_nan_data(func):
-    """Decorator to check for all NaN values in model data."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        model = args[0]  # Assuming the first argument is always the model
-        if np.all(np.isnan(model.data)):
-            plotter = pv.Plotter()
-            plotter.add_text("No data to show, all values are NaN.", font_size=20)
-            return plotter
-        return func(*args, **kwargs)
-    return wrapper
- 
-@check_nan_data   
-def volview(model, threshold=-0.5, show_bounds = False):
-    """ Classic volume rendering view showing the outer faces of the model."""
+def setup_plot(model, plotter=None, threshold=-0.5):
+    """ Common setup for all plot types """
+    if plotter is None:
+        plotter = pv.Plotter()
+        
+    if np.all(np.isnan(model.data)):
+        plotter.add_text("No data to show, all values are NaN.", font_size=20)
+        return plotter, None
+
     mesh = get_voxel_grid_from_model(model, threshold)
-    plotter = pv.Plotter()   
-    plot_config = get_plot_config()
+    n_colors = np.unique(model.data).size
+    plot_config = get_plot_config(n_colors=n_colors)
     
-    # Add the mesh to the plotter
-    plotter.add_mesh(mesh, scalars="values", 
-                    **plot_config,                        
-                    interpolate_before_map=False
-                    )
-    _ = plotter.add_axes(line_width=5)
+    return plotter, mesh, plot_config
+
+def volview(model, threshold=-0.5, show_bounds=False, plotter=None):
+    plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
+    if mesh is None:
+        return plotter
+    
+    plotter.add_mesh(mesh, scalars="values", **plot_config, interpolate_before_map=False)
+    plotter.add_axes(line_width=5)
+    
     if show_bounds:
         plotter.show_bounds(
             grid='back',
             location='outer',
             ticks='outside',
-            
             n_xlabels=4,
             n_ylabels=4,
             n_zlabels=4,
@@ -67,91 +64,50 @@ def volview(model, threshold=-0.5, show_bounds = False):
             all_edges=True,
         )
         
-    # add a bounding box
     flat_bounds = [item for sublist in model.bounds for item in sublist]
     bounding_box = pv.Box(flat_bounds)
     plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=1)
     
-    return plotter    
-
-@check_nan_data      
-def orthsliceview(model, threshold=-0.5):
-    """ Orthogonal slice view of the model with widgets for interactive slicing."""
-    mesh = get_voxel_grid_from_model(model, threshold)
-    plotter = pv.Plotter()    # type: ignore
-    color_config = get_plot_config()   
-    
-    # Adding an interactive slicing tool
-    plotter.add_mesh_slice_orthogonal(
-                    mesh, scalars="values",
-                    **color_config,
-                    )    
-    _ = plotter.add_axes(line_width=5)
-    return plotter    
-
-@check_nan_data     
-def nsliceview(model, n=5, axis="x", threshold=-0.5):
-    """ 
-    Static slices along a given axis of the model.
-    
-    Parameters
-    ----------
-    model : GeoModel
-    n     : int, the number of slices to create
-    axis  : "x", "y", "z", the axis along which to slice
-    threshold : float, the lower threshold value for mesh data inclusion
-    """
-    mesh = get_voxel_grid_from_model(model, threshold)
-    slices = mesh.slice_along_axis(n=n, axis=axis) 
-    plotter = pv.Plotter() 
-    color_config = get_plot_config()  
-       
-    # Adding an interactive slicing tool
-    plotter.add_mesh(
-                    slices, scalars="values",
-                    **color_config
-                    )  
-    _ = plotter.add_axes(line_width=5)
     return plotter
 
-@check_nan_data 
-def onesliceview(model, threshold=-0.5):
-    """
-    A single slice view with interactive widget to view model cross sections
-    """
-    mesh = get_voxel_grid_from_model(model, threshold)
+def orthsliceview(model, threshold=-0.5, plotter=None):
+    plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
+    if mesh is None:
+        return plotter
+    
+    plotter.add_mesh_slice_orthogonal(mesh, scalars="values", **plot_config)
+    plotter.add_axes(line_width=5)
+    return plotter
+
+def nsliceview(model, n=5, axis="x", threshold=-0.5, plotter=None):
+    plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
+    if mesh is None:
+        return plotter
+    
+    slices = mesh.slice_along_axis(n=n, axis=axis)
+    plotter.add_mesh(slices, scalars="values", **plot_config)
+    plotter.add_axes(line_width=5)
+    return plotter
+
+def onesliceview(model, threshold=-0.5, plotter=None):
+    plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
+    if mesh is None:
+        return plotter
+    
     skin = mesh.extract_surface()
-    plotter = pv.Plotter() 
-    color_config = get_plot_config()  
-       
-    # Adding an interactive slicing tool
-    plotter.add_mesh_slice(
-                    mesh,
-                    **color_config
-                    )  
-    plotter.add_mesh(skin, scalars='values', cmap = color_config['cmap'],
-                opacity=0.1, show_scalar_bar=False)
-    _ = plotter.add_axes(line_width=5)
+    plotter.add_mesh_slice(mesh, **plot_config)
+    plotter.add_mesh(skin, scalars='values', cmap=plot_config['cmap'], opacity=0.1, show_scalar_bar=False)
+    plotter.add_axes(line_width=5)
     return plotter
 
-@check_nan_data 
-def transformationview(model, threshold=None):
-    """ Plot the model with the snapshots of the transformation history."""
-        
-    # Create the plotter
-    plotter = pv.Plotter()
+def transformationview(model, threshold=None, plotter=None):
+    plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
+    if mesh is None:
+        return plotter
 
-    # Get final present-day mesh of model
-    final_mesh = get_mesh_from_model(model, threshold)  
-    plot_config = get_plot_config()    
-    if np.all(np.isnan(model.data)):
-        plotter.add_text("No data to show, all values are NaN.", font_size=20)
-    else:
-        # Add the mesh to the plotter
-        plotter.add_mesh(final_mesh, scalars="values", 
-                        **plot_config,
-                        )
-    _ = plotter.add_axes(line_width=5)
+    final_mesh = get_voxel_grid_from_model(model, threshold)
+    plotter.add_mesh(final_mesh, scalars="values", **plot_config)
+    plotter.add_axes(line_width=5)
     
     add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
     return plotter
@@ -185,7 +141,6 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     
     return actors
 
-@check_nan_data 
 def categorical_grid_view(model, threshold=None, text_annot = True):
     cfg = get_plot_config()
     
@@ -201,6 +156,7 @@ def categorical_grid_view(model, threshold=None, text_annot = True):
 
     num_cats = len(cats)
     rows, cols = calculate_grid_dims(num_cats)
+    
     p = pv.Plotter(shape=(rows, cols), border=False) # subplot square layout
 
     clim = [cats.min(), cats.max()] # Preset color limits for all subplots
