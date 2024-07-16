@@ -4,7 +4,8 @@ import itertools
 from structgeo.model.util import *
 
 class GeoProcess:
-    """Base class for all geological processes.
+    """
+    Base class for all geological processes.
     
     Conventions:
     Strike, dip, and rake are in degrees.    
@@ -30,6 +31,20 @@ class Transformation(GeoProcess):
     """
     def run(self, xyz, data):
         raise NotImplementedError()
+    
+class CompoundProcess(GeoProcess):
+    """
+    A compound geological process that consists of multiple sequential sub-processes.
+    
+    Can include both deposition and transformation processes in a sequence.    
+    """
+    def __init__(self, processes):
+        if type(self) is CompoundProcess:
+            raise TypeError("CompoundProcess is an abstract class and cannot be instantiated directly.")
+        self.history = processes
+        
+    def unpack(self):
+        return self.history
         
 class Layer(Deposition):
     """ Fill the model with a layer of rock. """
@@ -116,7 +131,7 @@ class Sedimentation(Deposition):
     
         Parameters:
               value_list (iterable float): a list of values to sample from for rock types
-              value_selector (iterable float): an optional object to sample values from the list
+              value_selector (iterable float): a list of thicknesses for each layer
               base (float): Optional floor value for sedimentation, itherwise starts at lowest NaN mesh point
     """
     def __init__(self, value_list, thickness_list, base=np.nan):
@@ -168,7 +183,7 @@ class Sedimentation(Deposition):
         return self.value_list[-1]
      
 class Dike(Deposition):
-    """ Insert a dike to overwrite existing data values.
+    """ A base planar dike intrusion
     
     Parameters:
     strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
@@ -215,6 +230,108 @@ class Dike(Deposition):
     def last_value(self):
         return self.value
     
+class DikePlug(Deposition):
+    """ An intrusion formed as an elliptical plug.
+    
+    Parameters:
+    origin (tuple): Origin point of the plug tip in model reference frame
+    diam (float): Diameter of the plug's major axis
+    minor_axis_scale (float): Scaling factor for the minor axis of the plug
+    rotation (float): Rotation of the plug major axis cw from the y-axis
+    shape (float): Shape parameter for the plug, controls the exponent of the rotated polynomial
+    value (int): Value of rock-type to assign to the plug    
+    clip (bool): Clip the plug to not protrude above the surface
+    """
+    
+    def __init__(self, origin=(0,0,0), diam=3, minor_axis_scale=1., rotation=0, shape=3.0, value=0., clip=True):
+        self.origin = np.array(origin)
+        self.diameter = diam
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.shape = shape
+        self.clip = clip
+        self.value = value
+        
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        return (f"DikePlug: origin ({origin_str}), conic_scaling {self.conic_scaling:.1f}, "
+                f"rotation {self.rotation:.1f}, value {self.value:.1f}.")
+        
+    def run(self, xyz, data):
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin
+        # Rotate the points in the xy plane of the plug formation ccw
+        R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+        v0 = v0 @ R.T
+        # Scale the points along the x-axis (minor axis)
+        v0[:, 0] /= self.minor_scale
+        # Calculate the radius from the plug axis in scaled ellipse space for z <= 0
+        valid_indices = v0[:, 2] <= 0
+        dists = np.full(v0.shape[0], np.nan)  # Initialize with NaN
+        dists[valid_indices] = np.sqrt(v0[valid_indices, 0]**2 + v0[valid_indices, 1]**2)
+        dists = dists / (self.diameter / 2.0)  # Normalize to the diameter of major axis
+        
+        # Condition to include in plug is using z<=-|d^shape|
+        mask = v0[:, 2] <= -np.abs(dists**self.shape)
+        
+        if self.clip:
+            # Clip the plug to not protrude above the surface
+            mask &= (~np.isnan(data))
+        data[mask] = self.value
+
+        return xyz, data
+    
+class DikePlugPushed(CompoundProcess):
+    """ Experimental class for a dike intrusion with a push deformation."""
+        
+    def __init__(self, origin=(0,0,0), diam=3, minor_axis_scale=1., rotation=0, shape=3.0, push = 1.0, value=0.):
+        self.origin = np.array(origin)
+        self.diameter = diam
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.shape = shape
+        self.value = value
+        deposition = DikePlug(origin, diam, minor_axis_scale, rotation, shape, value)
+        transformation = self.Push(origin, diam, minor_axis_scale, rotation, shape, push)
+        self.history = [transformation, deposition]
+        
+    class Push(Transformation):
+
+        def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
+            self.origin = np.array(origin)
+            self.diameter = diam
+            self.minor_scale = minor_axis_scale
+            self.rotation = rotation
+            self.shape = shape
+            self.push = push
+
+        def __str__(self):
+            return f"DikePush: vector {self.vector}"
+
+        def run(self, xyz, data):
+            # Translate points to origin coordinate frame
+            v0 = xyz - self.origin
+            # Rotate the points in the xy plane of the plug formation ccw
+            R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+            v0 = v0 @ R.T
+            # Scale the points along the x-axis (minor axis)
+            v0[:, 0] /= self.minor_scale
+            
+            x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
+            
+            r = np.sqrt(x**2 + y**2)
+            r_scaled = r / (self.diameter / 2.0)
+            z_surf = -np.abs(r_scaled**self.shape)
+            dists = z - z_surf
+            displacement = self.push*np.exp(-.01*dists**2)
+            
+            xyz[:, 2] -= displacement
+            
+            return xyz, data
+
+# class DikeColumn(Deposition):
+    
+
 class UnconformityBase(Deposition):
     """ Erode the model from a given base level upwards
     
@@ -436,11 +553,11 @@ class Fault(Slip):
     characteristic of brittle faults.
 
     Parameters:
-    - strike (float): Strike angle in degrees
-    - dip (float): Dip angle in degrees
-    - rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-    - amplitude (float): The maximum displacement magnitude along the slip_vector.
-    - origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    strike (float): Strike angle in degrees
+    dip (float): Dip angle in degrees
+    rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+    amplitude (float): The maximum displacement magnitude along the slip_vector.
+    origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
     
     This implementation causes a displacement strictly on one side of the fault, making it suitable for
     simulating scenarios where a clear delineation between displaced and stationary geological strata is necessary.
@@ -467,12 +584,12 @@ class Shear(Slip):
     Displacement is modeled as a sigmoid function that increases with distance from the slip plane.
     
     Parameters:
-    - strike (float): Strike angle in degrees
-    - dip (float): Dip angle in degrees
-    - rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-    - amplitude (float): The maximum displacement magnitude along the slip_vector.
-    - origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
-    - steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
+    strike (float): Strike angle in degrees
+    dip (float): Dip angle in degrees
+    rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+    amplitude (float): The maximum displacement magnitude along the slip_vector.
+    origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
     """
     def __init__(self, 
                 strike = 0., 
@@ -493,3 +610,41 @@ class Shear(Slip):
         # Apply the shear transformation
         xyz_transformed, array = super().run(xyz, array)
         return xyz_transformed, array
+   
+    
+class Lacolith(CompoundProcess):
+    """ A compound geological process of intrusion and uplift, forming a lacolith.
+    
+    An intruding stem with a cap int the model with uplift overtop to form lacolith.
+    
+    Parameters:
+    target_depth (float): Depth of the lacolith intrusion, either nearest layer or absolute depth
+    find_nearest_layer (bool): If True, the target_depth is the nearest layer, otherwise forces at this depth
+    cap_height (float): Height of the cap from the expansion point
+    stem_diameter (float): Diameter of the stem
+    xy_origin (tuple): Origin of the intrusion in the xy plane
+    xy_rotation (float): Rotation of the intrusion in the xy plane
+    x_scale (float): Major axis scale, stretches along rotated x-axis
+    """
+    
+    def __init__(self, 
+                target_depth,
+                cap_height = 1,
+                stem_diameter = 1,
+                xy_origin = (0,0),
+                xy_rotation = 0,
+                x_scale = 1.,             
+                ):
+        self.target_depth = target_depth
+        self.cap_height = cap_height
+        self.stem_diameter = stem_diameter
+        self.xy_origin = np.array(xy_origin)
+        self.xy_rotation = np.radians(xy_rotation)
+        self.x_scale = x_scale
+        
+        # Create the history of the lacolith
+        self.history = self.create_lacolith_history()
+        
+    def create_lacolith_history(self):
+        
+        pass

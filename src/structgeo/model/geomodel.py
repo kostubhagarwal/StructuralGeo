@@ -154,7 +154,7 @@ class GeoModel:
         self.Y    = np.empty((0,0,0))
         self.Z    = np.empty((0,0,0))                  
 
-    def compute_model(self):
+    def compute_model(self, keep_snapshots = True):
         """Compute the present day model based on the geological history
         
         Snapshots:
@@ -177,27 +177,36 @@ class GeoModel:
         # Clear the model data before recomputing
         self.clear_data()
         # Allocate memory for the mesh and data
-        self.setup_mesh()        
-        # Determine how many snapshots are needed for memory pre-allocation
-        self._prepare_snapshots()    
-        # Backward pass to reverse mesh grid of points
-        self._backward_pass()        
-        # Forward pass to apply deposition events
-        self._forward_pass()
+        self.setup_mesh()   
         
-        # TODO: Might be nice to have an option to visualize the model at different stages
+        # Unpack all compound events into atomic components
+        history_unpacked = []
+        for event in self.history:
+            if isinstance(event, CompoundProcess):
+                history_unpacked.extend(event.unpack())
+            else:
+                history_unpacked.append(event)        
+             
+        # Determine how many snapshots are needed for memory pre-allocation
+        self._prepare_snapshots(history_unpacked)    
+        # Backward pass to reverse mesh grid of points
+        self._backward_pass(history_unpacked)        
+        # Forward pass to apply deposition events
+        self._forward_pass(history_unpacked)
+        
         # Clean up snapshots taken during the backward pass
-        # self.snapshots = np.empty((0, 0, 0, 0))
+        if not keep_snapshots:
+            self.snapshots = np.empty((0, 0, 0, 0))
           
-    def _prepare_snapshots(self):
+    def _prepare_snapshots(self, history):
         """ Determine when to take snapshots of the mesh during the backward pass.
         
         Snapshots of the xyz mesh should be taken at end of a transformation sequence
         """  
         # Always include the oldest time state of mesh      
         snapshot_indices = [0]
-        for i in range(1,len(self.history)):
-            if isinstance(self.history[i], Deposition) and isinstance(self.history[i-1], Transformation):
+        for i in range(1,len(history)):
+            if isinstance(history[i], Deposition) and isinstance(history[i-1], Transformation):
                 snapshot_indices.append(i)
         
         self.snapshot_indices = snapshot_indices
@@ -208,14 +217,13 @@ class GeoModel:
         log.info(f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}")
         
         return snapshot_indices
-
-    def _backward_pass(self):
+    def _backward_pass(self, history):
         """ Backtrack the xyz mesh through the geological history using transformations."""
         # Make a copy of the model xyz mesh to apply transformations
         current_xyz = self.xyz.copy()
         
-        i = len(self.history) - 1
-        for event in reversed(self.history):
+        i = len(history) - 1
+        for event in reversed(history):
             # Store snapshots of the mesh at required intervals
             if i in self.snapshot_indices:
                 # The final state (index 0) uses the actual xyz since no further modifications are made,
@@ -231,9 +239,9 @@ class GeoModel:
                 current_xyz, _ = event.run(current_xyz, self.data)
             i -= 1
             
-    def _forward_pass(self):
+    def _forward_pass(self, history):
         """ Apply deposition events to the mesh based on the geological history."""
-        for i, event in enumerate(self.history):
+        for i, event in enumerate(history):
             # Update mesh coordinates as required by fetching snapshot from the backward pass
             if i in self.snapshot_indices:
                 snapshot_index = self.snapshot_indices.index(i)
