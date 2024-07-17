@@ -28,6 +28,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
         self._init_layout()
         self._init_filemenu()
+ #      self.toolbar.add_shortcuts(self)
         
         if show:
             self.show()
@@ -81,10 +82,22 @@ class MyMainWindow(QtWidgets.QMainWindow):
         selectFolderAction.triggered.connect(self.file_manager_gui.select_folder)
         fileMenu.addAction(selectFolderAction)
         
+        # Add 'Set Resolution' option in the menu
+        setResolutionAction = QtWidgets.QAction('Set Resolution', self)
+        setResolutionAction.triggered.connect(self.set_resolution)
+        fileMenu.addAction(setResolutionAction)
+        
+        # Final option to exit the application
         exitButton = QtWidgets.QAction('Exit', self)
         exitButton.setShortcut('Ctrl+Q')
         exitButton.triggered.connect(self.close)
         fileMenu.addAction(exitButton)
+        
+    def set_resolution(self):
+        resolution, ok = QtWidgets.QInputDialog.getInt(self, 'Set Resolution', 'Enter resolution (2-256):', min=2, max=256)
+        if ok:
+            self.plotter.resolution = (resolution, resolution, resolution)
+            print(f"Resolution set to: {self.plotter.resolution}")
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

@@ -17,8 +17,7 @@ class ModelPlotter:
         
         # ----- Data ------
         self.curr_model: geo.GeoModel = None  # Store the current model
-        self.mesh = None  # Store the current mesh
-        self.actors = []  # List to track all actors added to the plotter
+        self.resolution = None # Model resolution override for faster plotting
         self.plotter.add_axes(line_width=5)
         self.plot_view_mode = self.plot_volume_view  # Default view mode
         self.plot_config = geovis.get_plot_config()
@@ -27,6 +26,8 @@ class ModelPlotter:
         if self.curr_model is not None:
             del self.curr_model # del prev model to free memory
         self.curr_model = model  # Update to the current passed model
+        if self.resolution is not None:
+            self.curr_model.resolution = self.resolution
         self.curr_model.compute_model() 
         self.update_category_selector()
         self.plot_view_mode()  # Refresh the plotter with the new model

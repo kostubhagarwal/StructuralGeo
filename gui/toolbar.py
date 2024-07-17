@@ -1,15 +1,18 @@
-from qtpy import QtWidgets
+import torch
+import pickle as pkl
+from datetime import datetime
+
+from qtpy import QtWidgets, QtGui
 import slicing_tool as sm
 from structgeo.data import FileManager
-import torch
-from datetime import datetime
+from plotter import ModelPlotter
 
 class ToolBarWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, plotter=None, file_manager=None):
         super(ToolBarWidget, self).__init__(parent)
         
         # Store references to plotter and file manager
-        self.plotter = plotter
+        self.plotter: ModelPlotter = plotter
         self.file_manager: FileManager = file_manager
         
         # Create the main layout for the toolbar
@@ -24,6 +27,9 @@ class ToolBarWidget(QtWidgets.QWidget):
         
         # Connect signals to slots (methods to handle button clicks)
         self.connect_signals()
+        
+        # Add shortcuts for the toolbar
+        self.add_shortcuts(parent)
         
     def init_combo_box(self):
         # Add dropdown menu for plotting types
@@ -126,25 +132,7 @@ class ToolBarWidget(QtWidgets.QWidget):
     def on_renormalize_clicked(self):
         self.plotter.renormalize_height()
         pass
-        
-    def on_save_model_clicked(self):
-        # Save the model as an int8 tensor
-        try:
-            tensor = self.plotter.get_model_tensor()
-        except ValueError as e:
-            print(e)
-            return
-        # Prompt the user to select a save directory
-        options = QtWidgets.QFileDialog.Options()
-        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
-        
-        if output_dir:
-            # Get a unique filename using timestamp
-            unique_id = datetime.now().strftime("%m%d%H%M%S")
-            # Save the tensor as a .pt file
-            torch.save(tensor, f"{output_dir}/model_{unique_id}.pt")
-            print(f"Model saved as model_{unique_id}.pt")
-        
+                
     def on_n_spin_box_finished(self):
         # Refresh the plotter with the new n value
         self.plotter.change_view_mode("n-Slice View")
@@ -181,3 +169,42 @@ class ToolBarWidget(QtWidgets.QWidget):
     def on_category_changed(self):
         # Update the plotter with the new category
         self.plotter.change_view_mode("Categorical Grid View")
+                
+    def add_shortcuts(self, parent):
+        """ Caled from main to add shortcut keys to the file menu and program"""
+        self.renormalize_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("H"), self)
+        self.renormalize_shortcut.activated.connect(self.on_renormalize_clicked)
+        self.save_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+S"), self)
+        self.save_shortcut.activated.connect(self.on_save_model_clicked)            
+
+        self.renormalize_action = QtWidgets.QAction("Renormalize Height", self)
+        self.renormalize_action.setShortcut("H")
+        self.renormalize_action.triggered.connect(self.on_renormalize_clicked)
+        
+        self.save_model_action = QtWidgets.QAction("Save Model", self)
+        self.save_model_action.setShortcut("Ctrl+S")
+        self.save_model_action.triggered.connect(self.on_save_model_clicked)
+     
+    
+    """ Function callback for Ctrl+S can be used to customize model save behavior"""    
+    def on_save_model_clicked(self, save_as_pkl=True):
+        # Prompt the user to select a save directory
+        options = QtWidgets.QFileDialog.Options()
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
+        
+        # Two save options: save as a .pkl file or save as a .pt file, needs to be set here in source code
+        if output_dir:
+            if save_as_pkl:
+                output_dir = "C:/Users/sghys/Summer2024/saved_geomodels_v2"
+                model = self.plotter.curr_model
+                self.file_manager.save_geo_model(model, save_dir=output_dir)
+            else:
+                try:
+                    tensor = self.plotter.get_model_tensor()
+                except ValueError as e:
+                    print(e)
+                    return
+                # Save the tensor as a .pt file
+                unique_id = datetime.now().strftime("%d%H%M%S%f")[:-3]
+                torch.save(tensor, f"{output_dir}/model_{unique_id}.pt")
+                print(f"Model saved as model_{unique_id}.pt")
