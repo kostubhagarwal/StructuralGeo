@@ -123,8 +123,13 @@ class GeoModel:
         # Check if all elements in the list are instances of GeoProcess
         for event in history:
             if not isinstance(event, GeoProcess):
-                msg = f"All items in the history list must be instances of the GeoProcess class. Found {type(event)}. for {event}"
+                msg = f"All items in the history list must be instances of the GeoProcess class. Found {type(event)} for {event}."
                 raise TypeError(msg)  
+
+            # Check if it's a CompoundProcess and ensure it has a valid history
+            if isinstance(event, CompoundProcess) and not event.history:
+                msg = f"CompoundProcess {event} has no history defined."
+                raise ValueError(msg)
         
         # Extend the existing history with the new history
         self.history.extend(history)

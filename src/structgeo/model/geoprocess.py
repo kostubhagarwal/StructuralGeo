@@ -1,5 +1,7 @@
 import numpy as np
 import itertools
+from typing import List
+import warnings
 
 from structgeo.model.util import *
 
@@ -36,15 +38,26 @@ class CompoundProcess(GeoProcess):
     """
     A compound geological process that consists of multiple sequential sub-processes.
     
-    Can include both deposition and transformation processes in a sequence.    
-    """
-    def __init__(self, processes):
-        if type(self) is CompoundProcess:
-            raise TypeError("CompoundProcess is an abstract class and cannot be instantiated directly.")
-        self.history = processes
-        
+     Can include both deposition and transformation processes in a sequence.
+   """
+    def __init__(self, processes: List[GeoProcess] = None):
+        self.history = processes if processes is not None else []
+        self._check_history()
+
+    def _check_history(self):
+        if not self.history:
+            warnings.warn(f"{self.__class__.__name__} initialized with an empty history. Ensure to add processes before computation.", UserWarning)
+          
     def unpack(self):
-        return self.history
+        if not self.history:
+            raise ValueError(f"{self.__class__.__name__} has no history to unpack.")
+        unpacked_history = []
+        for process in self.history:
+            if isinstance(process, CompoundProcess):
+                unpacked_history.extend(process.unpack())
+            else:
+                unpacked_history.append(process)
+        return unpacked_history
         
 class Layer(Deposition):
     """ Fill the model with a layer of rock. """
@@ -121,18 +134,18 @@ class Bedrock(Deposition):
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
     
-    def last_value(self, data):
+    def last_value(self):
         return self.value
     
 class Sedimentation(Deposition):
     """ Fill with layers of sediment, with rock values and thickness of layers given as lists.
-    The sedimentation starts at the lowest nan point in the mesh and builds up sequentially.
-    If mesh is all NaN, an optional floor value can be set to start sedimentation from.
+        The base elevation from which to fill can either be specified or can be deduced at generation time from
+        the lowest unfilled value in the mesh
     
         Parameters:
               value_list (iterable float): a list of values to sample from for rock types
               value_selector (iterable float): a list of thicknesses for each layer
-              base (float): Optional floor value for sedimentation, itherwise starts at lowest NaN mesh point
+              base (float): Optional floor value for sedimentation, otherwise starts at lowest NaN mesh point
     """
     def __init__(self, value_list, thickness_list, base=np.nan):
         self.value_list = value_list
@@ -146,7 +159,7 @@ class Sedimentation(Deposition):
         thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_list[:3])
         thicknesses += "..." if len(self.thickness_list) > 3 else ""
         return (f"Sedimentation: rock type values [{values_summary}], "
-                f"and thicknesses {thicknesses}.")  
+                f"and thicknesses {thicknesses}, with base = {self.base}")  
         
     def run(self, xyz, data):
         if np.isnan(self.base):            
@@ -269,7 +282,7 @@ class DikeColumn(Deposition):
         x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
         r = np.sqrt(x**2 + y**2)
         
-        mask = (r <= self.diam / 2.0) & (z <= 0) & (z >= self.depth)
+        mask = (r <= self.diam / 2.0) & (z <= 0) & (z >= (self.origin[2] - self.depth))
         if self.clip:
             mask &= (~np.isnan(data))
         data[mask] = self.value     
@@ -324,13 +337,12 @@ class DikeHemisphere(Deposition):
 class PushHemisphere(Transformation):
     """ Push a hemisphere intrusion in the z-direction."""
     
-    def __init__(self, origin=(0,0,0), diam=500, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
+    def __init__(self, origin=(0,0,0), diam=500, height=100, minor_axis_scale=1., rotation=0., upper = True, clip=False):
         self.origin = np.array(origin)
         self.diam = diam
         self.height = height
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
-        self.value = value
         self.upper = upper
         self.clip = clip
         
@@ -365,6 +377,8 @@ class PushHemisphere(Transformation):
             
         scaling = np.ones(z.shape)
         scaling = 1/(1+np.exp(8*(rho-1)))
+        # also scale by distance away from origin
+        scaling *= 1/(r+1e-6)**1.5
         z[mask] -= scaling[mask]*z_proj[mask]
         
         # inside points interpolate towards origin
@@ -384,6 +398,7 @@ class PushHemisphere(Transformation):
         return xyz, data
     
 class Laccolith(CompoundProcess):
+    """ Creates a Laccolith or a Lopolith"""
     def __init__(self, origin=(0,0,0), cap_diam=500, stem_diam = 80, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
         self.origin = np.array(origin)
         self.cap_diam = cap_diam
@@ -402,7 +417,7 @@ class Laccolith(CompoundProcess):
         stem = DikeColumn(self.origin, self.stem_diam, -np.inf, self.minor_scale, self.rotation, self.value, self.clip)
          # Build the cap
         cap = DikeHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.value, self.upper, self.clip)
-        push = PushHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.value, self.upper, self.clip)
+        push = PushHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.upper, self.clip)
         return [push, cap, stem]
             
 class DikePlug(Deposition):
@@ -455,22 +470,9 @@ class DikePlug(Deposition):
         data[mask] = self.value
 
         return xyz, data
-    
-class DikePlugPushed(CompoundProcess):
-    """ Experimental class for a dike intrusion with a push deformation."""
-        
-    def __init__(self, origin=(0,0,0), diam=3, minor_axis_scale=1., rotation=0, shape=3.0, push = 1.0, value=0.):
-        self.origin = np.array(origin)
-        self.diameter = diam
-        self.minor_scale = minor_axis_scale
-        self.rotation = rotation
-        self.shape = shape
-        self.value = value
-        deposition = DikePlug(origin, diam, minor_axis_scale, rotation, shape, value)
-        transformation = self.Push(origin, diam, minor_axis_scale, rotation, shape, push)
-        self.history = [transformation, deposition]
-        
-    class Push(Transformation):
+
+
+    class PushPlug(Transformation):
 
         def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
             self.origin = np.array(origin)
@@ -503,13 +505,78 @@ class DikePlugPushed(CompoundProcess):
             
             xyz[:, 2] -= displacement
             
-            return xyz, data   
+            return xyz, data       
+class DikePlugPushed(CompoundProcess):
+    """ Experimental class for a dike intrusion with a push deformation."""
+        
+    def __init__(self, origin=(0,0,0), diam=3, minor_axis_scale=1., rotation=0, shape=3.0, push = 1.0, value=0.):
+        self.origin = np.array(origin)
+        self.diameter = diam
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.shape = shape
+        self.value = value
+        deposition = DikePlug(origin, diam, minor_axis_scale, rotation, shape, value)
+        transformation = self.PushPlug(origin, diam, minor_axis_scale, rotation, shape, push)
+        self.history = [transformation, deposition]
+        
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        return (f"DikePlugPushed: origin ({origin_str}), diam {self.diam:.1f}, minor scaling {self.minor_scale:.1f}, "
+                f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}.")
+
+class MetaBall:
+    """ A single metaball object with a given origin, radius, and goo factor."""
+    def __init__(self, origin, radius, goo_factor=1.):
+        self.origin = np.array(origin)
+        self.radius = radius
+        self.goo_factor = goo_factor
+    
+    def potential(self, points):
+        # Calculate the distance from the points to the ball's origin
+        distances = np.linalg.norm(points - self.origin, axis=1)
+        # Avoid division by zero
+        distances = np.maximum(distances, 1e-6)
+        return self.radius / (distances ** self.goo_factor)
+class Blob(Deposition):
+    """ 
+    A Blob geological process that modifies points within a specified potential range.
+
+    Parameters:
+    metaballs (list): A list of Ball objects defining the metaballs.
+    threshold (float): The threshold potential below which points will be relabeled.
+    value (int): The value to assign to points below the threshold potential.
+    """
+    def __init__(self, metaballs: List[MetaBall], threshold, value):
+        self.metaballs = metaballs
+        self.threshold = threshold
+        self.value = value
+
+    def __str__(self):
+        return (f"Blob: threshold {self.threshold:.1f}, value {self.value:.1f}, "
+                f"with {len(self.metaballs)} metaballs.")
+    
+    def run(self, xyz, data):
+        # Compute the net potential for each point in xyz
+        potentials = np.zeros(xyz.shape[0])
+        for ball in self.metaballs:
+            distances = np.linalg.norm(xyz - ball.origin, axis=1)
+            distances = np.maximum(distances, 1e-6)  # Avoid division by zero
+            potentials += ball.radius / (distances ** ball.goo_factor)
+        
+        # Apply the threshold and relabel points
+        mask = potentials < self.threshold
+        data[mask] = self.value
+        
+        # Return the unchanged xyz and the potentially modified data
+        return xyz, data   
 
 class UnconformityBase(Deposition):
     """ Erode the model from a given base level upwards
     
     Parameters:
     base (float): base level of erosion
+    value (int): Value to use for fill, np.nan by default to fill with air category
     """
     
     def __init__(self, base, value=np.nan):
