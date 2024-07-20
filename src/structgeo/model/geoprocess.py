@@ -230,8 +230,183 @@ class Dike(Deposition):
     def last_value(self):
         return self.value
     
+class DikeColumn(Deposition):
+    """ Columnar dike intrusion 
+    
+    Parameters:
+    origin (tuple): Origin point of the dike in the model reference frame, column propogates downward in column
+    diam (float): Diameter of the dike
+    depth (float): Stopping depth of dike, -infinity by default goes down through entire model
+    minor_axis_scale (float): Scaling factor for the x-axis of the dike
+    rotation (float): Rotation of the dike in the xy plane
+    value (int): Value of rock-type to assign to the dike
+    clip (bool): Clip the dike to not protrude above the surface
+    """
+    
+    def __init__(self, origin=(0,0,0), diam=100,  depth=-np.inf, minor_axis_scale=1.,  rotation=0., value=0., clip=False):
+        self.origin = np.array(origin)
+        self.diam = diam
+        self.depth = depth
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.value = value
+        self.clip = clip
+    
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        return (f"DikeColumn: origin ({origin_str}), diam {self.diam:.1f}, depth {self.depth:.1f}, "
+                f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}.")
+    
+    def run(self, xyz, data):
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin
+        # Rotate the points in the xy plane of the plug formation ccw
+        R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+        v0 = v0 @ R.T
+        # Scale the points along the x-axis (minor axis)
+        v0[:, 0] /= self.minor_scale
+        
+        x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
+        r = np.sqrt(x**2 + y**2)
+        
+        mask = (r <= self.diam / 2.0) & (z <= 0) & (z >= self.depth)
+        if self.clip:
+            mask &= (~np.isnan(data))
+        data[mask] = self.value     
+        
+        return xyz, data
+    
+class DikeHemisphere(Deposition):
+    """ A lenticular dike intrusion """
+        
+    def __init__(self, origin=(0,0,0), diam=500, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
+        self.origin = np.array(origin)
+        self.diam = diam
+        self.height = height
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.value = value
+        self.upper = upper
+        self.clip = clip
+        
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        return (f"DikeHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
+                f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}.")
+        
+    def run(self, xyz, data):
+        # Translate points to origin coordinate frame (bottom center of the sill)
+        v0 = xyz - self.origin
+        # Rotate the points in the xy plane of the lenticle formation ccw
+        R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+        v0 = v0 @ R.T
+        
+        x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
+        
+        # Apply scaling transforms to form a uniform hemisphere
+        x /= self.minor_scale
+        x /= self.diam / 2.0
+        y /= self.diam / 2.0
+        z /= self.height
+        
+        r = np.sqrt(x**2 + y**2 + z**2)
+        
+        if self.upper:
+            mask = (r <= 1.0) & (z >= 0)
+        else:            
+            mask = (r <= 1.0) & (z <= 0) 
+        if self.clip:
+            mask &= (~np.isnan(data))
+        data[mask] = self.value     
+        
+        return xyz, data
+    
+class PushHemisphere(Transformation):
+    """ Push a hemisphere intrusion in the z-direction."""
+    
+    def __init__(self, origin=(0,0,0), diam=500, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
+        self.origin = np.array(origin)
+        self.diam = diam
+        self.height = height
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.value = value
+        self.upper = upper
+        self.clip = clip
+        
+    def run(self, xyz, data):
+        # Translate points to origin coordinate frame (bottom center of the sill)
+        v0 = xyz - self.origin
+        # Rotate the points in the xy plane of the lenticle formation ccw
+        R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+        v0 = v0 @ R.T
+        
+        x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
+        
+        # Apply scaling transforms to form a uniform hemisphere
+        x /= self.minor_scale
+        x /= self.diam / 2.0
+        y /= self.diam / 2.0
+        z /= self.height
+        
+        r = np.sqrt(x**2 + y**2 + z**2)
+        rho = np.sqrt(x**2 + y**2)
+        # Calculate normalized unit vectors pointing away from origin
+        xyz_prime = np.column_stack((x, y, z))
+        norms = np.linalg.norm(xyz_prime, axis=1)
+        unit_vectors = xyz_prime / norms[:, np.newaxis]
+        z_proj = unit_vectors[:, 2]
+        
+        # far points are full deflected vertically by height projection
+        if self.upper:
+            mask = (r >= 1.0) & (z >= 0)
+        else:
+            mask = (r >= 1.0) & (z <= 0)    
+            
+        scaling = np.ones(z.shape)
+        scaling = 1/(1+np.exp(8*(rho-1)))
+        z[mask] -= scaling[mask]*z_proj[mask]
+        
+        # inside points interpolate towards origin
+        if self.upper:
+            mask = (r < 1.0) & (z >= 0)
+        else:
+            mask = (r < 1.0) & (z <= 0)
+        z[mask] = z[mask] - r[mask] *z_proj[mask]
+        
+        # invert back to original space
+        xyz_prime = np.column_stack((x, y, z))
+        xyz_prime[:, 2] *= self.height
+        xyz_prime[:, 0:1] *= self.diam / 2.0
+        xyz_prime[:, 0] *= self.minor_scale
+        xyz = xyz_prime @ R + self.origin
+        
+        return xyz, data
+    
+class Laccolith(CompoundProcess):
+    def __init__(self, origin=(0,0,0), cap_diam=500, stem_diam = 80, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
+        self.origin = np.array(origin)
+        self.cap_diam = cap_diam
+        self.stem_diam = stem_diam
+        self.height = height
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.value = value
+        self.upper = upper
+        self.clip = clip
+        
+        self.history = self.build_lacolith()
+        
+    def build_lacolith(self):
+        # Build the stem
+        stem = DikeColumn(self.origin, self.stem_diam, -np.inf, self.minor_scale, self.rotation, self.value, self.clip)
+         # Build the cap
+        cap = DikeHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.value, self.upper, self.clip)
+        push = PushHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.value, self.upper, self.clip)
+        return [push, cap, stem]
+            
 class DikePlug(Deposition):
-    """ An intrusion formed as an elliptical plug.
+    """ An intrusion formed as a parabolic/elliptical plug.
     
     Parameters:
     origin (tuple): Origin point of the plug tip in model reference frame
@@ -323,14 +498,12 @@ class DikePlugPushed(CompoundProcess):
             r_scaled = r / (self.diameter / 2.0)
             z_surf = -np.abs(r_scaled**self.shape)
             dists = z - z_surf
+            # Gaussian push function based on vertical distance from the surface
             displacement = self.push*np.exp(-.01*dists**2)
             
             xyz[:, 2] -= displacement
             
-            return xyz, data
-
-# class DikeColumn(Deposition):
-    
+            return xyz, data   
 
 class UnconformityBase(Deposition):
     """ Erode the model from a given base level upwards
@@ -612,39 +785,4 @@ class Shear(Slip):
         return xyz_transformed, array
    
     
-class Lacolith(CompoundProcess):
-    """ A compound geological process of intrusion and uplift, forming a lacolith.
-    
-    An intruding stem with a cap int the model with uplift overtop to form lacolith.
-    
-    Parameters:
-    target_depth (float): Depth of the lacolith intrusion, either nearest layer or absolute depth
-    find_nearest_layer (bool): If True, the target_depth is the nearest layer, otherwise forces at this depth
-    cap_height (float): Height of the cap from the expansion point
-    stem_diameter (float): Diameter of the stem
-    xy_origin (tuple): Origin of the intrusion in the xy plane
-    xy_rotation (float): Rotation of the intrusion in the xy plane
-    x_scale (float): Major axis scale, stretches along rotated x-axis
-    """
-    
-    def __init__(self, 
-                target_depth,
-                cap_height = 1,
-                stem_diameter = 1,
-                xy_origin = (0,0),
-                xy_rotation = 0,
-                x_scale = 1.,             
-                ):
-        self.target_depth = target_depth
-        self.cap_height = cap_height
-        self.stem_diameter = stem_diameter
-        self.xy_origin = np.array(xy_origin)
-        self.xy_rotation = np.radians(xy_rotation)
-        self.x_scale = x_scale
-        
-        # Create the history of the lacolith
-        self.history = self.create_lacolith_history()
-        
-    def create_lacolith_history(self):
-        
-        pass
+

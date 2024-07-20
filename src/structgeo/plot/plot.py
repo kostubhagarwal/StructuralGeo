@@ -19,7 +19,7 @@ def get_plot_config(n_colors=10):
             'shadow': True,
             'italic': True,
             'font_family': "arial",
-            'n_labels': 0,
+            'n_labels': 2,   # Reducing the number of labels for clarity
             'vertical': True,
         }
         ,
@@ -36,14 +36,9 @@ def setup_plot(model, plotter=None, threshold=-0.5):
         return plotter, None
 
     mesh = get_voxel_grid_from_model(model, threshold)
-    unique_values = np.unique(model.data)
-    # Filter out np.nan from the unique values
-    unique_values = unique_values[~np.isnan(unique_values)]
-    n_colors = unique_values.size
+    unique_vals = np.unique(model.data)
+    n_colors = unique_vals[~np.isnan(unique_vals)].size
     plot_config = get_plot_config(n_colors=n_colors)
-    
-    # Convert values to strings for categorical data
-    mesh['values'] = mesh['values'].astype(int).astype(str)
     
     return plotter, mesh, plot_config
 
@@ -111,7 +106,7 @@ def transformationview(model, threshold=None, plotter=None):
         return plotter
 
     final_mesh = get_voxel_grid_from_model(model, threshold)
-    plotter.add_mesh(final_mesh, scalars="values", **plot_config, show_scalar_bar=False)
+    plotter.add_mesh(final_mesh, scalars="values", **plot_config)
     plotter.add_axes(line_width=5)
     
     add_snapshots_to_plotter(plotter, model, plot_config['cmap'])
@@ -139,7 +134,7 @@ def add_snapshots_to_plotter(plotter, model, cmap):
                                 deformed_points[..., 1], 
                                 deformed_points[..., 2])
         # Set the same values to the new grid
-        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F") # Assigning scalar values to the grid     
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid       
         # Add grid to plotter with a unique color and using the same scalar values
         a = plotter.add_mesh(grid, style='wireframe', scalars="values", cmap = cmap, line_width=1, show_scalar_bar=False)
         actors.append(a)
