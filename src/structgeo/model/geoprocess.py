@@ -256,7 +256,7 @@ class DikeColumn(Deposition):
     clip (bool): Clip the dike to not protrude above the surface
     """
     
-    def __init__(self, origin=(0,0,0), diam=100,  depth=-np.inf, minor_axis_scale=1.,  rotation=0., value=0., clip=False):
+    def __init__(self, origin=(0,0,0), diam=100,  depth=np.inf, minor_axis_scale=1.,  rotation=0., value=0., clip=False):
         self.origin = np.array(origin)
         self.diam = diam
         self.depth = depth
@@ -337,14 +337,18 @@ class DikeHemisphere(Deposition):
 class PushHemisphere(Transformation):
     """ Push a hemisphere intrusion in the z-direction."""
     
-    def __init__(self, origin=(0,0,0), diam=500, height=100, minor_axis_scale=1., rotation=0., upper = True, clip=False):
+    def __init__(self,  origin=(0,0,0), diam=1., height=1., minor_axis_scale=1., rotation=0., upper = True):
         self.origin = np.array(origin)
         self.diam = diam
         self.height = height
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
         self.upper = upper
-        self.clip = clip
+    
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        return (f"PushHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
+                f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}.")
         
     def run(self, xyz, data):
         # Translate points to origin coordinate frame (bottom center of the sill)
@@ -397,28 +401,30 @@ class PushHemisphere(Transformation):
         
         return xyz, data
     
+class DikeHemispherePushed(CompoundProcess):
+    """ Creates a hemisphere with pushed curved boundary."""
+        
+    def __init__(self, diam, height, origin=(0,0,0), minor_axis_scale=1., rotation=0., upper = True, clip=False, value=0.):
+        deposition = DikeHemisphere(diam=diam, height=height, origin=origin, minor_axis_scale=minor_axis_scale, rotation=rotation, value=value, upper=upper, clip=clip)
+        transformation = PushHemisphere(diam=diam, height=height, origin=origin, minor_axis_scale=minor_axis_scale, rotation=rotation, upper=upper)
+        self.history = [transformation, deposition]
+        
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.deposition.origin)
+        return (f"DikeHemispherePushed: origin ({origin_str})), diam {self.deposition.diam:.1f}, height {self.deposition.height:.1f}, "
+                f"minor_axis_scale {self.deposition.minor_scale:.1f}, rotation {self.deposition.rotation:.1f}, value {self.deposition.value:.1f}.")
+        
 class Laccolith(CompoundProcess):
     """ Creates a Laccolith or a Lopolith"""
     def __init__(self, origin=(0,0,0), cap_diam=500, stem_diam = 80, height=100, minor_axis_scale=1., rotation=0., value=0., upper = True, clip=False):
-        self.origin = np.array(origin)
-        self.cap_diam = cap_diam
-        self.stem_diam = stem_diam
-        self.height = height
-        self.minor_scale = minor_axis_scale
-        self.rotation = rotation
-        self.value = value
-        self.upper = upper
-        self.clip = clip
+        col = DikeColumn(origin, stem_diam, np.inf, minor_axis_scale, rotation, value, clip)
+        cap = DikeHemisphere(origin, cap_diam, height, minor_axis_scale, rotation, value, upper, clip)
+        push = PushHemisphere(origin, cap_diam, height, minor_axis_scale, rotation, upper)        
+        self.history = [push, cap, col]
         
-        self.history = self.build_lacolith()
-        
-    def build_lacolith(self):
-        # Build the stem
-        stem = DikeColumn(self.origin, self.stem_diam, -np.inf, self.minor_scale, self.rotation, self.value, self.clip)
-         # Build the cap
-        cap = DikeHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.value, self.upper, self.clip)
-        push = PushHemisphere(self.origin, self.cap_diam, self.height, self.minor_scale, self.rotation, self.upper, self.clip)
-        return [push, cap, stem]
+    def __str__(self):
+        origin_str = ", ".join(f"{coord:.1f}" for coord in self.col.origin)
+        return (f"Laccolith: origin ({origin_str}), cap diam {self.cap.diam:.1f}, stem diam {self.col.diam:.1f}, height {self.cap.height:.1f} ")
             
 class DikePlug(Deposition):
     """ An intrusion formed as a parabolic/elliptical plug.
@@ -433,7 +439,7 @@ class DikePlug(Deposition):
     clip (bool): Clip the plug to not protrude above the surface
     """
     
-    def __init__(self, origin=(0,0,0), diam=3, minor_axis_scale=1., rotation=0, shape=3.0, value=0., clip=True):
+    def __init__(self, diam=5, origin=(0,0,0), minor_axis_scale=1., rotation=0, shape=3.0, value=0., clip=True):
         self.origin = np.array(origin)
         self.diameter = diam
         self.minor_scale = minor_axis_scale
@@ -471,41 +477,40 @@ class DikePlug(Deposition):
 
         return xyz, data
 
+class PushPlug(Transformation):
 
-    class PushPlug(Transformation):
+    def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
+        self.origin = np.array(origin)
+        self.diameter = diam
+        self.minor_scale = minor_axis_scale
+        self.rotation = rotation
+        self.shape = shape
+        self.push = push
 
-        def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
-            self.origin = np.array(origin)
-            self.diameter = diam
-            self.minor_scale = minor_axis_scale
-            self.rotation = rotation
-            self.shape = shape
-            self.push = push
+    def __str__(self):
+        return f"DikePush: vector {self.vector}"
 
-        def __str__(self):
-            return f"DikePush: vector {self.vector}"
-
-        def run(self, xyz, data):
-            # Translate points to origin coordinate frame
-            v0 = xyz - self.origin
-            # Rotate the points in the xy plane of the plug formation ccw
-            R = rotate([0, 0, 1], np.deg2rad(self.rotation))
-            v0 = v0 @ R.T
-            # Scale the points along the x-axis (minor axis)
-            v0[:, 0] /= self.minor_scale
-            
-            x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
-            
-            r = np.sqrt(x**2 + y**2)
-            r_scaled = r / (self.diameter / 2.0)
-            z_surf = -np.abs(r_scaled**self.shape)
-            dists = z - z_surf
-            # Gaussian push function based on vertical distance from the surface
-            displacement = self.push*np.exp(-.01*dists**2)
-            
-            xyz[:, 2] -= displacement
-            
-            return xyz, data       
+    def run(self, xyz, data):
+        # Translate points to origin coordinate frame
+        v0 = xyz - self.origin
+        # Rotate the points in the xy plane of the plug formation ccw
+        R = rotate([0, 0, 1], np.deg2rad(self.rotation))
+        v0 = v0 @ R.T
+        # Scale the points along the x-axis (minor axis)
+        v0[:, 0] /= self.minor_scale
+        
+        x,y,z = v0[:, 0], v0[:, 1], v0[:, 2]
+        
+        r = np.sqrt(x**2 + y**2)
+        r_scaled = r / (self.diameter / 2.0)
+        z_surf = -np.abs(r_scaled**self.shape)
+        dists = z - z_surf
+        # Gaussian push function based on vertical distance from the surface
+        displacement = self.push*np.exp(-.05*dists**2)
+        
+        xyz[:, 2] -= displacement
+        
+        return xyz, data       
 class DikePlugPushed(CompoundProcess):
     """ Experimental class for a dike intrusion with a push deformation."""
         
@@ -516,8 +521,8 @@ class DikePlugPushed(CompoundProcess):
         self.rotation = rotation
         self.shape = shape
         self.value = value
-        deposition = DikePlug(origin, diam, minor_axis_scale, rotation, shape, value)
-        transformation = self.PushPlug(origin, diam, minor_axis_scale, rotation, shape, push)
+        deposition = DikePlug(diam=diam , origin=origin, minor_axis_scale=minor_axis_scale, rotation=rotation, shape=shape, value=value)
+        transformation = PushPlug(diam=diam , origin=origin, minor_axis_scale=minor_axis_scale, rotation=rotation, shape=shape, push=push)
         self.history = [transformation, deposition]
         
     def __str__(self):
@@ -525,8 +530,8 @@ class DikePlugPushed(CompoundProcess):
         return (f"DikePlugPushed: origin ({origin_str}), diam {self.diam:.1f}, minor scaling {self.minor_scale:.1f}, "
                 f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}.")
 
-class MetaBall:
-    """ A single metaball object with a given origin, radius, and goo factor."""
+class Ball:
+    """ A single metaball object with a given origin, radius, and goo factor. Base building class for Blob"""
     def __init__(self, origin, radius, goo_factor=1.):
         self.origin = np.array(origin)
         self.radius = radius
@@ -534,11 +539,35 @@ class MetaBall:
     
     def potential(self, points):
         # Calculate the distance from the points to the ball's origin
-        distances = np.linalg.norm(points - self.origin, axis=1)
+        distances = np.sum((points - self.origin)**2, axis=1)
         # Avoid division by zero
         distances = np.maximum(distances, 1e-6)
-        return self.radius / (distances ** self.goo_factor)
-class Blob(Deposition):
+        return (self.radius / distances)**self.goo_factor
+    
+class BallListGenerator:
+    """ A generator class for metaballs. Generates a list of Ball objects with random parameters."""
+    def __init__(self, step_mean, step_var, rad_range, goo_range):
+        self.step = step_mean
+        self.step_var = step_var
+        self.rad_range = rad_range
+        self.goo_range = goo_range
+        
+    def generate(self, n_balls, origin):
+        balls = []
+        current_point = np.array(origin, dtype=float)
+        for _ in range(n_balls):
+            radius = np.random.uniform(*self.rad_range)
+            goo_factor = np.random.uniform(*self.goo_range)
+            balls.append(Ball(current_point, radius, goo_factor))
+            
+            # Generate the next point with stretching
+            direction = np.random.normal(size=3)
+            direction /= np.linalg.norm(direction)
+            step = direction * self.step * (1 + np.random.uniform(*self.step_var))
+            current_point += step
+            
+        return balls
+class MetaBall(Deposition):
     """ 
     A Blob geological process that modifies points within a specified potential range.
 
@@ -547,25 +576,23 @@ class Blob(Deposition):
     threshold (float): The threshold potential below which points will be relabeled.
     value (int): The value to assign to points below the threshold potential.
     """
-    def __init__(self, metaballs: List[MetaBall], threshold, value):
-        self.metaballs = metaballs
+    def __init__(self, balls: List[Ball], threshold, value):
+        self.balls = balls
         self.threshold = threshold
         self.value = value
 
     def __str__(self):
         return (f"Blob: threshold {self.threshold:.1f}, value {self.value:.1f}, "
-                f"with {len(self.metaballs)} metaballs.")
+                f"with {len(self.balls)} balls.")
     
     def run(self, xyz, data):
         # Compute the net potential for each point in xyz
         potentials = np.zeros(xyz.shape[0])
-        for ball in self.metaballs:
-            distances = np.linalg.norm(xyz - ball.origin, axis=1)
-            distances = np.maximum(distances, 1e-6)  # Avoid division by zero
-            potentials += ball.radius / (distances ** ball.goo_factor)
+        for ball in self.balls:
+            potentials += ball.potential(xyz)
         
         # Apply the threshold and relabel points
-        mask = potentials < self.threshold
+        mask = potentials > self.threshold
         data[mask] = self.value
         
         # Return the unchanged xyz and the potentially modified data
