@@ -24,7 +24,7 @@ p.add_title("Simple MetaBall")
 
 # -- Generative Balls Test -- #
 # Make a starting list of balls generatively and create a deterministic MetaBall object
-ballgen = geo.BallListGenerator(step_range = [.6,3], rad_range = [1,1], goo_range=[1,1.5])
+ballgen = geo.BallListGenerator(step_range = [2,3], rad_range = [1,1], goo_range=[.8,1])
 balls = ballgen.generate(n_balls=12, origin=[0,0,0])
 
 # Threshold 1 MetaBall
