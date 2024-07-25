@@ -218,8 +218,8 @@ class GeoModel:
         
         self.mesh_snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
         self.data_snapshots = np.empty((len(self.snapshot_indices), *self.data.shape))
-        log.info(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
-        log.info(f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}")
+        log.debug(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
+        log.debug(f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}")
         
         return snapshot_indices
     def _backward_pass(self, history):
@@ -261,7 +261,7 @@ class GeoModel:
         self.data[indnan] = value
         return self.data  
     
-    def renormalize_height(self, new_max = 0, auto = False):
+    def renormalize_height(self, new_max = 0, auto = False, recompute = True):
         """ Shift the model vertically so that the highest point in view field is at a new maximum height.
         Note this operation is expensive since it requires recomputing the model.
         
@@ -286,10 +286,16 @@ class GeoModel:
         # Calculate the model shift required to shift to a desired maximum height
         shift_z = new_max - current_max_z
         
+        zmin, zmax = self.get_z_bounds()
+        # print(f"Renormalizing model to new maximum height percent: {(new_max-zmin)/ (zmax - zmin):.2f}")
+        
         # Add a shift transformation to the history and recompute
         self.add_history(Shift([0, 0, shift_z]))
-        self.clear_data()
-        self.compute_model()
+        if recompute:
+            self.clear_data()
+            self.compute_model()
+        
+        return current_max_z
     
     def get_target_normalization(self, target_max=.85, std_dev = 0.05):
         """ Get the normalization factor to scale the model to a target maximum height.
@@ -301,7 +307,7 @@ class GeoModel:
         bounds = self.get_z_bounds()
         zmin, zmax = bounds
         z_range = zmax - zmin
-        target_height = zmin + z_range*np.random.normal(target_max, std_dev) 
+        target_height = zmin + z_range*(target_max + np.abs(np.random.normal(0, std_dev)))
         log.debug(f"Normalization Target Height: {target_height}")
         return target_height
         

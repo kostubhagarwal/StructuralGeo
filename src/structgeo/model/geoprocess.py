@@ -40,10 +40,15 @@ class CompoundProcess(GeoProcess):
     
      Can include both deposition and transformation processes in a sequence.
    """
-    def __init__(self, processes: List[GeoProcess] = None):
+    def __init__(self, processes: List[GeoProcess] = None, name: str = None):
+        self.name = name
         self.history = processes if processes is not None else []
         self._check_history()
 
+    def __str__(self) -> str:
+            name_str = f" ({self.name})" if self.name else ""
+            return f"{self.__class__.__name__}{name_str} with {len(self.history)} sub-processes."
+    
     def _check_history(self):
         if not self.history:
             warnings.warn(f"{self.__class__.__name__} initialized with an empty history. Ensure to add processes before computation.", UserWarning)
@@ -58,6 +63,11 @@ class CompoundProcess(GeoProcess):
             else:
                 unpacked_history.append(process)
         return unpacked_history
+    
+class NullProcess(GeoProcess):
+    """ A null process that does not modify the model. """
+    def run(self, xyz, data):
+        return xyz, data
         
 class Layer(Deposition):
     """ Fill the model with a layer of rock. """
@@ -685,7 +695,7 @@ class Fold(Transformation):
         """ Default periodic function for the fold transformation. uses shaping from 3rd harmonic."""
         # Normalize to amplitude of 1
         norm = (1 + self.shape**2)**0.5
-        func = np.cos(2 * np.pi * n_cycles) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)  
+        func = np.cos(2 * np.pi * (n_cycles+self.phase)) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)  
         return func / norm   
 
 class Slip(Transformation):
@@ -746,10 +756,7 @@ class Slip(Transformation):
     
 class Fault(Slip):
     """
-    A subclass of Slip specifically for modeling brittle fault transformations where
-    displacement occurs as a sharp step function across the fault plane. This class
-    implements a binary displacement function that represents the sudden shift
-    characteristic of brittle faults.
+    Brittle fault transformations where displacement occurs as a sharp step function across the fault plane. 
 
     Parameters:
     strike (float): Strike angle in degrees
@@ -762,7 +769,7 @@ class Fault(Slip):
     simulating scenarios where a clear delineation between displaced and stationary geological strata is necessary.
     
     Example:
-        # Creating a Fault instance with specific geological parameters
+        Creating a Fault instance with specific geological parameters
         fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
     """
     def __init__(self, 
