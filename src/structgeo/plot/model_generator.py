@@ -41,11 +41,10 @@ class ModelGenerator:
         
     def plot_model(self):
         with self.output:
-            mesh = geovis.get_mesh_from_model(self.current_model)
-            color_config = geovis.get_plot_config()
             clear_output(wait=True)  # Clear the output before starting to plot the new model
             self.remove_all_actors(self.plotter)
-            self.plotter.add_mesh(mesh, scalars="values", **color_config)
+            geovis.volview(self.current_model, plotter=self.plotter, show_bounds=True)
+            
 
             if self.single_view:
                 # INFO: For some outrageous reason the PyVista plotter needs to be shown twice or it will
@@ -55,11 +54,10 @@ class ModelGenerator:
                 self.plotter.show(window_size=[600, 400], jupyter_backend='static')
                 
             else:
-                initial_camera_position = self.plotter.camera.position
                 screenshots = []            
                 for i in range(4):
                     cp = self.plotter.camera.position
-                    M = rotate([0,0,1], math.pi/2)
+                    M = rotate([0, 0, 1], math.pi / 2)
                     new_cp = M @ cp
                     self.plotter.camera_position = new_cp                
                     screenshot = self.plotter.screenshot(return_img=True)
@@ -67,7 +65,7 @@ class ModelGenerator:
                 
                 for i in range(2):    
                     cp = self.plotter.camera.position
-                    M = rotate([0,1,0], math.pi/4)
+                    M = rotate([0, 1, 0], math.pi / 4)
                     new_cp = M @ cp
                     self.plotter.camera_position = new_cp                
                     screenshot = self.plotter.screenshot(return_img=True)
@@ -81,8 +79,8 @@ class ModelGenerator:
                     ax.axis('off')
                 plt.show()
                 
-                # Replace the camera position to the initial position
-                self.plotter.camera_position = initial_camera_position
+                # Reset the camera position to the initial position
+                self.plotter.view_isometric()
     
     def remove_all_actors(self, plotter):
         """Remove all actors from the plotter."""
