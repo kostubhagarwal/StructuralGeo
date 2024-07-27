@@ -1,5 +1,4 @@
 """ Sentence structures and generation processes for geo histories. """
-
 import yaml
 import numpy as np
 import random
@@ -9,7 +8,6 @@ import structgeo.probability as rv
 from .geowords import *
 from . import geowords as geowords_module
 
-       
 class SentenceSelector:
     def __init__(self, grammar_data):
         self.grammar_data = grammar_data
@@ -51,7 +49,7 @@ class WordSelector:
         """Select and instantiate words for each category in the given structure."""
         return [self.select_word(grammar_key) for grammar_key in structure]
 
-class GeologicalModelLoader:
+class GeoModelGenerator:
     """ A class that generates geological models from a YAML configuration file and a set of GeoWord objects. """
     def __init__(self, config_path, model_bounds=((-3840,3840),(-3840,3840),(-1920,1920)), model_resolution=(256,256,128)):
         self.config_path = config_path
@@ -89,7 +87,7 @@ class GeologicalModelLoader:
                 except AttributeError:
                     print(f"Warning: The class {class_name} does not exist in the geo module")
 
-    def sample_sentences(self, n_samples: int = 1) -> List[List[GeoWord]]:
+    def _sample_sentences(self, n_samples: int = 1) -> List[List[GeoWord]]:
         """Sample multiple grammar structures and fill them with corresponding vocab.
         
         Returns:
@@ -101,11 +99,11 @@ class GeologicalModelLoader:
         filled_sentences = [self.word_selector.fill_grammar_with_words(structure) for structure in sentence_structures]
         return filled_sentences
     
-    def sentence_to_history(self, sentence: List[GeoWord]) -> List[geo.GeoProcess]:
+    def _sentence_to_history(self, sentence: List[GeoWord]) -> List[geo.GeoProcess]:
         """Generate a geological history from a sentence."""
         return [word.generate() for word in sentence]
     
-    def history_to_model(self, hist: List[geo.GeoProcess]) -> geo.GeoModel:
+    def _history_to_model(self, hist: List[geo.GeoProcess]) -> geo.GeoModel:
         """Generate a model from a history and normalize the height."""
         
         # Generate a low resolution model to estimate the renormalization
@@ -137,11 +135,12 @@ class GeologicalModelLoader:
 
     def generate_models(self, n_samples: int = 1,) -> List[geo.GeoModel]:
         """Generate multiple geological models from sampled sentences."""
-        filled_sentences = self.sample_sentences(n_samples)
-        model_histories = [self.sentence_to_history(sentence) for sentence in filled_sentences]
-        models = [self.history_to_model(hist) for hist in model_histories]
+        filled_sentences = self._sample_sentences(n_samples)
+        model_histories = [self._sentence_to_history(sentence) for sentence in filled_sentences]
+        models = [self._history_to_model(hist) for hist in model_histories]
         return models      
 
+# TODO: fix model normalization and cleanup general functions
 def generate_sentence(vocabulary, grammar_structure):
     """ Generate a sentence from a grammar structure. """   
     sentence = [np.random.choice(vocabulary[word])() for word in grammar_structure]    

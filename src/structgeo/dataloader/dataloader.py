@@ -1,22 +1,26 @@
 """ 
-Pytorch dataloader wrappers for specified GeoWord geological histories.
+Pytorch dataloader for specified GeoWord geological histories.
 
 Requires:
-"""
+- A geomodel generator object that can can generate unlimited geological models
+- A corresponding configuration yaml file for generator 
+- Optional z-axis normalization statistics for the dataset
 
+"""
 import torch
 import os
-import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 from torch.utils.data import DataLoader, Dataset
-from torchvision.transforms import Compose, Lambda, RandomHorizontalFlip
-from structgeo.generation import GeologicalModelLoader
+from structgeo.generation import GeoModelGenerator
 
 class GeoData3DStreamingDataset(Dataset):
     """ A Dataset wrapper for streaming  geological data from a generating yaml file and geowords.
     
     Parameters:
     config_yaml (str): Path to the yaml file containing the geological model generation configuration
-    normalization_dir (str): Directory containing normalization statistics: mean_z.pt and std_dev_z.pt
+    stats_dir (str): Directory containing normalization statistics: mean_z.pt and std_dev_z.pt
     model_bounds (tuple): Bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax))
     model_resolution (tuple): Resolution of the model in the form (x_res, y_res, z_res)
     dataset_size (int): Number of samples in the dataset, arbirarily large since data is streamed
@@ -25,23 +29,26 @@ class GeoData3DStreamingDataset(Dataset):
     """
     def __init__(self, 
                  config_yaml: str,
-                 normalization_dir: str = None,
+                 stats_dir: str = None,
                  model_bounds= ((-3840,3840),(-3840,3840),(-1920,1920)),    
                  model_resolution=(256,256,128), 
                  dataset_size=1_000_000, 
                  device='cpu'):
-        self.model_generator = GeologicalModelLoader(config_yaml, model_bounds=model_bounds, model_resolution=model_resolution)
-        self.normalization_dir = normalization_dir
+        self.model_generator = GeoModelGenerator(config_yaml, 
+                                                 model_bounds=model_bounds, 
+                                                 model_resolution=model_resolution)
+        self.normalization_dir = stats_dir
         self.size = dataset_size
         self.device = device
 
-        if normalization_dir:
-            self.mean, self.std = load_normalization_stats(normalization_dir, device)
+        if stats_dir:
+            self.mean, self.std = load_normalization_stats(stats_dir, device)
             # Check the last two dimensions of mean and std against the model resolution
-            assert self.mean.shape == self.std.shape == self.model_generator.model_resolution[-1], \
-            f"Normalization stats' {self.mean.shape} do not match the model's z resolution {self.model_generator.model_resolution[-1]}."
+            model_z_dim = self.model_generator.resolution[-1]
+            assert self.mean.shape[0] == self.std.shape[0] == model_z_dim, \
+            f"Normalization stats' {self.mean.shape} do not match the model's z resolution {model_z_dim}."
 
-            self.normalize, self.denormalize = get_transforms(normalization_dir, data_dim=3, device=device)
+            self.normalize, self.denormalize = get_transforms(stats_dir, data_dim=3, device=device)
       
     def __len__(self):
         return self.size
@@ -55,10 +62,10 @@ class GeoData3DStreamingDataset(Dataset):
             data_tensor = self.normalize(data_tensor)
         return data_tensor
     
-def load_normalization_stats(normalization_dir, device='cpu'):
+def load_normalization_stats(stats_dir, device='cpu'):
     """ Load z-axis normalization statistics for the dataset from directory"""
-    mean_path = os.path.join(normalization_dir, 'mean_z.pt')
-    std_path = os.path.join(normalization_dir, 'std_dev_z.pt')
+    mean_path = os.path.join(stats_dir, 'mean_z.pt')
+    std_path = os.path.join(stats_dir, 'std_dev_z.pt')
     
     # Assert that the mean and std dev files exist
     if not os.path.exists(mean_path):
@@ -106,11 +113,49 @@ def get_transforms(normalization_dir, data_dim , device='cpu', clamp_range=[-1, 
 
     return normalize, denormalize
 
-def compute_normalization_stats(dataset, batch_size, save_dir, device='cpu'):
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+def compute_normalization_stats(dataset, batch_size, stats_dir, device='cpu'):
+    """ Loads a dataset and iterates through it to compute normalization statistics for the z-axis
     
+    saves the mean and std dev tensors as vectors in the save_dir
+    """
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=24)        
     sample = dataset[0]
-    z = sample.shape[-1]
+    z = sample.shape[-1]  
+    
+    tensor_mu_acc = torch.zeros(z)
+    tensor_x_squared_acc = torch.zeros(z)
+    
+    n_batches = len(loader)
+    print(f"Iterating over {n_batches} batches to compute normalization statistics")
+
+    # Using tqdm to display progress
+    for batch in tqdm(loader, total=n_batches, desc="Computing stats"):
+        batch = batch.to(device)  # Ensure the batch is on the correct device
+        tensor_mu_acc += batch.mean(dim=(0, 1, 2, 3), keepdim=False)
+        tensor_x_squared_acc += (batch**2).mean(dim=(0, 1, 2, 3), keepdim=False)
+
+    mean_z = tensor_mu_acc / n_batches
+    std_dev_z= torch.sqrt(tensor_x_squared_acc / n_batches - mean_z**2)
+    
+    # Save the mean and std dev tensors as vectors to be used for normalization
+    os.makedirs(f"{stats_dir}", exist_ok=True)
+    torch.save(mean_z, f"{stats_dir}/mean_z.pt")
+    torch.save(std_dev_z, f"{stats_dir}/std_dev_z.pt")
+    
+    # Expand into a 2d matrix to use with imshow
+    mean_z_matrix = mean_z.unsqueeze(0).expand(64,-1)
+    std_dev_z_matrix = std_dev_z.unsqueeze(0).expand(64,-1)
+
+    # Rotate the tensors by 90 degrees CCW (equivalent to a transpose followed by a flip on the last dimension)
+    rotated_mean_z = torch.flip(mean_z_matrix.T, [0])
+    rotated_std_dev_z = torch.flip(std_dev_z_matrix.T, [0])
+
+    fig, axs = plt.subplots(1, 2)
+    axs[0].imshow(rotated_mean_z.numpy(), cmap='gray')
+    axs[0].set_title("Mean Z")
+    axs[1].imshow(rotated_std_dev_z.numpy(), cmap='gray')
+    axs[1].set_title("Std Dev Z")
+    plt.show()
     
 
     

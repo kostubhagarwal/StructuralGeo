@@ -3,15 +3,26 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
-from structgeo.dataloader import GeoData3DStreamingDataset
+from structgeo.dataloader import GeoData3DStreamingDataset, compute_normalization_stats
 from structgeo.model import GeoModel
+from structgeo.config import load_config
 import structgeo.plot as geovis
 from torch.utils.data import DataLoader
 
-import torch
+import pyvista as pv
 
-yaml_loc = 'C:/Users/sghys/Summer2024/StructuralGeo/src/structgeo/generation/grammar_map.yml' 
-def model_loader_test():
+""" 
+Load a default config pointing to a default dataset directory with yaml file.
+"""
+config = load_config()
+yaml_loc = config['yaml_file']
+stats_dir = config['stats_dir']
+
+def dataset_test():
+    """ 
+    Check that the dataset can be loaded and a sample can be drawn from it. 
+    Check the conversion of a tensor back into a model for display.
+    """
     bounds = ((-3840,3840),(-3840,3840),(-1920,1920))
     resolution = (128,128,64)
     dataset = GeoData3DStreamingDataset(config_yaml = yaml_loc, model_bounds=bounds, model_resolution=resolution) 
@@ -27,54 +38,48 @@ def model_loader_test():
 
     print('')
     
-def model_norm_testing():
+def dataset_norm_stats_compute():
+    """ 
+    Check that computation of normalization stats works. (Library function) 
+    """
     bounds = ((-3840,3840),(-3840,3840),(-1920,1920))
     resolution = (128,128,64)
     dataset = GeoData3DStreamingDataset(config_yaml = yaml_loc, dataset_size=800, model_bounds=bounds, model_resolution=resolution)
-    save_dir = 'C:/Users/sghys/Summer2024/StructuralGeo/tests/normed' 
-    compute_normalization_stats(dataset, batch_size=8, save_dir=save_dir, device='cpu')
+    compute_normalization_stats(dataset, batch_size=4, stats_dir=stats_dir, device='cpu')    
     
+def loader_test():
+    """ 
+    Verify that the loader can be used to stream models from the generator. 
+    Display a sample of the models in a multiplotter window.
+    """
+    # Load the generator and model dimensions/bounds with computed stats
+    bounds = ((-3840,3840),(-3840,3840),(-1920,1920))
+    resolution = (128,128,64)
+    dataset = GeoData3DStreamingDataset(config_yaml = yaml_loc, 
+                                        stats_dir=stats_dir, 
+                                        dataset_size=1_000_000_000,   # Just for fun, 1 billion models in loader
+                                        model_bounds=bounds, 
+                                        model_resolution=resolution) 
+    loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=8)
     
-def compute_normalization_stats(dataset, batch_size, save_dir, device='cpu'):
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)        
-    sample = dataset[0]
-    z = sample.shape[-1]  
+    for i, batch in enumerate(tqdm(loader)):
+        print(i, batch.shape)
+        if i == 10:
+            # Show a sample of the batch in mulitplotter window
+            p = pv.Plotter(shape=(4,4))
+            for i, data in enumerate(batch):
+                p.subplot(i//4, i%4)
+                model = GeoModel.from_tensor(bounds = bounds, data_tensor=data)                
+                geovis.volview(model, plotter=p)
+            break
     
-    tensor_mu_acc = torch.zeros(z)
-    tensor_x_squared_acc = torch.zeros(z)
-    
-    n_batches = len(loader)
-    print(f"Iterating over {n_batches} batches to compute normalization statistics")
-
-    # Using tqdm to display progress
-    for batch in tqdm(loader, total=n_batches, desc="Computing stats"):
-        batch = batch.to(device)  # Ensure the batch is on the correct device
-        tensor_mu_acc += batch.mean(dim=(0, 1, 2, 3), keepdim=False)
-        tensor_x_squared_acc += (batch**2).mean(dim=(0, 1, 2, 3), keepdim=False)
-
-    mean_z = tensor_mu_acc / n_batches
-    std_dev_z= torch.sqrt(tensor_x_squared_acc / n_batches - mean_z**2)
-    
-    # Save the mean and std dev tensors as vectors to be used for normalization
-    os.makedirs(f"{save_dir}/normalization", exist_ok=True)
-    torch.save(mean_z, f"{save_dir}/normalization/mean_z.pt")
-    torch.save(std_dev_z, f"{save_dir}/normalization/std_dev_z.pt")
-    
-    # Expand into a 2d matrix to use with imshow
-    mean_z_matrix = mean_z.unsqueeze(0).expand(64,-1)
-    std_dev_z_matrix = std_dev_z.unsqueeze(0).expand(64,-1)
-
-    # Rotate the tensors by 90 degrees CCW (equivalent to a transpose followed by a flip on the last dimension)
-    rotated_mean_z = torch.flip(mean_z_matrix.T, [0])
-    rotated_std_dev_z = torch.flip(std_dev_z_matrix.T, [0])
-
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(rotated_mean_z.numpy(), cmap='gray')
-    axs[0].set_title("Mean Z")
-    axs[1].imshow(rotated_std_dev_z.numpy(), cmap='gray')
-    axs[1].set_title("Std Dev Z")
-    plt.show()
+    # view the models
+    p.show()
+    print('')
     
 if __name__ == '__main__':
-    # model_loader_test()
-    model_norm_testing()
+    dataset_test()
+    dataset_norm_stats_compute()
+    loader_test()
+    
+    

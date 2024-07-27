@@ -1,0 +1,37 @@
+# vocab is a probability map from event types to possible geowords
+# grammar is a probability map from sentence/structure types to chains of event types
+
+grammar:
+  common:
+    weight: 0.6
+    structures:
+      - [Base, Sediment, Noise, Fold]
+      - [Base, Sediment, Fold, Noise]
+  less_common:
+    weight: 0.3
+    structures:
+      - [Base, Fold, Noise, Sediment]
+      - [Base, Noise, Sediment, Fold]
+  rare:
+    weight: 0.1
+    structures:
+      - [Base, Sediment, Fold, Fold, Sediment]
+      - [Base, Sediment, Noise, Fold, Fold]
+
+vocab:
+  Base:
+    - [InfiniteBasement, 1.0]
+  Sediment:
+    - [FineRepeatSediment, 0.7]
+    - [CoarseRepeatSediment, 0.3]
+  Noise:
+    - [MicroNoise, 1.0]
+  NULL:
+    - [NullWord, 1.0]
+  Fold:
+    - [SimpleFold, 0.5]
+    - [ShapedFold, 0.3]
+    - [FourierFold, 0.2]
+
+
+
