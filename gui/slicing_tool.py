@@ -4,7 +4,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-from structgeo.data import FileManager
+from structgeo.filemanagement import FileManager
 from datetime import datetime
 
 def generate_slices(model, n, axis):    
