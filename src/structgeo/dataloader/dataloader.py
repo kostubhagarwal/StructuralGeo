@@ -8,6 +8,7 @@ Requires:
 
 """
 import torch
+from torchvision.transforms import Compose, Lambda
 import os
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -34,22 +35,13 @@ class GeoData3DStreamingDataset(Dataset):
                  model_resolution=(256,256,128), 
                  dataset_size=1_000_000, 
                  device='cpu'):
-        self.model_generator = GeoModelGenerator(config_yaml, 
-                                                 model_bounds=model_bounds, 
-                                                 model_resolution=model_resolution)
-        self.normalization_dir = stats_dir
-        self.size = dataset_size
+        self.model_generator = GeoModelGenerator(config_yaml, model_bounds=model_bounds, model_resolution=model_resolution)
+        self.stats_dir = stats_dir
         self.device = device
-
-        if stats_dir:
-            self.mean, self.std = load_normalization_stats(stats_dir, device)
-            # Check the last two dimensions of mean and std against the model resolution
-            model_z_dim = self.model_generator.resolution[-1]
-            assert self.mean.shape[0] == self.std.shape[0] == model_z_dim, \
-            f"Normalization stats' {self.mean.shape} do not match the model's z resolution {model_z_dim}."
-
-            self.normalize, self.denormalize = get_transforms(stats_dir, data_dim=3, device=device)
-      
+        self.size = dataset_size
+        self.clamp_range = (-1, 30)
+        self.setup_normalization()
+                     
     def __len__(self):
         return self.size
     
@@ -58,10 +50,26 @@ class GeoData3DStreamingDataset(Dataset):
         model.fill_nans()
         data = model.get_data_grid()
         data_tensor = torch.from_numpy(data).float().unsqueeze(0).to(self.device)
-        if self.normalization_dir:
-            data_tensor = self.normalize(data_tensor)
+        
+        if self.stats_dir:
+            data_tensor = self.normalize(data_tensor) 
+            
         return data_tensor
     
+    def setup_normalization(self):
+        if self.stats_dir:
+            self.mean, self.std = load_normalization_stats(self.stats_dir, self.device)  
+            
+    def normalize(self, x):
+        x = torch.clamp(x, self.clamp_range[0], self.clamp_range[1])
+        return (x - self.mean.to(x.device)) / self.std.to(x.device)
+    
+    def denormalize(self, x):
+        mean_res = self.mean.to(x.device)
+        std_res = self.std.to(x.device)
+        x = x * std_res + mean_res
+        return torch.clamp(x, self.clamp_range[0], self.clamp_range[1])
+        
 def load_normalization_stats(stats_dir, device='cpu'):
     """ Load z-axis normalization statistics for the dataset from directory"""
     mean_path = os.path.join(stats_dir, 'mean_z.pt')
@@ -77,7 +85,7 @@ def load_normalization_stats(stats_dir, device='cpu'):
     std = torch.load(std_path).to(device)
     return mean, std
 
-def get_transforms(normalization_dir, data_dim , device='cpu', clamp_range=[-1, 20]):
+def get_transforms(stats_dir, data_dim , device='cpu', clamp_range=[-1, 20]):
     """ Get normalization and denormalization functions along Z axis
     
     Parameters:
@@ -94,7 +102,7 @@ def get_transforms(normalization_dir, data_dim , device='cpu', clamp_range=[-1, 
     assert len(clamp_range) == 2, "clamp_range should contain exactly two values: [min, max]"    
     assert data_dim in [2, 3], "Data dimension should be 2 or 3 to specify 2d or 3d normalization"
 
-    mean, std = load_normalization_stats(normalization_dir, device)
+    mean, std = load_normalization_stats(stats_dir, device)
     
     if data_dim == 2:
         # Reshape the tensors to broadcast (Z,1) for 2d data
@@ -118,7 +126,7 @@ def compute_normalization_stats(dataset, batch_size, stats_dir, device='cpu'):
     
     saves the mean and std dev tensors as vectors in the save_dir
     """
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=24)        
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12)        
     sample = dataset[0]
     z = sample.shape[-1]  
     
