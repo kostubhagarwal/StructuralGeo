@@ -6,7 +6,7 @@ from qtpy import QtWidgets, QtCore, QtGui
 from plotter import ModelPlotter  # Ensure this import matches the file location
 from toolbar import ToolBarWidget  # Ensure this import matches the file location
 from file_manager_gui import FileManagerGUI  # Import the file manager GUI class
-from structgeo.data import FileManager
+from structgeo.filemanagement import FileManager
 
 class MyMainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None, show=True, base_dir=None):

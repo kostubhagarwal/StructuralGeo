@@ -4,7 +4,7 @@ from datetime import datetime
 
 from qtpy import QtWidgets, QtGui
 import slicing_tool as sm
-from structgeo.data import FileManager
+from structgeo.filemanagement import FileManager
 from plotter import ModelPlotter
 
 class ToolBarWidget(QtWidgets.QWidget):

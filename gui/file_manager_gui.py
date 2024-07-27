@@ -1,6 +1,6 @@
 import os
 from qtpy import QtWidgets, QtCore
-from structgeo.data import FileManager
+from structgeo.filemanagement import FileManager
 
 class FileManagerGUI:
     VIEWED_FILE_TYPES = ('.pkl', '.png', '.npy')
