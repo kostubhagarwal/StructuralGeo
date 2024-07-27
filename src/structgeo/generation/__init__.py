@@ -1,1 +1,1 @@
-from .geogrammar import *
+from .modelgenerator import *

@@ -2,7 +2,7 @@ import ipywidgets as widgets
 import pyvista as pv
 from IPython.display import display, clear_output
 
-from structgeo.data import FileManager
+from structgeo.filemanagement import FileManager
 import structgeo.plot as geovis
 from structgeo.model.util import rotate
 import matplotlib.pyplot as plt

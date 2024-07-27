@@ -1,3 +1,2 @@
 from .plot import *
-from .model_generator import ModelGenerator
-from .model_viewer import ModelViewer
+from .model_gen_viewer import ModelGenerator

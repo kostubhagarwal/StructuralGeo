@@ -324,7 +324,7 @@ class GeoModel:
         return z_vals
     
     def get_data_grid(self):
-        """Return the model data."""
+        """Return the model data in meshgrid form."""
         return self.data.reshape(self.X.shape)   
     
     def add_topography(self, mesh):
@@ -348,3 +348,30 @@ class GeoModel:
         
         data[above_topo_mask] = np.nan
         self.data = data.flatten()
+        
+    @classmethod
+    def from_tensor(cls, bounds, data_tensor):
+        """
+        Special initializer to create a GeoModel instance from a 1xXxYxZ shaped data tensor.
+        Initializes history to [NullProcess()] and sets up the mesh and data to allow GeoModel 
+        plotting tools and processing methods to be used.
+        
+        Args:
+            bounds (tuple): The bounds of the model.
+            data_tensor (torch.Tensor): The data tensor to initialize the model with, a 1xXxYxZ tensor.
+        
+        Returns:
+            GeoModel: An instance of the GeoModel class.
+        """
+        # Extract resolution from tensor shape
+        resolution = tuple(data_tensor.shape[1:])
+
+        instance = cls(bounds, resolution)
+        # Setup mesh for X, Y, Z coordinates and flattened xyz array
+        instance.setup_mesh()
+        # Insert torch tensor data into model
+        instance.data = data_tensor.detach().numpy().flatten()  # Convert tensor to numpy array and flatten it
+        # Set history to [NullProcess()]
+        instance.history = [NullProcess()]
+        
+        return instance

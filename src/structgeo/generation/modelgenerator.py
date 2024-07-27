@@ -52,6 +52,7 @@ class WordSelector:
         return [self.select_word(grammar_key) for grammar_key in structure]
 
 class GeologicalModelLoader:
+    """ A class that generates geological models from a YAML configuration file and a set of GeoWord objects. """
     def __init__(self, config_path, model_bounds=((-3840,3840),(-3840,3840),(-1920,1920)), model_resolution=(256,256,128)):
         self.config_path = config_path
         self.data = self.load_yaml(config_path)        
@@ -91,14 +92,8 @@ class GeologicalModelLoader:
     def sample_sentences(self, n_samples: int = 1) -> List[List[GeoWord]]:
         """Sample multiple grammar structures and fill them with corresponding vocab.
         
-        Parameters:
-        ----------
-        n_samples : int
-            Number of samples to generate.
-        
         Returns:
-        -------
-        List length n_samples containing lists of GeoWords ready to generate a geological history.
+        List[List[GeoWord]]: A list of sentences where each sentence is a list of GeoWord objects.
         """
         # Choose general sentence structures i.e. ['Sediment', 'Noise', 'Sediment']
         sentence_structures = self.sentence_selector.select_grammar(n_samples)
@@ -140,13 +135,12 @@ class GeologicalModelLoader:
         model.compute_model()
         return model
 
-    def generate_model_batch(self, n_samples: int = 1,) -> List[geo.GeoModel]:
+    def generate_models(self, n_samples: int = 1,) -> List[geo.GeoModel]:
         """Generate multiple geological models from sampled sentences."""
         filled_sentences = self.sample_sentences(n_samples)
         model_histories = [self.sentence_to_history(sentence) for sentence in filled_sentences]
         models = [self.history_to_model(hist) for hist in model_histories]
         return models      
-
 
 def generate_sentence(vocabulary, grammar_structure):
     """ Generate a sentence from a grammar structure. """   
