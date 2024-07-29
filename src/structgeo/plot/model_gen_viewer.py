@@ -8,7 +8,7 @@ from structgeo.model.util import rotate
 import matplotlib.pyplot as plt
 import math
 
-class ModelGenerator:
+class ModelReviewer:
     def __init__(self, generate_model_func, base_dir="../saved_models", show_history=True, single_view=False):
         """
         Initialize the ModelReviewer with specific model generation and plotting functions.

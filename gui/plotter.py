@@ -68,7 +68,16 @@ class ModelPlotter:
             grid = geovis.get_voxel_grid_from_model(self.curr_model, threshold=None)    
             skin = grid.extract_surface()
             cat_mask = grid['values'] == cat
-            category_grid = grid.extract_cells(cat_mask)
+            # Ensure the mask is not empty
+            if cat_mask.any():
+                has_cat_data = True
+            else:
+                has_cat_data = False
+                print(f"No data for category {cat}")
+                return
+            
+            if has_cat_data:    
+                category_grid = grid.extract_cells(cat_mask)
             
             cats = np.unique(grid['values']) 
             clim = [cats.min(), cats.max()]
@@ -77,8 +86,9 @@ class ModelPlotter:
             # Plot the category cluster and a translucent skin for context
             self.plotter.add_mesh(skin, scalars='values', clim=clim, cmap=cmap,
                     opacity=0.2, show_scalar_bar=False)
-            self.plotter.add_mesh(category_grid, scalars='values', clim=clim, cmap=cmap,
-                    opacity=1.0, show_scalar_bar=False)    
+            if has_cat_data:
+                self.plotter.add_mesh(category_grid, scalars='values', clim=clim, cmap=cmap,
+                        opacity=1.0, show_scalar_bar=False)    
             
             self.plotter.render()
 

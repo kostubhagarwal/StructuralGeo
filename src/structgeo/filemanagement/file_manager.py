@@ -3,7 +3,18 @@ import pickle as pickle
 from structgeo.model import GeoModel
 
 class FileManager:
-    """ A class to interface between GeoModel instances and pickled files on disk."""
+    """
+    Handles file operations for GeoModel instances including saving and loading models
+    from disk, applying an operation to all saved instances in a folder.
+    Supports both automatic indexing and manual naming for files.
+
+    Parameters
+    ----------
+    base_dir : str, optional
+        The directory where models are saved and loaded. Default is '../saved_models'.
+    auto_index : bool, optional
+        Automatically manage file naming and indexing if True. Default is True.
+    """
 
     def __init__(self, base_dir="../saved_models", auto_index=True):
         self.base_dir = base_dir
@@ -28,17 +39,28 @@ class FileManager:
         return f"model_{model_index}.pkl"
    
     def save_geo_model(self, geo_model, save_dir, filename = None, lean = True):
-        """Save a GeoModel instance to a file.
-        
-        Parameters:
-        geo_model: GeoModel instance
-        lean: bool
-        
-        Description:
-        Saves a Geomodel to disk in the base directory.
-        
-        If lean is True, the models will be saved without the data attribute and only the 
-        essential serialized generating parameters (history, bounds, etc. )
+        """
+        Saves a GeoModel instance to a specified directory.
+
+        Parameters
+        ----------
+        geo_model : GeoModel
+            The GeoModel instance to be saved.
+        lean : bool
+            Determines the mode of saving the model. If True, the model is saved without the 'data' attribute,
+            including only essential serialized parameters such as history and bounds.
+
+        Notes
+        -----
+        This function allows for a 'lean' save, where non-essential data is excluded from the saved file to reduce
+        file size and optimize storage. This is particularly useful in environments where storage efficiency is critical.
+
+        Examples
+        --------
+        To save a GeoModel instance without non-essential data:
+
+        >>> my_geo_model = GeoModel()
+        >>> save_geo_model(my_geo_model, lean=True)
         """
         if lean:
             # Implement clear_data if needed to remove unnecessary large data
@@ -59,22 +81,46 @@ class FileManager:
         print(f"Model saved to {file_path}")
 
     def load_geo_model(self, file_path):
-        """Load a GeoModel instance from a file."""
+        """
+        Load a GeoModel instance from a file.
+
+        Parameters
+        ----------
+        file_path : str
+            The path to the file from which the GeoModel will be loaded.
+
+        Returns
+        -------
+        GeoModel
+            The loaded GeoModel instance.
+        """
         with open(file_path, 'rb') as file:
             model = pickle.load(file)
         return model
 
     def save_all_models(self, models, lean=True):
-        """Save a list of GeoModel instances.
-        
-        If lean is True, the models will be saved without the data attribute and only the 
-        essential generating parameters (history, bounds, etc. )
+        """
+        Saves a list of GeoModel instances.
+
+        Parameters
+        ----------
+        models : list of GeoModel
+            The GeoModel instances to save.
+        lean : bool, optional
+            If True, the models will be saved without the 'data' attribute. Default is True.
         """
         for model in models:
             self.save_geo_model(model, self.base_dir, lean=lean)
     
     def walk_and_process_models(self, action_callback, *args, **kwargs):
-        """Walk through directories and apply a callback to each model file."""
+        """
+        Walk through directories and apply a callback to each model file.
+
+        Parameters
+        ----------
+        action_callback : callable
+            The callback function to apply to each model file.
+        """
         print(f"Processing models in {self.base_dir}")
         for root, dirs, files in os.walk(self.base_dir):
             file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
@@ -84,7 +130,14 @@ class FileManager:
                 action_callback(file_path, *args, **kwargs)
     
     def load_all_models(self):
-        """Load all models function to walk across directories."""
+        """
+        Loads all GeoModel instances from the file system.
+
+        Returns
+        -------
+        list of GeoModel
+            A list of loaded GeoModel instances.
+        """
         models = []
         self.walk_and_process_models(lambda file_path: models.append(self.load_geo_model(file_path)))
         return models
@@ -118,21 +171,8 @@ class FileManager:
                
     def update_model_version(self, model):
         """Update the model version to the latest version."""
-
         pass
                 
-    def custom_unpickle(file_path):
-        """Temporary function to handle unpickling with a custom class remapping."""
-        class CustomUnpickler(pickle.Unpickler):
-            def find_class(self, module, name):
-                if module == "structgeo.model.geo":
-                    module = "structgeo.model"
-                return super().find_class(module, name)
-        with open(file_path, 'rb') as file:
-            unpickler = CustomUnpickler(file)
-            model = unpickler.load()
-        return model
-    
 if __name__ == "__main__":
     file_manager = FileManager(base_dir="./database")
     file_manager.renew_all_models("./new_database")    
