@@ -1,1 +1,2 @@
-from .modelgenerator import *
+from .geohistgen import *
+from .GeoModelGenerator import GeoModelGenerator
