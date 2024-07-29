@@ -8,6 +8,23 @@ import os
 import json
 
 def load_config(name='config_default.json'):
+    """ Load the configuration file and resolve relative paths.
+    
+    Parameters:
+    name (str): Name of the configuration file to load. Default is 'config_default.json'. File should
+    be located in the same directory as this script. The json should contain the following keys:
+    
+      -"dataset_dir": "generation/simple_dataset"
+      
+    The dataset_dir should contain a YAML file with the model generation parameters.   
+    
+    Returns:
+    A dictionary containing the configuration parameters.
+    - dataset_dir: str
+    - yaml_file: str
+    - stats_dir: str
+    """
+    
     # Get the directory of the current script
     dir_path = os.path.dirname(os.path.realpath(__file__))
     

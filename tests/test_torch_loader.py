@@ -79,7 +79,7 @@ def loader_test():
                 p.subplot(i//4, i%4)
                 model = GeoModel.from_tensor(bounds = bounds, data_tensor=data)                
                 geovis.volview(model,threshold=-10, plotter=p)
-                p.add_title(f"Model {i} Normalized", font_size=8)
+                p.add_title(f"Model {i//2} Normalized", font_size=8)
                 
                 i=i+1
                 p.subplot(i//4, i%4)
@@ -87,7 +87,7 @@ def loader_test():
                 data = dataset.denormalize(data)
                 model = GeoModel.from_tensor(bounds = bounds, data_tensor=data)
                 geovis.volview(model, threshold=-.5, plotter=p)
-                p.add_title(f"Model {i} Denormalized", font_size=8)
+                p.add_title(f"Model {i//2} Denormalized", font_size=8)
             break
     
     # view the models

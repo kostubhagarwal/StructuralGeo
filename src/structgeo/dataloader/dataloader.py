@@ -1,11 +1,12 @@
-""" 
-Pytorch dataloader for specified GeoWord geological histories.
+"""
+PyTorch DataLoader for streaming GeoWord geological histories. This module includes a custom dataset class that 
+streams geological model data using a generative model and YAML configuration. It also provides handling for 
+normalization statistics and data transforms.
 
 Requires:
-- A geomodel generator object that can can generate unlimited geological models
-- A corresponding configuration yaml file for generator 
-- Optional z-axis normalization statistics for the dataset
-
+- A GeoModelGenerator object capable of generating unlimited geological models.
+- A YAML configuration file specifying generation parameters.
+- Optional z-axis normalization statistics for consistent data processing.
 """
 import torch
 from torchvision.transforms import Compose, Lambda
@@ -16,17 +17,28 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader, Dataset
 from structgeo.generation import GeoModelGenerator
 
+# File name conventions for normalization statistics
+_mean_file = 'mean_z.pt'
+_std_dev_file = 'std_dev_z.pt'
+
 class GeoData3DStreamingDataset(Dataset):
-    """ A Dataset wrapper for streaming  geological data from a generating yaml file and geowords.
-    
-    Parameters:
-    config_yaml (str): Path to the yaml file containing the geological model generation configuration
-    stats_dir (str): Directory containing normalization statistics: mean_z.pt and std_dev_z.pt
-    model_bounds (tuple): Bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax))
-    model_resolution (tuple): Resolution of the model in the form (x_res, y_res, z_res)
-    dataset_size (int): Number of samples in the dataset, arbirarily large since data is streamed
-    device (str): Device to load the data to
-    
+    """
+    A Dataset wrapper for streaming geological data from a generating YAML file and geowords.
+
+    Parameters
+    ----------
+    config_yaml : str
+        Path to the YAML configuration file for geological model generation.
+    stats_dir : str, optional
+        Directory containing normalization statistics files ('mean_z.pt', 'std_dev_z.pt'), if available.
+    model_bounds : tuple
+        Bounds of the model as ((xmin, xmax), (ymin, ymax), (zmin, zmax)).
+    model_resolution : tuple
+        Resolution of the model as (x_res, y_res, z_res).
+    dataset_size : int
+        The total number of samples in one epoch.
+    device : str
+        Torch device where data is loaded.
     """
     def __init__(self, 
                  config_yaml: str,
@@ -40,7 +52,7 @@ class GeoData3DStreamingDataset(Dataset):
         self.device = device
         self.size = dataset_size
         self.clamp_range = (-1, 30)
-        self.setup_normalization()
+        self._setup_normalization()
                      
     def __len__(self):
         return self.size
@@ -56,24 +68,46 @@ class GeoData3DStreamingDataset(Dataset):
             
         return data_tensor
     
-    def setup_normalization(self):
+    def _setup_normalization(self):
+        """ Load normalization statistics if available in the stats_dir directory. """
         if self.stats_dir:
             self.mean, self.std = load_normalization_stats(self.stats_dir, self.device)  
             
     def normalize(self, x):
+        """ Normalize the input tensor along the Z-axis using the loaded statistics. """
         x = torch.clamp(x, self.clamp_range[0], self.clamp_range[1])
         return (x - self.mean.to(x.device)) / self.std.to(x.device)
     
     def denormalize(self, x):
+        """ Denormalize data back to the original range using the loaded statistics. """
         mean_res = self.mean.to(x.device)
         std_res = self.std.to(x.device)
         x = x * std_res + mean_res
         return torch.clamp(x, self.clamp_range[0], self.clamp_range[1])
         
-def load_normalization_stats(stats_dir, device='cpu'):
-    """ Load z-axis normalization statistics for the dataset from directory"""
-    mean_path = os.path.join(stats_dir, 'mean_z.pt')
-    std_path = os.path.join(stats_dir, 'std_dev_z.pt')
+def load_normalization_stats(stats_dir:str, device='cpu')->tuple:
+    """
+    Load z-axis normalization statistics for a dataset from the specified directory.
+
+    Parameters
+    ----------
+    stats_dir : str
+        The directory containing the normalization statistics files.
+    device : str, optional
+        The PyTorch device where the loaded tensors will be placed. Default is 'cpu'.
+
+    Returns
+    -------
+    tuple
+        A tuple containing two tensors: mean and standard deviation.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the expected normalization files are not found in the provided directory.
+    """
+    mean_path = os.path.join(stats_dir, _mean_file)
+    std_path = os.path.join(stats_dir, _std_dev_file)
     
     # Assert that the mean and std dev files exist
     if not os.path.exists(mean_path):
@@ -85,19 +119,31 @@ def load_normalization_stats(stats_dir, device='cpu'):
     std = torch.load(std_path).to(device)
     return mean, std
 
-def get_transforms(stats_dir, data_dim , device='cpu', clamp_range=[-1, 20]):
-    """ Get normalization and denormalization functions along Z axis
-    
-    Parameters:
-    data_dir (str): Directory containing normalization stats in a 'normalization' subdirectory
-    data_dim (int): Dimension of the data (2 or 3)
-    device (str): Device to load normalization stats to
-    clamp_range (list): Range to clamp the data to
-    
-    Returns:
-    normalize (function): Function to normalize data
-    denormalize (function): Function to denormalize data
-    """    
+def get_transforms(stats_dir, data_dim: int , device='cpu', clamp_range:tuple=[-1, 30]):
+    """
+    Retrieve normalization and denormalization functions configured for specified data dimensions and range.
+
+    Parameters
+    ----------
+    stats_dir : str
+        Directory containing the statistics files for normalization.
+    data_dim : int
+        Dimension of the data to be transformed (2D or 3D).
+    device : str
+        PyTorch device where the normalization statistics are loaded.
+    clamp_range : list
+        Two-element list specifying the minimum and maximum clamping values for the normalization.
+
+    Returns
+    -------
+    tuple
+        A tuple containing two functions: `normalize` and `denormalize`.
+
+    Raises
+    ------
+    AssertionError
+        If the clamp range does not contain exactly two elements or if the data dimension is not 2 or 3.
+    """  
     clamp_min, clamp_max = tuple(clamp_range)
     assert len(clamp_range) == 2, "clamp_range should contain exactly two values: [min, max]"    
     assert data_dim in [2, 3], "Data dimension should be 2 or 3 to specify 2d or 3d normalization"
@@ -109,11 +155,11 @@ def get_transforms(stats_dir, data_dim , device='cpu', clamp_range=[-1, 20]):
         mean.unsqueeze_(1)
         std.unsqueeze_(1)        
 
-    def normalize(x):
+    def normalize(x: torch.Tensor)->torch.Tensor:
         x = torch.clamp(x, clamp_min, clamp_max)
         return (x - mean.to(x.device)) / std.to(x.device)
 
-    def denormalize(x):
+    def denormalize(x: torch.Tensor)->torch.Tensor:
         mean_res = mean.to(x.device)
         std_res = std.to(x.device)
         x = x * std_res + mean_res
@@ -121,10 +167,25 @@ def get_transforms(stats_dir, data_dim , device='cpu', clamp_range=[-1, 20]):
 
     return normalize, denormalize
 
-def compute_normalization_stats(dataset, batch_size, stats_dir, device='cpu'):
-    """ Loads a dataset and iterates through it to compute normalization statistics for the z-axis
-    
-    saves the mean and std dev tensors as vectors in the save_dir
+def compute_normalization_stats(dataset, batch_size:int, stats_dir:str, device='cpu'):
+    """
+    Compute and save normalization statistics for the z-axis of the dataset.
+
+    Parameters
+    ----------
+    dataset : Dataset
+        The dataset to compute statistics for.
+    batch_size : int
+        Number of samples per batch.
+    stats_dir : str
+        Directory where the computed statistics will be saved.
+    device : str
+        Device on which to perform computations.
+
+    Notes
+    -----
+    This function iterates through the dataset to calculate mean and standard deviation
+    for the z-axis. The results are saved in the specified directory.
     """
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12)        
     sample = dataset[0]
@@ -147,8 +208,10 @@ def compute_normalization_stats(dataset, batch_size, stats_dir, device='cpu'):
     
     # Save the mean and std dev tensors as vectors to be used for normalization
     os.makedirs(f"{stats_dir}", exist_ok=True)
-    torch.save(mean_z, f"{stats_dir}/mean_z.pt")
-    torch.save(std_dev_z, f"{stats_dir}/std_dev_z.pt")
+    mean_path = os.path.join(stats_dir, _mean_file)
+    std_path = os.path.join(stats_dir, _std_dev_file)
+    torch.save(mean_z, mean_path)
+    torch.save(std_dev_z, std_path)
     
     # Expand into a 2d matrix to use with imshow
     mean_z_matrix = mean_z.unsqueeze(0).expand(64,-1)
@@ -164,6 +227,3 @@ def compute_normalization_stats(dataset, batch_size, stats_dir, device='cpu'):
     axs[1].imshow(rotated_std_dev_z.numpy(), cmap='gray')
     axs[1].set_title("Std Dev Z")
     plt.show()
-    
-
-    

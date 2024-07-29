@@ -48,7 +48,10 @@ model = geo.GeoModel(bounds = bounds, resolution = 128)
 model.add_history(test_history0)
 model.compute_model()
 
-mesh = np.load('tests/elevation_data.npy')
+# Get directory of this file 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+elevation_data = os.path.join(dir_path, 'elevation_data.npy')
+mesh = np.load(elevation_data)
 mesh_scaled = mesh * 6
 model.add_topography(mesh_scaled)
 p = geovis.transformationview(model, threshold= -.5)
