@@ -1,6 +1,7 @@
 import numpy as np
 from .geoprocess import *
 from .util import rotate, slip_normal_vectors, resample_mesh
+import traceback
 
 import logging
 # Set up a simple logger
@@ -13,18 +14,23 @@ class GeoModel:
     """A 3D geological model that can be built up from geological processes.
     
     Parameters:
-    bounds (Tuple): (allmin, allmax) or ((xmin, xmax), (ymin, ymax), (zmin, zmax))
-    resolution (int): Number of divisions in each dimension, 
-                        or a tuple of 3 values for x, y, and z dimensions
-    dtype (dtype): Data type for the model data array 
+        bounds (Tuple): (allmin, allmax) or ((xmin, xmax), (ymin, ymax), (zmin, zmax))
+        resolution (int): Number of divisions in each dimension, 
+                            or a tuple of 3 values for x, y, and z dimensions
+        dtype (dtype): Data type for the model data array 
+        name (str): Optional name of the model
+        height_tracking (bool): Whether to track height above and below the model for renormalization        
     """
     EMPTY_VALUE = -1
+    EXT_FACTOR = 3  # Factor of z-range to extend above and below model for depth measurement
+    RES = 128        # Resolution of the extension bars (number of points computed above and below model)
     
-    def __init__(self,  bounds=(0, 16), resolution=128, dtype = np.float32, name = "model"):
+    def __init__(self,  bounds=(0, 16), resolution=128, dtype = np.float32, name = "model", height_tracking = True):
         self.name = name
         self.dtype = dtype
         self.bounds = bounds
         self.resolution = resolution
+        self.height_tracking = height_tracking
         self.history = []
         # Placeholders for mesh data
         self.data = np.empty(0) # Vector of data values on mesh points
@@ -109,7 +115,7 @@ class GeoModel:
         
         # Initialize data array with NaNs
         self.data = np.full(self.xyz.shape[0], np.nan, dtype=self.dtype)  
-        
+   
     def add_history(self, history):
         """Add one or more geological processes to model history.
         
@@ -184,6 +190,9 @@ class GeoModel:
         # Allocate memory for the mesh and data
         self.setup_mesh()   
         
+        if self.height_tracking:
+            n_tracking_bar_points = self._add_height_tracking_bars()
+        
         # Unpack all compound events into atomic components
         history_unpacked = []
         for event in self.history:
@@ -202,6 +211,13 @@ class GeoModel:
         # Clean up snapshots taken during the backward pass
         if not keep_snapshots:
             self.snapshots = np.empty((0, 0, 0, 0))
+        
+        # Remove the height tracking bars from the model
+        if self.height_tracking:
+            self.xyz = self.xyz[:-n_tracking_bar_points]
+            self.data = self.data[:-n_tracking_bar_points]
+            self.data_snapshots = self.data_snapshots[:, :-n_tracking_bar_points]
+            self.mesh_snapshots = self.mesh_snapshots[:, :-n_tracking_bar_points]
           
     def _prepare_snapshots(self, history):
         """ Determine when to take snapshots of the mesh during the backward pass.
@@ -254,6 +270,36 @@ class GeoModel:
                 self.data_snapshots[snapshot_index] = self.data.copy()
             if isinstance(event, Deposition):
                 _, self.data = event.run(current_xyz, self.data)
+    
+    def _add_height_tracking_bars(self):
+        """Hack to add single-file extension of points above and below model for height renorming."""
+        
+        z_bounds = self.bounds[-1]
+        # Calculate centered x, y coords
+        x_center = (self.bounds[0][0] + self.bounds[0][1]) / 2
+        y_center = (self.bounds[1][0] + self.bounds[1][1]) / 2
+                
+        # create upper and lower bars        
+        z_range = z_bounds[1] - z_bounds[0]
+        z_lower = np.linspace(z_bounds[0] - self.EXT_FACTOR*z_range, z_bounds[0],  num=self.RES, dtype=self.dtype)
+        z_upper = np.linspace(z_bounds[1], z_bounds[1] + self.EXT_FACTOR*z_range, num=self.RES, dtype=self.dtype)
+        
+        lower_bar = np.column_stack((
+            np.full(self.RES, x_center),
+            np.full(self.RES, y_center),
+            z_lower
+        ))
+        
+        upper_bar = np.column_stack((
+            np.full(self.RES, x_center),
+            np.full(self.RES, y_center),
+            z_upper
+        ))
+        
+        self.xyz = np.vstack((self.xyz, lower_bar,  upper_bar))
+        self.data = np.concatenate(( self.data,np. full(lower_bar.shape[0], np.nan), np.full(upper_bar.shape[0], np.nan)))
+        self.extra_points = len(lower_bar) + len(upper_bar)
+        return self.extra_points
         
     def fill_nans(self, value = EMPTY_VALUE):
         assert self.data is not None, "Data array is empty."
@@ -266,8 +312,9 @@ class GeoModel:
         Note this operation is expensive since it requires recomputing the model.
         
         Parameters:
-        - new_max: The new maximum height for the model.
-        - optional auto: Automatically select a new maximum height based on the model's current height.
+        - new_max (float): The new maximum height for the model.
+        - auto (boolean): Automatically select a new maximum height based on the model's current height.
+        - recompute: Recompute the model after renormalization.
         """
         assert self.data is not None, "Data array is empty."
         #Find the highest point
@@ -276,9 +323,10 @@ class GeoModel:
         try:
             current_max_z = np.max(valid_z_values)
         except ValueError:
+            # traceback.print_exc()
             print("All data values are NaN, cannot renormalize.")
             zmin, zmax = self.get_z_bounds()
-            current_max_z = zmin
+            current_max_z = zmin  # Defaulting to zmin if no valid max found
 
         if auto:
             new_max = self.get_target_normalization()
