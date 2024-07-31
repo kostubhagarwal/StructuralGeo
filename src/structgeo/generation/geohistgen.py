@@ -12,7 +12,7 @@ def generate_sentence(vocabulary, grammar_structure):
     return sentence
 
 def generate_history(sentence: List[GeoWord]) -> List[geo.GeoProcess]:
-    """ Generate a list of geological histories from a sentence. """
+    """ Generate a geological history from a sentence. """
     h = [word.generate() for word in sentence]
     return h
 

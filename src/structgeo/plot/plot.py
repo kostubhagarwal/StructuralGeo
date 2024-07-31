@@ -4,7 +4,7 @@ A module for plotting views and visualization of GeoModel objects.
 
 import pyvista as pv
 import numpy as np
-import functools
+
 
 def get_plot_config(n_colors=10): 
     """ Central color configurations and appearance settings for the plotter"""
@@ -28,14 +28,14 @@ def get_plot_config(n_colors=10):
 
 def setup_plot(model, plotter=None, threshold=-0.5):
     """ Common setup for all plot types """
-    if plotter is None:
+    if plotter is None: # Make a plotter if one is not provided
         plotter = pv.Plotter()
         
-    if np.all(np.isnan(model.data)):
+    if np.all(np.isnan(model.data)): # Warn if no data to show
         plotter.add_text("No data to show, all values are NaN.", font_size=20)
         return plotter, None
 
-    mesh = get_voxel_grid_from_model(model, threshold)
+    mesh = get_voxel_grid_from_model(model, threshold) # Get voxel grid
     unique_vals = np.unique(model.data)
     n_colors = unique_vals[~np.isnan(unique_vals)].size
     plot_config = get_plot_config(n_colors=n_colors)

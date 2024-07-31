@@ -38,7 +38,7 @@ class CompoundProcess(GeoProcess):
     """
     A compound geological process that consists of multiple sequential sub-processes.
     
-     Can include both deposition and transformation processes in a sequence.
+     Can include deposition, transformation, or other compound processes.
    """
     def __init__(self, processes: List[GeoProcess] = None, name: str = None):
         self.name = name

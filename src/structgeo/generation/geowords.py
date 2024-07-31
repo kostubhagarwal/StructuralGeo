@@ -1,7 +1,9 @@
 """ A collection of curated geological words that combine random variables and geoprocesses into a single generator class. """
-
 import numpy as np
+from scipy.stats import lognorm
+
 from typing import List, Union
+
 from structgeo.model import GeoProcess
 import structgeo.model as geo
 import structgeo.probability as rv
@@ -38,6 +40,7 @@ class GeoWord:
     def add_process(self, item: Union[geo.GeoProcess, 'GeoWord', List[Union[geo.GeoProcess, 'GeoWord']]]):
         """
         Adds a GeoProcess, GeoWord or a list of processes/words to the GeoWord history. Used during the build_history method.
+        Process and/or GeoWord objects should be added in the chronological order from earliest to latest event.
 
         Parameters
         ----------
@@ -60,13 +63,13 @@ class GeoWord:
             raise ValueError(f"Expected GeoWord, GeoProcess, or list of these, got {type(item)}")
 
 """ Identity word for generating a null event. """
-class NullWord(GeoWord):
+class NullWord(GeoWord): # Validated
     """A null geological event, generating a process that does nothing."""
     def build_history(self):
         self.add_process(geo.NullProcess())
 
 """ Infinite foundation layer(s) for initial model"""        
-class InfiniteBasement(GeoWord):
+class InfiniteBasement(GeoWord): # Validated
     """A foundational bedrock layer to simulate an infinite basement."""
     def build_history(self):
         # Generate a simple basement layer
@@ -182,7 +185,7 @@ class FlatUnconformity(GeoWord):
         self.add_process(unconformity)
         
 class TippedUnconformity(GeoWord):
-    #TODO: Use tile process instead of rotate
+    #TODO: Use tilt process instead of rotate
     def build_history(self):
         tilt_angle = np.random.normal(0,20)
         theta = np.random.uniform(0, 360)
