@@ -16,5 +16,6 @@ setup(
         'trame',
         'trame-vuetify',
         'trame-vtk',
+        'tqdm'
     ],
 )
