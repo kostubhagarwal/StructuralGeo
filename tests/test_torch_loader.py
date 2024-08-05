@@ -83,7 +83,7 @@ def normalization_tests():
                                         model_bounds=bounds, 
                                         model_resolution=resolution) 
     
-    compute_normalization_stats(dataset, batch_size=8, stats_dir='.', device='cpu')
+    compute_normalization_stats(stats_dir='.', dataset=dataset, batch_size=8, device='cpu')
     normalize, denormalize = get_transforms(stats_dir='.', data_dim=3)
     
     loader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)

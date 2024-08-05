@@ -9,7 +9,7 @@ from tqdm import tqdm
 _mean_file = 'mean_z.pt'
 _std_dev_file = 'std_dev_z.pt'
 
-def compute_normalization_stats(dataset, batch_size:int, stats_dir:str, device='cpu'):
+def compute_normalization_stats(stats_dir:str, dataset, batch_size:int, device='cpu'):
     """
     Compute and save normalization statistics for the z-axis of the dataset.
 

@@ -22,7 +22,6 @@ def load_config(name='config_default.json'):
     A dictionary containing the configuration parameters.
     - dataset_dir: str
     - yaml_file: str
-    - stats_dir: str
     """
     
     # Get the directory of the current script
@@ -46,8 +45,5 @@ def load_config(name='config_default.json'):
         print("YAML file found and loaded:", yaml_files[0])
     else:
         print("No YAML file found in the dataset directory.")
-        
-    # set a default stats directory to store and load normalization stats from  (add /stat/ to the dataset directory)
-    config['stats_dir'] = os.path.join(dataset_dir, 'stats')
         
     return config
