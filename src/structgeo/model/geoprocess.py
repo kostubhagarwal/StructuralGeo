@@ -209,11 +209,11 @@ class Dike(Deposition):
     """ A base planar dike intrusion
     
     Parameters:
-    strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
-    dip (float): Dip angle in degrees
-    width (float): Net Width of the dike
-    origin (float): Origin point of the local coordinate frame
-    value (float): Value of rock-type to assign to the dike 
+        strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
+        dip (float): Dip angle in degrees
+        width (float): Net Width of the dike
+        origin (float): Origin point of the local coordinate frame
+        value (float): Value of rock-type to assign to the dike 
     """
     def __init__(self, strike=0., dip=90., width=1., origin=(0,0,0), value=0.):
         self.strike = np.radians(strike)
@@ -257,13 +257,13 @@ class DikeColumn(Deposition):
     """ Columnar dike intrusion 
     
     Parameters:
-    origin (tuple): Origin point of the dike in the model reference frame, column propogates downward in column
-    diam (float): Diameter of the dike
-    depth (float): Stopping depth of dike, -infinity by default goes down through entire model
-    minor_axis_scale (float): Scaling factor for the x-axis of the dike
-    rotation (float): Rotation of the dike in the xy plane
-    value (int): Value of rock-type to assign to the dike
-    clip (bool): Clip the dike to not protrude above the surface
+        origin (tuple): Origin point of the dike in the model reference frame, column propogates downward in column
+        diam (float): Diameter of the dike
+        depth (float): Stopping depth of dike, -infinity by default goes down through entire model
+        minor_axis_scale (float): Scaling factor for the x-axis of the dike
+        rotation (float): Rotation of the dike in the xy plane
+        value (int): Value of rock-type to assign to the dike
+        clip (bool): Clip the dike to not protrude above the surface
     """
     
     def __init__(self, origin=(0,0,0), diam=100,  depth=np.inf, minor_axis_scale=1.,  rotation=0., value=0., clip=False):
@@ -440,13 +440,13 @@ class DikePlug(Deposition):
     """ An intrusion formed as a parabolic/elliptical plug.
     
     Parameters:
-    origin (tuple): Origin point of the plug tip in model reference frame
-    diam (float): Diameter of the plug's major axis
-    minor_axis_scale (float): Scaling factor for the minor axis of the plug
-    rotation (float): Rotation of the plug major axis cw from the y-axis
-    shape (float): Shape parameter for the plug, controls the exponent of the rotated polynomial
-    value (int): Value of rock-type to assign to the plug    
-    clip (bool): Clip the plug to not protrude above the surface
+        origin (tuple): Origin point of the plug tip in model reference frame
+        diam (float): Diameter of the plug's major axis
+        minor_axis_scale (float): Scaling factor for the minor axis of the plug
+        rotation (float): Rotation of the plug major axis cw from the y-axis
+        shape (float): Shape parameter for the plug, controls the exponent of the rotated polynomial
+        value (int): Value of rock-type to assign to the plug    
+        clip (bool): Clip the plug to not protrude above the surface
     """
     
     def __init__(self, diam=5, origin=(0,0,0), minor_axis_scale=1., rotation=0, shape=3.0, value=0., clip=True):
@@ -544,8 +544,8 @@ class UnconformityBase(Deposition):
     """ Erode the model from a given base level upwards
     
     Parameters:
-    base (float): base level of erosion
-    value (int): Value to use for fill, np.nan by default to fill with air category
+        base (float): base level of erosion
+        value (int): Value to use for fill, np.nan by default to fill with air category
     """
     
     def __init__(self, base, value=np.nan):
@@ -568,7 +568,7 @@ class UnconformityDepth(Deposition):
     """ Erode the model from the highest point downwards by a thickness.
     
     Parameters:
-    depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
+        depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
     """
     
     def __init__(self, depth, value=np.nan):
@@ -589,14 +589,13 @@ class UnconformityDepth(Deposition):
 
         # Return the unchanged xyz and the potentially modified data
         return xyz, data
-   
 class Tilt(Transformation):
     """ Tilt the model by a given strike and dip and an origin point.
     
     Parameters:
-    strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
-    dip    (float): Dip of the tilt in degrees (CW from the strike axis)
-    origin (tuple): Origin point for the tilt (x,z,y)
+        strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
+        dip    (float): Dip of the tilt in degrees (CW from the strike axis)
+        origin (tuple): Origin point for the tilt (x,z,y)
     """
     def __init__(self, strike, dip, origin=(0,0,0)):
         self.strike = np.radians(strike)  # Convert degrees to radians
@@ -630,17 +629,17 @@ class Fold(Transformation):
     Convention is that 0 rake with 90 dip fold creates vertical folds.
     
     Parameters:
-    strike: Strike in degrees
-    dip: Dip in degrees
-    rake: Rake in degrees
-    period: Period of the fold in units of the mesh
-    amplitude: Amplitude of the fold (motion along slip_vector)
-    phase: Phase shift of the fold (in units of the period) [0,1)
-    shape: Shape parameter for the fold (enhances 3rd harmonic component in the fold)
-    origin: Origin point for the fold
-    periodic_func: Custom periodic function for the fold (replaces default cosine function)
-                    User provided function should be 1D and accept an array of n_cycles
-                    Does not require being periodic, but should be normalized to 1 amplitude
+        strike: Strike in degrees
+        dip: Dip in degrees
+        rake: Rake in degrees
+        period: Period of the fold in units of the mesh
+        amplitude: Amplitude of the fold (motion along slip_vector)
+        phase: Phase shift of the fold (in units of the period) [0,1)
+        shape: Shape parameter for the fold (enhances 3rd harmonic component in the fold)
+        origin: Origin point for the fold
+        periodic_func: Custom periodic function for the fold (replaces default cosine function)
+                        User provided function should be 1D and accept an array of n_cycles
+                        Does not require being periodic, but should be normalized to 1 amplitude
     """
     
     def __init__(self, strike = 0., 
@@ -702,14 +701,13 @@ class Slip(Transformation):
     """Gereralized slip transformation.
     
     Parameters:
-    displacement_func (callable): Custom displacement function for the slip. Function should map 
-    a distance from the slip plane to a displacement value.
-    strike (float): Strike in degrees
-    dip (float): Dip in degrees
-    rake (float): Rake in degrees
-    amplitude (float): Amplitude of the slip (motion along slip_vector)
-    origin (tuple): Origin point for the slip (local coordinate frame), (x,y,z)
-    
+        displacement_func (callable): Custom displacement function for the slip. Function should map 
+        a distance from the slip plane to a displacement value.
+        strike (float): Strike in degrees
+        dip (float): Dip in degrees
+        rake (float): Rake in degrees
+        amplitude (float): Amplitude of the slip (motion along slip_vector)
+        origin (tuple): Origin point for the slip (local coordinate frame), (x,y,z)    
     """
     def __init__(self,                 
                 displacement_func,
@@ -759,11 +757,11 @@ class Fault(Slip):
     Brittle fault transformations where displacement occurs as a sharp step function across the fault plane. 
 
     Parameters:
-    strike (float): Strike angle in degrees
-    dip (float): Dip angle in degrees
-    rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-    amplitude (float): The maximum displacement magnitude along the slip_vector.
-    origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+        strike (float): Strike angle in degrees
+        dip (float): Dip angle in degrees
+        rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+        amplitude (float): The maximum displacement magnitude along the slip_vector.
+        origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
     
     This implementation causes a displacement strictly on one side of the fault, making it suitable for
     simulating scenarios where a clear delineation between displaced and stationary geological strata is necessary.
@@ -790,12 +788,12 @@ class Shear(Slip):
     Displacement is modeled as a sigmoid function that increases with distance from the slip plane.
     
     Parameters:
-    strike (float): Strike angle in degrees
-    dip (float): Dip angle in degrees
-    rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-    amplitude (float): The maximum displacement magnitude along the slip_vector.
-    origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
-    steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
+        strike (float): Strike angle in degrees
+        dip (float): Dip angle in degrees
+        rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
+        amplitude (float): The maximum displacement magnitude along the slip_vector.
+        origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+        steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
     """
     def __init__(self, 
                 strike = 0., 
