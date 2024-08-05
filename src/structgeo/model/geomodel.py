@@ -400,20 +400,27 @@ class GeoModel:
     @classmethod
     def from_tensor(cls, bounds, data_tensor):
         """
-        Special initializer to create a GeoModel instance from a 1xXxYxZ shaped data tensor.
-        Initializes history to [NullProcess()] and sets up the mesh and data to allow GeoModel 
+        Special initializer to create a GeoModel instance from a 1xXxYxZ or XxYxZ shaped data tensor.
+        Initializes history to [NullProcess()] and sets up the mesh and data to allow GeoModel
         plotting tools and processing methods to be used.
-        
+
         Args:
             bounds (tuple): The bounds of the model.
-            data_tensor (torch.Tensor): The data tensor to initialize the model with, a 1xXxYxZ tensor.
-        
+            data_tensor (torch.Tensor): The data tensor to initialize the model with; can be 1xXxYxZ or XxYxZ tensor.
+
         Returns:
             GeoModel: An instance of the GeoModel class.
         """
-        # Extract resolution from tensor shape
-        resolution = tuple(data_tensor.shape[1:])
+        # Check and adjust tensor dimensions if needed
+        if data_tensor.dim() == 4 and data_tensor.size(0) == 1:
+            data_tensor = data_tensor.squeeze(0)  # Remove the singleton dimension
 
+        # Ensure now the tensor is 3D
+        assert data_tensor.dim() == 3, "Data tensor must be either 1xXxYxZ or XxYxZ after squeezing."
+
+        # Extract resolution from tensor shape
+        resolution = data_tensor.shape  # Already a tuple of three dimensions
+        
         instance = cls(bounds, resolution)
         # Setup mesh for X, Y, Z coordinates and flattened xyz array
         instance.setup_mesh()
