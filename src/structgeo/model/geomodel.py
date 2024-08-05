@@ -190,7 +190,7 @@ class GeoModel:
         # Allocate memory for the mesh and data
         self.setup_mesh()   
         
-        if self.height_tracking:
+        if getattr(self, 'height_tracking', False): # Handle earlier versions of GeoModel without height tracking
             n_tracking_bar_points = self._add_height_tracking_bars()
         
         # Unpack all compound events into atomic components
@@ -213,7 +213,7 @@ class GeoModel:
             self.snapshots = np.empty((0, 0, 0, 0))
         
         # Remove the height tracking bars from the model
-        if self.height_tracking:
+        if getattr(self, 'height_tracking', False): # Handle earlier versions of GeoModel without height tracking
             self.xyz = self.xyz[:-n_tracking_bar_points]
             self.data = self.data[:-n_tracking_bar_points]
             self.data_snapshots = self.data_snapshots[:, :-n_tracking_bar_points]
