@@ -141,7 +141,7 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     
     return actors
 
-def categorical_grid_view(model, threshold=None, text_annot = True):
+def categorical_grid_view(model, threshold=None, text_annot = True, off_screen = False):
     cfg = get_plot_config()
     
     def calculate_grid_dims(n):
@@ -157,7 +157,7 @@ def categorical_grid_view(model, threshold=None, text_annot = True):
     num_cats = len(cats)
     rows, cols = calculate_grid_dims(num_cats)
     
-    p = pv.Plotter(shape=(rows, cols), border=False) # subplot square layout
+    p = pv.Plotter(shape=(rows, cols), border=False, off_screen=off_screen) # subplot square layout
 
     clim = [cats.min(), cats.max()] # Preset color limits for all subplots
     skin = grid.extract_surface() # Extract surface mesh for translucent skin

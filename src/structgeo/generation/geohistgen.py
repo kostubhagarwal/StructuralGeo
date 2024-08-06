@@ -27,7 +27,7 @@ def generate_normalized_model(hist: List[geo.GeoProcess], bounds=(-1920,1920), r
     # First squash the model downwards until it is below the top of the bounds
     new_max = model.get_target_normalization(target_max = .1)
     model_max = model.bounds[2][1]
-    max_iter = 10
+    max_iter = 5
     while True and max_iter > 0:
         observed_max = model.renormalize_height(new_max=new_max)
         max_iter -= 1
