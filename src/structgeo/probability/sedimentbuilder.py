@@ -1,8 +1,4 @@
 import numpy as np
-from .geomodel import *
-from .geoprocess import *
-
-""" Collection of useful higher abstraction geo structures."""
 
 class SedimentBuilder:
     def __init__(self, start_value, total_thickness, min_layers, max_layers, std=0.5):
@@ -53,11 +49,3 @@ class SedimentBuilder:
     def get_last_value(self):
         """Return the value of the last layer."""
         return self.values[-1]
-    
-class FaultSequence:
-    """ Layout a sequence of faults from a starting point and direction"""
-
-pass
-
-
-

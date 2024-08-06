@@ -4,7 +4,7 @@ from scipy.stats import lognorm
 
 from typing import List, Union
 
-from structgeo.model import GeoProcess
+from structgeo.probability import SedimentBuilder
 import structgeo.model as geo
 import structgeo.probability as rv
 
@@ -92,7 +92,7 @@ class InfiniteSediment(GeoWord):
 class FineRepeatSediment(GeoWord):
     """A series of thin sediment layers with repeating values."""
     def build_history(self):
-        sb = geo.SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,200), min_layers=2, max_layers=5, std=0.5) 
+        sb = SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,200), min_layers=2, max_layers=5, std=0.5) 
         for _ in range(np.random.randint(1, 3)):
             sediment = geo.Sedimentation(*sb.build_layers())
             self.add_process(sediment)
@@ -100,7 +100,7 @@ class FineRepeatSediment(GeoWord):
 class CoarseRepeatSediment(GeoWord):
     """A series of thick sediment layers with repeating values."""          
     def build_history(self):   
-        sb = geo.SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,300), min_layers=2, max_layers=5, std=0.5)   
+        sb = SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,300), min_layers=2, max_layers=5, std=0.5)   
         for _ in range(np.random.randint(1, 2)):
             sediment = geo.Sedimentation(*sb.build_layers())
             self.add_process(sediment)

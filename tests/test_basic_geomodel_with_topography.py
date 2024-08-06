@@ -14,7 +14,7 @@ np.random.shuffle(sediment_rock_types)
 
 # Depostions
 bedrock = geo.Bedrock(base=-5, value=0)
-dike  = geo.Dike(strike=45, dip=75, width=3, origin=[0, 0, 0], value=7)
+dike  = geo.DikePlane(strike=45, dip=75, width=3, origin=[0, 0, 0], value=7)
 
 sediment0 = geo.Sedimentation(value_list= range(1,5),  
                               thickness_list=[2, 3, 2, 1],

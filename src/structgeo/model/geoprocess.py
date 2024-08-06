@@ -203,9 +203,8 @@ class Sedimentation(Deposition):
             return float('Inf')  
         
     def last_value(self):
-        return self.value_list[-1]
-     
-class Dike(Deposition):
+        return self.value_list[-1] 
+class DikePlane(Deposition):
     """ A base planar dike intrusion
     
     Parameters:
@@ -252,6 +251,8 @@ class Dike(Deposition):
     
     def last_value(self):
         return self.value
+
+Dike = DikePlane  # Backward compatibility for Dike class in earlier versions  
     
 class DikeColumn(Deposition):
     """ Columnar dike intrusion 
