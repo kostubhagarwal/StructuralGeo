@@ -33,11 +33,13 @@ def setup_plot(model, plotter=None, threshold=-0.5):
         
     if np.all(np.isnan(model.data)): # Warn if no data to show
         plotter.add_text("No data to show, all values are NaN.", font_size=20)
-        return plotter, None
+        mesh = None
+        n_colors = 10
+    else:
+        mesh = get_voxel_grid_from_model(model, threshold) # Get voxel grid
+        unique_vals = np.unique(model.data)
+        n_colors = unique_vals[~np.isnan(unique_vals)].size
 
-    mesh = get_voxel_grid_from_model(model, threshold) # Get voxel grid
-    unique_vals = np.unique(model.data)
-    n_colors = unique_vals[~np.isnan(unique_vals)].size
     plot_config = get_plot_config(n_colors=n_colors)
     
     return plotter, mesh, plot_config
