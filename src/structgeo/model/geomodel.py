@@ -147,7 +147,12 @@ class GeoModel:
         
         history_str = "Geological History:\n"
         for index, process in enumerate(self.history):
-            history_str += f"{index + 1}: {str(process)}\n"
+            if isinstance(process, CompoundProcess):
+                history_str += f"{index + 1}: {process.name if process.name else 'Compound Process'}:\n"
+                for sub_process in process.history:
+                    history_str += f"    - {str(sub_process)}\n"
+            else:
+                history_str += f"{index + 1}: {str(process)}\n"
         
         return history_str
             
@@ -272,7 +277,9 @@ class GeoModel:
                 _, self.data = event.run(current_xyz, self.data)
     
     def _add_height_tracking_bars(self):
-        """Hack to add single-file extension of points above and below model for height renorming."""
+        """Hack to add single-file extension of points above and below model for height renorming.
+        The class attributes EXT_FACTOR and RES control the number of points and the extension factor.
+        """
         
         z_bounds = self.bounds[-1]
         # Calculate centered x, y coords
@@ -312,9 +319,9 @@ class GeoModel:
         Note this operation is expensive since it requires recomputing the model.
         
         Parameters:
-        - new_max (float): The new maximum height for the model.
-        - auto (boolean): Automatically select a new maximum height based on the model's current height.
-        - recompute: Recompute the model after renormalization.
+            - new_max (float): The new maximum height for the model.
+            - auto (boolean): Automatically select a new maximum height based on the model's current height.
+            - recompute: Recompute the model after renormalization.
         """
         assert self.data is not None, "Data array is empty."
         #Find the highest point
