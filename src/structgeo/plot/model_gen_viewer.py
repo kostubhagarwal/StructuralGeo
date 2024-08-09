@@ -1,3 +1,18 @@
+""" A Jupyter notebook based single-model review tool/object for GeoWord models. 
+
+Parameters:
+- generate_model_func: function that returns a new model instance
+- base_dir: directory where models will be saved
+- show_history: whether to show the history of the model in the output widget
+- single_view: whether to show the model from a single view or a set of 6 views
+
+Button Functions:
+- Save Model: Save the current model and refresh the review.
+- Discard Model: Discard the current model and refresh the review.
+- Adjust Model Height: Adjust the height of the current model using auto-normalization.
+- Exit Review: Exit the review and close the plotter.
+"""
+
 import ipywidgets as widgets
 import pyvista as pv
 from IPython.display import display, clear_output

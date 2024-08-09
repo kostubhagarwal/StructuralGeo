@@ -5,7 +5,6 @@ from typing import List, NamedTuple
 import structgeo.model as geo
 from .geowords import *
 
-# TODO: fix model height normalization and cleanup general functions
 def generate_sentence(vocabulary, grammar_structure):
     """ Generate a sentence from a grammar structure. """   
     sentence = [np.random.choice(vocabulary[word])() for word in grammar_structure]    

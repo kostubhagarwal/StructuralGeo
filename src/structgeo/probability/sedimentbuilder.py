@@ -25,7 +25,7 @@ class SedimentBuilder:
         target_mean = self.total_thickness / n_layers
         target_std = self.std * target_mean
         
-        # Log normal distribution parameters
+        # Log normal distribution parameters https://en.wikipedia.org/wiki/Log-normal_distribution
         mu = np.log(target_mean**2/np.sqrt(target_mean**2 + target_std**2))
         sigma = np.sqrt(np.log(1 + target_std**2/target_mean**2))
 

@@ -1,2 +1,3 @@
 from .plot import *
 from  .model_gen_viewer import *
+from .GeoWordPlotter import GeoWordPlotter
