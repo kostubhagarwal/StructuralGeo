@@ -93,7 +93,9 @@ class InfiniteSedimentMarkov(GeoWord): #Validated
     """A large sediment accumulation to simulate deep sedimentary layers with dependency on previous layers."""
     
     def build_history(self):
-        depth = (BOUNDS_Z[1] - BOUNDS_Z[0]) * 3
+        # Caution, the depth needs to extend beyond the bottom of the model mesh,
+        # Including height bar extensions for height tracking, or it will leave a gap underneath
+        depth = (BOUNDS_Z[1] - BOUNDS_Z[0]) * 2
         vals = []
         thicks = []
         
@@ -105,25 +107,28 @@ class InfiniteSedimentMarkov(GeoWord): #Validated
         markov_helper = MarkovSedimentHelper(categories=cats, 
                                              rng=self.rng, 
                                              thickness_bounds=(100, 1000),
-                                             thickness_variance=self.rng.uniform(0.1,0.3))
+                                             thickness_variance=self.rng.uniform(0.1,0.3),
+                                             dirichlet_alpha=self.rng.uniform(0.6, 1.0)
+                                             )
         
         current_val = None
         current_thick = None
         
-        while depth > 0:
+        sed_remaining = depth
+        while sed_remaining > 0:
             current_val = markov_helper.next_layer_category(current_val)
             current_thick = markov_helper.next_layer_thickness(current_thick)
             vals.append(current_val)
             thicks.append(current_thick)
-            depth -= current_thick
+            sed_remaining -= current_thick
         
-        self.add_process(geo.Sedimentation(vals, thicks, base=depth))
+        self.add_process(geo.Sedimentation(vals, thicks, base=BOUNDS_Z[0]-depth))
             
 """ Sediment blocks"""    
 class FineRepeatSediment(GeoWord):
     """A series of thin sediment layers with repeating values."""
     def build_history(self):
-        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,200), min_layers=2, max_layers=5, std=0.5) 
+        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,200), min_layers=5, max_layers=10, std=0.5) 
         for _ in range(np.random.randint(1, 3)):
             sediment = geo.Sedimentation(*sb.build_layers())
             self.add_process(sediment)

@@ -69,9 +69,17 @@ class MarkovSedimentHelper:
     def randomize_transition_matrix(self, alpha):
         """Randomize the Markov transition matrix for sediment categories."""
         transition_matrix = {}
-        for val in self.cats:
-            probabilities = self.rng.dirichlet(alpha * np.ones(len(self.cats)))
+        bias_factor = 0.2  # Bias factor to reduce the probability of reselecting the same category
+        
+        for i, val in enumerate(self.cats):
+            # Alpha values favor other categories over the current one
+            alphas = np.ones(len(self.cats)) * alpha
+            alphas[i] *= bias_factor  # Reduce the alpha for the current category
+            
+            # Create the transition probabilities
+            probabilities = self.rng.dirichlet(alphas)
             transition_matrix[val] = probabilities
+        
         return transition_matrix
 
     def next_layer_category(self, current_val):
