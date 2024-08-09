@@ -32,20 +32,36 @@ class BallListGenerator:
         self.rad_range = rad_range
         self.goo_range = goo_range
         
-    def generate(self, n_balls, origin):
-        """ Generate a list of n Ball objects with random parameters starting at seeded origin. """
+    def generate(self, n_balls, origin, direction_weight=0.2, variance=5):
+        """ Generate a list of n Ball objects with random parameters starting at seeded origin.
+        
+        Parameters:
+        ----------------
+        n_balls (int): Number of Ball objects to generate.
+        origin (tuple): Starting point for the first Ball.
+        direction_weight (float): Weight for the previous direction in determining the new direction. Should be between 0 and 1.
+        variance (float): Variance for the Gaussian distribution to add randomness to the direction.
+        """
         balls = []
+        # Set start point and unit direction
         current_point = np.array(origin, dtype=float)
+        previous_direction = np.random.normal(size=3)
+        previous_direction /= np.linalg.norm(previous_direction)
+        
         for _ in range(n_balls):
             radius = np.random.uniform(*self.rad_range)
             goo_factor = np.random.uniform(*self.goo_range)
             balls.append(Ball(current_point, radius, goo_factor))
             
-            # Generate the next point with stretching
-            direction = np.random.normal(size=3)
+            # Generate the next point with a Gaussian bias towards the previous direction
+            random_variation = np.random.normal(scale=variance, size=3)
+            direction = direction_weight * previous_direction + random_variation
             direction /= np.linalg.norm(direction)
             step = direction * np.random.uniform(*self.step_range)
             current_point += step
+            
+            # Update the previous direction
+            previous_direction = direction
             
         return balls
     
@@ -59,10 +75,11 @@ class MetaBall(Deposition):
     threshold (float): The threshold potential below which points will be relabeled.
     value (int): The value to assign to points below the threshold potential.
     """
-    def __init__(self, balls: List[Ball], threshold, value):
+    def __init__(self, balls: List[Ball], threshold, value, clip=True):
         self.balls = balls
         self.threshold = threshold
         self.value = value
+        self.clip = clip
 
     def __str__(self):
         return (f"Metaball: threshold {self.threshold:.1f}, value {self.value:.1f}, "
@@ -76,6 +93,8 @@ class MetaBall(Deposition):
         
         # Apply the threshold and relabel points
         mask = potentials > self.threshold
+        if self.clip:
+            mask = mask & (data != np.nan)
         data[mask] = self.value
         
         # Return the unchanged xyz and the potentially modified data
