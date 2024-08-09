@@ -36,8 +36,7 @@ def single_sentence_test():
     p.show()
 
 config = load_config(name='config_default.json')
-yaml_loc = config['yaml_file']
-stats_dir = config['stats_dir']   
+yaml_loc = config['yaml_file']   
 def model_loader_test():
     loader = GeoModelGenerator(yaml_loc, model_resolution=(128,128,64)) 
     models = loader.generate_models(16) 
