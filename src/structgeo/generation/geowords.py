@@ -108,7 +108,7 @@ class InfiniteSedimentMarkov(GeoWord): #Validated
                                              rng=self.rng, 
                                              thickness_bounds=(100, 1000),
                                              thickness_variance=self.rng.uniform(0.1,0.3),
-                                             dirichlet_alpha=self.rng.uniform(0.6, 1.0)
+                                             dirichlet_alpha=self.rng.uniform(0.6, 2.0)
                                              )
         
         current_val = None

@@ -158,7 +158,7 @@ class Sedimentation(Deposition):
               base (float): Optional floor value for sedimentation, otherwise starts at lowest NaN mesh point
     """
     def __init__(self, value_list, thickness_list, base=np.nan):
-        self.value_list = value_list
+        self.value_list = list(value_list)
         self.thickness_list = thickness_list
         self.base = base # If the base is np.nan, it will be calculated at runtime
         
