@@ -35,6 +35,7 @@ class GeoWordPlotter:
     def initialize_plotter(self):
         rows, cols = self.calculate_grid_dims(self.n_samples)
         self.plotter = BackgroundPlotter(shape=(rows, cols))
+        self.plotter.raise_() # Bring plotter to front focus window
         self.update_samples()
 
         # Bind keys
