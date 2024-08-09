@@ -1,11 +1,13 @@
         
-import numpy as np
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
-from structgeo.filemanagement import FileManager
 from datetime import datetime
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
+
+from structgeo.filemanagement import FileManager
+
 
 def generate_slices(model, n, axis):    
     # Convert axis text to the corresponding axis index

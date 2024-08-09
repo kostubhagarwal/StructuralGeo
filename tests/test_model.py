@@ -1,8 +1,10 @@
 import unittest
+
 import numpy as np
 
 import structgeo.model as geo
 import structgeo.plot as geovis
+
 
 class TestGeoModel(unittest.TestCase):
 

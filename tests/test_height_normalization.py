@@ -1,13 +1,14 @@
+import time
+
+import numpy as np
+from pyvistaqt import BackgroundPlotter
+
 import structgeo.generation as gen
 import structgeo.model as geo
 import structgeo.plot as geovis
-import time
-
-from pyvistaqt import BackgroundPlotter
-
-from structgeo.model import Fault, Dike
+from structgeo.model import Dike, Fault
 from structgeo.probability import random_point_in_ellipsoid
-import numpy as np
+
 
 class MyFaultDikeWord(gen.GeoWord):
     def build_history(self):

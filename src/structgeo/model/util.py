@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.ndimage import gaussian_filter
 
+
 def rotate(axis, theta):
     """
     Return the rotation matrix associated with counterclockwise rotation about

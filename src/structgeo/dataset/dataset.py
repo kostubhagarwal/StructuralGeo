@@ -7,9 +7,10 @@ Requires:
 - A YAML configuration file specifying generation parameters.
 """
 import torch
+from torch.utils.data import DataLoader, Dataset
 
-from torch.utils.data import Dataset, DataLoader
 from structgeo.generation import GeoModelGenerator
+
 
 class GeoData3DStreamingDataset(Dataset):
     """

@@ -1,12 +1,13 @@
-from structgeo.generation import *
-from structgeo.config import load_config
+import random
 
 import numpy as np
+import pyvista as pv
+
 import structgeo.model as geo
 import structgeo.plot as geovis
 import structgeo.probability as rv
-import pyvista as pv
-import random
+from structgeo.config import load_config
+from structgeo.generation import *
 
 # # preallocate an array to store generated histories
 # histories = []

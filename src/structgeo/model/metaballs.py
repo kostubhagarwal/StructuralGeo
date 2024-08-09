@@ -1,8 +1,11 @@
 """ Collection of classes for implementing metaball blobs in a geological model. """
 
-import numpy as np
 from typing import List
+
+import numpy as np
+
 from .geoprocess import Deposition
+
 
 class Ball:
     """ A single metaball object with a given origin, radius, and goo factor. Base building class for Blob"""

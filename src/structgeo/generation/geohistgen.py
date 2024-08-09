@@ -1,8 +1,10 @@
 """ Collection of functions to generate histories and models using GeoWords and GeoProcesses. """
-import numpy as np
 from typing import List, NamedTuple
 
+import numpy as np
+
 import structgeo.model as geo
+
 from .geowords import *
 
 def generate_sentence(vocabulary, grammar_structure):

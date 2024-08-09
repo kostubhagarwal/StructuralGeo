@@ -1,11 +1,13 @@
-import torch
 import pickle as pkl
 from datetime import datetime
 
-from qtpy import QtWidgets, QtGui
 import slicing_tool as sm
-from structgeo.filemanagement import FileManager
+import torch
 from plotter import ModelPlotter
+from qtpy import QtGui, QtWidgets
+
+from structgeo.filemanagement import FileManager
+
 
 class ToolBarWidget(QtWidgets.QWidget):
     def __init__(self, parent=None, plotter=None, file_manager=None):

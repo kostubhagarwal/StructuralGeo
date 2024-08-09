@@ -13,15 +13,17 @@ Button Functions:
 - Exit Review: Exit the review and close the plotter.
 """
 
-import ipywidgets as widgets
-import pyvista as pv
-from IPython.display import display, clear_output
-
-from structgeo.filemanagement import FileManager
-import structgeo.plot as geovis
-from structgeo.model.util import rotate
-import matplotlib.pyplot as plt
 import math
+
+import ipywidgets as widgets
+import matplotlib.pyplot as plt
+import pyvista as pv
+from IPython.display import clear_output, display
+
+import structgeo.plot as geovis
+from structgeo.filemanagement import FileManager
+from structgeo.model.util import rotate
+
 
 class ModelReviewer:
     def __init__(self, generate_model_func, base_dir="../saved_models", show_history=True, single_view=False):

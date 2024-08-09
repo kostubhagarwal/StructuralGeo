@@ -1,9 +1,11 @@
-import numpy as np
 import itertools
-from typing import List
 import warnings
+from typing import List
+
+import numpy as np
 
 from structgeo.model.util import *
+
 
 class GeoProcess:
     """

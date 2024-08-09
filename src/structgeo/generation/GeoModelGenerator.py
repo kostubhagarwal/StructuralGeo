@@ -1,12 +1,15 @@
 """ Sentence structures and generation processes for geo histories. """
-import yaml
-import numpy as np
 import random
 from typing import List, NamedTuple
 
+import numpy as np
+import yaml
+
 import structgeo.model as geo
-from .geowords import *
+
 from . import geowords as geowords_module
+from .geowords import *
+
 
 class SentenceSelector:
     """A class that selects grammar categories and structures based on defined weights."""

@@ -1,10 +1,10 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
+import pyvistaqt as pvqt
+
 import structgeo.model as geo
 import structgeo.plot as geovis
-import matplotlib.pyplot as plt
-
-import pyvistaqt as pvqt
 
 model = geo.GeoModel(bounds=(-1920,1920), resolution=128)
 model.add_history(geo.Sedimentation([1,3,4,5], [500,200,300,200,500]))

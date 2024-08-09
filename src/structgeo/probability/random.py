@@ -1,6 +1,8 @@
-import numpy as np
 import functools
+
+import numpy as np
 from scipy.ndimage import gaussian_filter1d
+
 
 def damped_fourier_wave_fun(n_cycles, num_harmonics, frequency, amplitudes, phases, rms_scale):
     result = np.zeros_like(n_cycles)

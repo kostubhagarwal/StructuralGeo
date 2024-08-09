@@ -2,8 +2,8 @@
 A module for plotting views and visualization of GeoModel objects.
 """
 
-import pyvista as pv
 import numpy as np
+import pyvista as pv
 
 
 def get_plot_config(n_colors=10): 

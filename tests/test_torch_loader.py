@@ -1,15 +1,15 @@
 import os
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
+import pyvista as pv
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from structgeo.dataset import GeoData3DStreamingDataset, compute_normalization_stats, get_transforms
-from structgeo.model import GeoModel
-from structgeo.config import load_config
 import structgeo.plot as geovis
-from torch.utils.data import DataLoader
-
-import pyvista as pv
+from structgeo.config import load_config
+from structgeo.dataset import (GeoData3DStreamingDataset,
+                               compute_normalization_stats, get_transforms)
+from structgeo.model import GeoModel
 
 """ 
 Load a default config pointing to a default dataset directory with yaml file.

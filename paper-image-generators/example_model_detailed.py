@@ -1,10 +1,10 @@
-import pyvista as pv
+import pickle as pkl
+
 import numpy as np
+import pyvista as pv
 
 import structgeo.model as geo
 import structgeo.plot as geovis
-
-import pickle as pkl
 
 # Load geomodel from pickle file
 

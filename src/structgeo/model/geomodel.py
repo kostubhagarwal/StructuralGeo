@@ -1,9 +1,11 @@
-import numpy as np
-from .geoprocess import *
-from .util import rotate, slip_normal_vectors, resample_mesh
+import logging
 import traceback
 
-import logging
+import numpy as np
+
+from .geoprocess import *
+from .util import resample_mesh, rotate, slip_normal_vectors
+
 # Set up a simple logger
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger('Geo')

@@ -1,13 +1,13 @@
-import pyvista as pv
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pyvista as pv
 from matplotlib.colors import to_rgb
-
 from pyvistaqt import BackgroundPlotter
 
 import structgeo.model as geo
 import structgeo.plot as geovis
 import structgeo.probability as rv
+
 pv.set_plot_theme("document")
 
 bounds = (-3,3)

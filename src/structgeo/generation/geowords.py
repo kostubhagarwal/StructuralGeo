@@ -1,12 +1,12 @@
 """ A collection of curated geological words that combine random variables and geoprocesses into a single generator class. """
+from typing import List, Union
+
 import numpy as np
 from scipy.stats import lognorm
 
-from typing import List, Union
-
-from structgeo.probability import SedimentBuilder, MarkovSedimentHelper
 import structgeo.model as geo
 import structgeo.probability as rv
+from structgeo.probability import SedimentBuilder
 
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)

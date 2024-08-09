@@ -1,6 +1,7 @@
+import os
+
 import numpy as np
 import pyvista as pv
-import os
 
 import structgeo.model as geo
 import structgeo.plot as geovis

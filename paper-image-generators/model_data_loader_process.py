@@ -1,8 +1,7 @@
-from structgeo.generation import *
-
-import structgeo.plot as geovis
 import pyvista as pv
 
+import structgeo.plot as geovis
+from structgeo.generation import *
 
 yaml_loc = 'C:/Users/sghys/Summer2024/StructuralGeo/src/structgeo/generation/grammar_map.yml'    
 def model_loader_test():

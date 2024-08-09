@@ -4,8 +4,9 @@ A default configuration file is provided in the repository, which points to a da
 containing a YAML file, with optional dataset statistics in stats folder.
 """
 
-import os
 import json
+import os
+
 
 def load_config(name='config_default.json'):
     """ Load the configuration file and resolve relative paths.

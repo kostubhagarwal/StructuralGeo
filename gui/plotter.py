@@ -1,9 +1,11 @@
-from pyvistaqt import QtInteractor
-from qtpy import QtWidgets
-import structgeo.plot as geovis
-import structgeo.model as geo
 import numpy as np
 import torch
+from pyvistaqt import QtInteractor
+from qtpy import QtWidgets
+
+import structgeo.model as geo
+import structgeo.plot as geovis
+
 
 class ModelPlotter:
     def __init__(self, parent):
