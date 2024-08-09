@@ -6,7 +6,7 @@ from scipy.stats import lognorm
 
 import structgeo.model as geo
 import structgeo.probability as rv
-from structgeo.probability import SedimentBuilder
+from structgeo.probability import SedimentBuilder, MarkovSedimentHelper
 
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)
