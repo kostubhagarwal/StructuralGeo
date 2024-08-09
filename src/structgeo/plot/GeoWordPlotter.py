@@ -14,18 +14,22 @@ Plotter Parameters:
 - n_samples (int): The number of samples to generate and plot. Plotter defaults to square grid layout.
 """
 
+from pyvista import Box
 from pyvistaqt import BackgroundPlotter
+
 from structgeo.generation import *
 import structgeo.plot as geovis
 
 class GeoWordPlotter:
-    def __init__(self, sentence, bounds, res, n_samples=16):
+    def __init__(self, sentence, bounds, res, n_samples=16, clim=(0, 12)):
         self.sentence = sentence
         self.bounds = bounds
         self.res = res
         self.n_samples = n_samples
         self.current_view_mode = self.volview
         self.plotter = None
+        self.clim = clim
+        self.cmap = "gist_ncar"
         self.initialize_plotter()
 
     def initialize_plotter(self):
@@ -64,34 +68,44 @@ class GeoWordPlotter:
         """Update and plot the samples with the current view mode."""
         histories = [generate_history(self.sentence) for _ in range(self.n_samples)]
         self.plotter.clear_actors()
+        self.plotter.clear_plane_widgets()
         for i, hist in enumerate(histories):
             row, col = divmod(i, self.plotter.shape[1])
             self.plotter.subplot(row, col)
             model = generate_normalized_model(hist, self.bounds, self.res)
             self.current_view_mode(model, plotter=self.plotter)
+            self.add_bounding_box(model, plotter=self.plotter)
+            
         
         self.plotter.link_views()
+        self.plotter.add_scalar_bar(title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f")
+
         self.plotter.render()
 
     def volview(self, model, plotter):
         mesh = geovis.get_voxel_grid_from_model(model)
-        plotter.add_mesh(mesh, scalars="values", show_scalar_bar=False, cmap='gist_ncar')
+        plotter.add_mesh(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap, clim=self.clim)
 
     def orthsliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
-        plotter.add_mesh_slice_orthogonal(mesh, scalars="values", show_scalar_bar=False, cmap='gist_ncar')
+        plotter.add_mesh_slice_orthogonal(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
 
     def nsliceview(self, model, n=5, axis="x", plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         slices = mesh.slice_along_axis(n=n, axis=axis)
-        plotter.add_mesh(slices, scalars="values", show_scalar_bar=False, cmap='gist_ncar')
+        plotter.add_mesh(slices, scalars="values", show_scalar_bar=False, cmap=self.cmap)
         plotter.add_axes(line_width=5)
 
     def onesliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         skin = mesh.extract_surface()
-        plotter.add_mesh_slice(mesh, scalars="values", show_scalar_bar=False, cmap='gist_ncar')
-        plotter.add_mesh(skin, scalars='values', show_scalar_bar=False, cmap='gist_ncar', opacity=0.1)
+        plotter.add_mesh_slice(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
+        plotter.add_mesh(skin, scalars='values', show_scalar_bar=False, cmap=self.cmap, opacity=0.1)
+        
+    def add_bounding_box(self, model, plotter=None):
+        flat_bounds = [item for sublist in model.bounds for item in sublist]
+        bounding_box = Box(flat_bounds)
+        plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=2)
 
 def main():
     sentence = [InfiniteBasement(), InfiniteSedimentUniform()]
