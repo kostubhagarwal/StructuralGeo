@@ -160,8 +160,7 @@ class Sedimentation(Deposition):
     def __init__(self, value_list, thickness_list, base=np.nan):
         self.value_list = value_list
         self.thickness_list = thickness_list
-        # Initialize the base and top of layer, to be computed at generation time
-        self.base = base
+        self.base = base # If the base is np.nan, it will be calculated at runtime
         
     def __str__(self):
         values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
@@ -170,40 +169,51 @@ class Sedimentation(Deposition):
         thicknesses += "..." if len(self.thickness_list) > 3 else ""
         return (f"Sedimentation: rock type values [{values_summary}], "
                 f"and thicknesses {thicknesses}, with base = {self.base}")  
-        
+
     def run(self, xyz, data):
-        if np.isnan(self.base):            
-            # Get the lowest mesh point to build layers from the bottom up
-            current_base = self.get_lowest_nan(xyz, data)
-        else:
-            current_base = self.base
-            
-        # Form a cycling iterator for thicknesses
-        thickness= itertools.cycle(self.thickness_list)
-        
-        for value in self.value_list:
-            current_top = current_base + next(thickness)                       
-            # Mask for the current layer of deposit
-            mask = (xyz[:, 2] < current_top) & (xyz[:, 2] >= current_base) & (np.isnan(data))            
-            # Assign mapped value to the layer
-            if np.any(mask):
-                data[mask] = value            
-            # Update the base for the next layer (sequential deposition)
-            current_base = current_top
-            
+        z_values, nan_idxs = self.get_nan_z_values(xyz, data)
+        current_base = self.calculate_base(z_values)
+        thicknesses = self.extend_thicknesses()
+        boundaries = self.calculate_boundaries(current_base, thicknesses)
+        self.assign_values_to_data(z_values, nan_idxs, boundaries, data)
         return xyz, data
     
-    def get_lowest_nan(self, xyz, data):
-        # Get the lowest mesh point with NaN in data to build layers from the bottom up
-        nan_mask = np.isnan(data)
-        if np.any(nan_mask):
-            lowest = np.min(xyz[nan_mask, 2])
-            return lowest
-        else:
-            return float('Inf')  
+    def get_nan_z_values(self, xyz, data):
+        """Extract z values where data is NaN and return them along with their mask."""
+        nan_idxs = np.isnan(data)
+        z_values = xyz[nan_idxs, 2] if np.any(nan_idxs) else np.array([])
+        return z_values, nan_idxs
+
+    def calculate_base(self, z_values):
+        """Calculate the base elevation, using the lowest z value where data is NaN if base is not set."""
+        if z_values.size > 0:
+            return np.min(z_values) if np.isnan(self.base) else self.base
+        return self.base if not np.isnan(self.base) else float('Inf')
+
+    def extend_thicknesses(self):
+        """Extend the thickness list to match the number of layers."""
+        num_layers = len(self.value_list)
+        if len(self.thickness_list) < num_layers:
+            repetitions = (num_layers + len(self.thickness_list) - 1) // len(self.thickness_list)
+            return (self.thickness_list * repetitions)[:num_layers]
+        return self.thickness_list[:num_layers]
+
+    def calculate_boundaries(self, current_base, thicknesses):
+        """Calculate the boundaries for each layer based on the base and thicknesses."""
+        return current_base + np.concatenate(([0], np.cumsum(thicknesses)))
+
+    def assign_values_to_data(self, z_values, nan_idxs, boundaries, data):
+        """Assign the sediment values to the data array based on the layer boundaries."""
+        if z_values.size > 0:
+            # Bin the z values into the layer (which layer they belong to)
+            layer_indices = np.digitize(z_values, boundaries)
+            # Map the layer indices to the corresponding value, 0 bin and last bin are out of bounds (no layer)
+            extended_value_list = np.array([np.nan] + self.value_list + [np.nan])
+            data[nan_idxs] = extended_value_list[layer_indices]
         
     def last_value(self):
         return self.value_list[-1] 
+    
 class DikePlane(Deposition):
     """ A base planar dike intrusion
     
