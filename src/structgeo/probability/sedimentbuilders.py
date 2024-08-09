@@ -49,3 +49,43 @@ class SedimentBuilder:
     def get_last_value(self):
         """Return the value of the last layer."""
         return self.values[-1]
+    
+class MarkovSedimentHelper:
+    """Helper class for handling Markov process logic in sediment generation.
+    
+    Parameters:
+        - categories (list): List of sediment categories.
+        - rng (np.random.Generator): Random number generator.
+        - thickness_bounds (tuple): Bounds for min/max allowable layer thicknesses.
+    """
+    
+    def __init__(self, categories, rng, thickness_bounds=(100, 1000), thickness_variance=0.1, dirichlet_alpha=0.8):
+        self.cats = categories
+        self.rng = rng
+        self.thickness_bounds = thickness_bounds
+        self.thickness_variance = thickness_variance
+        self.transition_matrix = self.randomize_transition_matrix(dirichlet_alpha)
+
+    def randomize_transition_matrix(self, alpha):
+        """Randomize the Markov transition matrix for sediment categories."""
+        transition_matrix = {}
+        for val in self.cats:
+            probabilities = self.rng.dirichlet(alpha * np.ones(len(self.cats)))
+            transition_matrix[val] = probabilities
+        return transition_matrix
+
+    def next_layer_category(self, current_val):
+        """Determine the next layer category based on the current category and Markov process."""
+        if current_val is None:
+            return np.random.choice(self.cats)
+        else:
+            return np.random.choice(self.cats, p=self.transition_matrix[current_val])
+
+    def next_layer_thickness(self, current_thick):
+        """Determine the next layer thickness based on the current thickness."""
+        if current_thick is None:
+            return self.rng.uniform(*self.thickness_bounds)
+        else:
+            next_thick = current_thick * np.random.normal(1, self.thickness_variance)  # Induce some variation
+            next_thick = np.clip(next_thick, *self.thickness_bounds)  # Bound thicknesses
+            return next_thick

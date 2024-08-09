@@ -4,7 +4,7 @@ from scipy.stats import lognorm
 
 from typing import List, Union
 
-from structgeo.probability import SedimentBuilder
+from structgeo.probability import SedimentBuilder, MarkovSedimentHelper
 import structgeo.model as geo
 import structgeo.probability as rv
 
@@ -19,8 +19,9 @@ class GeoWord:
     Base class providing structure for generating events 
     """
     
-    def __init__(self):
+    def __init__(self, seed = None):
         self.hist = []
+        self.rng = np.random.default_rng(seed)
     
     def build_history(self):
         """
@@ -75,24 +76,54 @@ class InfiniteBasement(GeoWord): # Validated
         # Generate a simple basement layer
         self.add_process(geo.Bedrock(base=BOUNDS_Z[0], value=0))
         
-class InfiniteSediment(GeoWord):
+class InfiniteSedimentUniform(GeoWord): # Validated
     """A large sediment accumulation to simulate deep sedimentary layers."""
     def build_history(self):
-        depth = BOUNDS_Z[1]*6 # Pseudo-infinite using a large depth
+        depth = (BOUNDS_Z[1]-BOUNDS_Z[0])*3 # Pseudo-infinite using a large depth
         vals =[]
         thicks = []
         while depth > 0:
-            vals.append(np.random.choice(SEDIMENT_VALS))
-            thicks.append(np.random.uniform(50,1000))
+            vals.append(self.rng.choice(SEDIMENT_VALS))
+            thicks.append(self.rng.uniform(50,1000))
             depth -= thicks[-1]
             
+        self.add_process(geo.Sedimentation(vals, thicks, base=depth))
+        
+class InfiniteSedimentMarkov(GeoWord): #Validated
+    """A large sediment accumulation to simulate deep sedimentary layers with dependency on previous layers."""
+    
+    def build_history(self):
+        depth = (BOUNDS_Z[1] - BOUNDS_Z[0]) * 3
+        vals = []
+        thicks = []
+        
+        # Pick a restricted subset of 3-5 sediment categories
+        num_cats = np.random.randint(3, len(SEDIMENT_VALS) + 1)
+        cats = np.random.choice(SEDIMENT_VALS, num_cats, replace=False)
+        
+        # Get a markov process for selecting next layer type, gaussian differencing for thickness
+        markov_helper = MarkovSedimentHelper(categories=cats, 
+                                             rng=self.rng, 
+                                             thickness_bounds=(100, 1000),
+                                             thickness_variance=self.rng.uniform(0.1,0.3))
+        
+        current_val = None
+        current_thick = None
+        
+        while depth > 0:
+            current_val = markov_helper.next_layer_category(current_val)
+            current_thick = markov_helper.next_layer_thickness(current_thick)
+            vals.append(current_val)
+            thicks.append(current_thick)
+            depth -= current_thick
+        
         self.add_process(geo.Sedimentation(vals, thicks, base=depth))
             
 """ Sediment blocks"""    
 class FineRepeatSediment(GeoWord):
     """A series of thin sediment layers with repeating values."""
     def build_history(self):
-        sb = SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,200), min_layers=2, max_layers=5, std=0.5) 
+        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,200), min_layers=2, max_layers=5, std=0.5) 
         for _ in range(np.random.randint(1, 3)):
             sediment = geo.Sedimentation(*sb.build_layers())
             self.add_process(sediment)
@@ -100,8 +131,8 @@ class FineRepeatSediment(GeoWord):
 class CoarseRepeatSediment(GeoWord):
     """A series of thick sediment layers with repeating values."""          
     def build_history(self):   
-        sb = SedimentBuilder(start_value=1, total_thickness=np.random.normal(1000,300), min_layers=2, max_layers=5, std=0.5)   
-        for _ in range(np.random.randint(1, 2)):
+        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,300), min_layers=2, max_layers=5, std=0.5)   
+        for _ in range(np.random.randint(1, 3)):
             sediment = geo.Sedimentation(*sb.build_layers())
             self.add_process(sediment)
             
