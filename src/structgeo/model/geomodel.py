@@ -333,7 +333,6 @@ class GeoModel:
             current_max_z = np.max(valid_z_values)
         except ValueError:
             # traceback.print_exc()
-            print("All data values are NaN, cannot renormalize.")
             zmin, zmax = self.get_z_bounds()
             current_max_z = zmin  # Defaulting to zmin if no valid max found
 

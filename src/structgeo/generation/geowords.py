@@ -11,6 +11,7 @@ from structgeo.probability import SedimentBuilder, MarkovSedimentHelper
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)
 BOUNDS_Z = (-1920, 1920)
+Z_RANGE = BOUNDS_Z[1] - BOUNDS_Z[0]
 BED_ROCK_VAL  = 0
 SEDIMENT_VALS = [1,2,3,4,5]
 INTRUSION_VALS = [6,7,8,9,10]
@@ -79,12 +80,12 @@ class InfiniteBasement(GeoWord): # Validated
 class InfiniteSedimentUniform(GeoWord): # Validated
     """A large sediment accumulation to simulate deep sedimentary layers."""
     def build_history(self):
-        depth = (BOUNDS_Z[1]-BOUNDS_Z[0])*3 # Pseudo-infinite using a large depth
+        depth = (Z_RANGE)*(1.2*geo.GeoModel.EXT_FACTOR) # Pseudo-infinite using a large depth
         vals =[]
         thicks = []
         while depth > 0:
             vals.append(self.rng.choice(SEDIMENT_VALS))
-            thicks.append(self.rng.uniform(50,1000))
+            thicks.append(self.rng.uniform(50,Z_RANGE/4))
             depth -= thicks[-1]
             
         self.add_process(geo.Sedimentation(vals, thicks, base=depth))
@@ -95,57 +96,77 @@ class InfiniteSedimentMarkov(GeoWord): #Validated
     def build_history(self):
         # Caution, the depth needs to extend beyond the bottom of the model mesh,
         # Including height bar extensions for height tracking, or it will leave a gap underneath
-        depth = (BOUNDS_Z[1] - BOUNDS_Z[0]) * 2
-        vals = []
-        thicks = []
-        
-        # Pick a restricted subset of 3-5 sediment categories
-        num_cats = np.random.randint(3, len(SEDIMENT_VALS) + 1)
-        cats = np.random.choice(SEDIMENT_VALS, num_cats, replace=False)
+        depth = (Z_RANGE) * (3*geo.GeoModel.EXT_FACTOR)
         
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
-        markov_helper = MarkovSedimentHelper(categories=cats, 
+        markov_helper = MarkovSedimentHelper(categories=SEDIMENT_VALS, 
                                              rng=self.rng, 
-                                             thickness_bounds=(100, 1000),
-                                             thickness_variance=self.rng.uniform(0.1,0.3),
-                                             dirichlet_alpha=self.rng.uniform(0.6, 2.0)
+                                             thickness_bounds=(100, Z_RANGE/4),
+                                             thickness_variance=self.rng.uniform(0.1,.6),
+                                             dirichlet_alpha=self.rng.uniform(0.6, 2.0),
+                                             anticorrelation_factor=.3
                                              )
         
-        current_val = None
-        current_thick = None
-        
-        sed_remaining = depth
-        while sed_remaining > 0:
-            current_val = markov_helper.next_layer_category(current_val)
-            current_thick = markov_helper.next_layer_thickness(current_thick)
-            vals.append(current_val)
-            thicks.append(current_thick)
-            sed_remaining -= current_thick
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
         
         self.add_process(geo.Sedimentation(vals, thicks, base=BOUNDS_Z[0]-depth))
+        
+# class InfiniteSedimentTilted(GeoWord):
+#     """A large sediment accumulation to simulate deep sedimentary layers with a tilt."""
+#     def build_history(self):
+#         # choose either markov or uniform
+#         rot_depth = -1000
+#         tilt = geo.Tilt(strike=self.rng.uniform(0, 360),
+#                         dip=self.rng.normal(0, 10),
+#                         origin=(0,0,rot_depth)
+#         )
+#         unc = geo.UnconformityBase(-3000)
+#         self.add_process([InfiniteSedimentMarkov(), tilt, unc])
             
 """ Sediment blocks"""    
-class FineRepeatSediment(GeoWord):
+class FineRepeatSediment(GeoWord): # Validated
     """A series of thin sediment layers with repeating values."""
     def build_history(self):
-        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,200), min_layers=5, max_layers=10, std=0.5) 
-        for _ in range(np.random.randint(1, 3)):
-            sediment = geo.Sedimentation(*sb.build_layers())
-            self.add_process(sediment)
+        # Get a log-normal depth for the sediment block
+        depth = self.rng.lognormal(*rv.log_normal_params(mean = Z_RANGE/4, std_dev = Z_RANGE/6)) 
+        
+        # Get a markov process for selecting next layer type, gaussian differencing for thickness
+        markov_helper = MarkovSedimentHelper(categories=SEDIMENT_VALS, 
+                                             rng=self.rng, 
+                                             thickness_bounds=(100, Z_RANGE/10),
+                                             thickness_variance=self.rng.uniform(0.1,.3),
+                                             dirichlet_alpha=self.rng.uniform(.03,.1), # Low alpha for high repeatability
+                                             anticorrelation_factor=.1
+                                             )
+        
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
+        
+        self.add_process(geo.Sedimentation(vals, thicks))
     
-class CoarseRepeatSediment(GeoWord):
+class CoarseRepeatSediment(GeoWord): # Validated
     """A series of thick sediment layers with repeating values."""          
     def build_history(self):   
-        sb = SedimentBuilder(start_value=1, total_thickness=self.rng.normal(1000,300), min_layers=2, max_layers=5, std=0.5)   
-        for _ in range(np.random.randint(1, 3)):
-            sediment = geo.Sedimentation(*sb.build_layers())
-            self.add_process(sediment)
+        # Get a log-normal depth for the sediment block
+        depth = self.rng.lognormal(*rv.log_normal_params(mean = Z_RANGE/3, std_dev = Z_RANGE/8)) 
+        
+        # Get a markov process for selecting next layer type, gaussian differencing for thickness
+        markov_helper = MarkovSedimentHelper(categories=SEDIMENT_VALS, 
+                                             rng=self.rng, 
+                                             thickness_bounds=(Z_RANGE/12, Z_RANGE/6),
+                                             thickness_variance=self.rng.uniform(0.1,.2),
+                                             dirichlet_alpha=self.rng.uniform(.03,.1), # Low alpha for high repeatability
+                                             anticorrelation_factor=.1
+                                             )
+        
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
+        
+        self.add_process(geo.Sedimentation(vals, thicks))
             
 class SingleRandSediment(GeoWord):
     """A single sediment layer with a random value and thickness."""
     def build_history(self):
         val = np.random.randint(1, 5)
-        sediment = geo.Sedimentation([val], [np.random.normal(1000, 100)])
+        sediment = geo.Sedimentation([val], [np.random.normal(Z_RANGE/5, Z_RANGE/40)])
         self.add_process(sediment)
              
 class MicroNoise(GeoWord):
@@ -157,8 +178,8 @@ class MicroNoise(GeoWord):
                 'strike': np.random.uniform(0, 360),
                 'dip': np.random.uniform(0, 360),
                 'rake': np.random.uniform(0, 360),
-                'period': np.random.uniform(200, 4000),
-                'amplitude': np.random.uniform(5, 10),
+                'period': np.random.uniform(200, 8000),
+                'amplitude': np.random.uniform(3, 6),
                 'periodic_func': wave_generator.generate()
             }
             fold = geo.Fold(**fold_params)

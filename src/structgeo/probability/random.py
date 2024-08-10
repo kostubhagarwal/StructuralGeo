@@ -3,7 +3,6 @@ import functools
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
-
 def damped_fourier_wave_fun(n_cycles, num_harmonics, frequency, amplitudes, phases, rms_scale):
     result = np.zeros_like(n_cycles)
     for n, (amplitude, phase) in enumerate(zip(amplitudes, phases), start=1):
@@ -104,3 +103,9 @@ def random_point_in_ellipsoid(bounds):
 def random_angle_degrees():
     """Generate a random angle in degrees from 0 to 360."""
     return np.random.uniform(0, 360)
+
+def log_normal_params(mean, std_dev):
+    """Calculate the parameters of a log-normal distribution from the mean and standard deviation."""
+    mu = np.log(mean**2 / np.sqrt(std_dev**2 + mean**2))
+    sigma = np.sqrt(np.log(1 + std_dev**2 / mean**2))
+    return mu, sigma
