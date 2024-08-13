@@ -186,17 +186,21 @@ class SingleRandSediment(GeoWord):
         sediment = geo.Sedimentation([val], [self.rng.normal(Z_RANGE/5, Z_RANGE/40)])
         self.add_process(sediment)
              
-class MicroNoise(GeoWord):
+class MicroNoise(GeoWord): # Validated
     """A thin layer of noise to simulate small-scale sedimentary features.""" 
     def build_history(self):
-        wave_generator = rv.FourierWaveGenerator(num_harmonics=np.random.randint(4, 6), smoothness=0.8)
-        for _ in range(np.random.randint(3, 7)):
+        wave_generator = rv.FourierWaveGenerator(num_harmonics=self.rng.integers(4, 6), smoothness=0.8)
+
+        for _ in range( self.rng.integers(3, 7)):
+            period = self.rng.uniform(100,1000)
+            amplitude = period *  self.rng.uniform(0.002, 0.005) + 5
             fold_params = {
-                'strike': np.random.uniform(0, 360),
-                'dip': np.random.uniform(0, 360),
-                'rake': np.random.uniform(0, 360),
-                'period': np.random.uniform(200, 8000),
-                'amplitude': np.random.uniform(3, 6),
+                'origin' : rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+                'strike':  self.rng.uniform(0, 360),
+                'dip':  self.rng.uniform(0, 360),
+                'rake':  self.rng.uniform(0, 360),
+                'period': period,
+                'amplitude': amplitude,
                 'periodic_func': wave_generator.generate()
             }
             fold = geo.Fold(**fold_params)
