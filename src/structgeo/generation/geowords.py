@@ -291,6 +291,18 @@ class WaveUnconformity(GeoWord):
         unconformity = geo.UnconformityDepth(np.random.uniform(200, 2000))        
         self.add_process([fold_in, unconformity, fold_out])
             
+""" Intrusion Events"""
+class SingleDikePlane(GeoWord):
+    def build_history(self):
+        width = rv.beta_min_max(2,4, 50, 500)
+        dike_params = {
+            'strike': self.rng.uniform(0, 360),
+            'dip': self.rng.normal(90, 30),      # Bias towards vertical dikes
+            'origin': rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+            'width': width
+        }
+        dike = geo.DikePlane(**dike_params)
+        self.add_process(dike)
         
         
 
