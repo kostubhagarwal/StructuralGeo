@@ -91,7 +91,8 @@ def random_point_in_ellipsoid(bounds):
     # Random angles and radius for a unit sphere
     phi = np.random.uniform(0, 2 * np.pi)  # Azimuthal angle
     theta = np.random.uniform(0, np.pi)    # Polar angle
-    r = np.random.uniform(0, 1)            # Radius
+    u = np.random.uniform(0, 1)            # Radius
+    r = u**(1/3)
     
     # Random point in unit sphere scaled to fit the ellipsoid
     x = r * np.sin(theta) * np.cos(phi) * x_radius + center_x

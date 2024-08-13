@@ -699,7 +699,7 @@ class Fold(Transformation):
         # Calculate total displacement for each point, recast off as a column vector
         displacement_vector = slip_vector * displacement_distance[:, np.newaxis] 
         # Return to global coordinates
-        xyz_transformed = xyz + displacement_vector + self.origin
+        xyz_transformed = xyz + displacement_vector
 
         return xyz_transformed, data  
     
