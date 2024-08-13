@@ -209,32 +209,42 @@ class MicroNoise(GeoWord): # Validated
 class SimpleFold(GeoWord):
     """A simple fold structure with random orientation and amplitude."""
     def build_history(self):
-        period = np.random.uniform(100, 11000)
-        proportion = np.random.normal(.05,.03)
+        period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
+        min_amp = period * .02
+        max_amp = period * (.18 - .1 * period/10000) # Linear interp, 1000 -> .17 , 11000 -> .10
+        amp = self.rng.beta(a=2.1, b=1.4) * (max_amp - min_amp) + min_amp
+
         fold_params = {
-            'strike': np.random.uniform(0, 360),
-            'dip': np.random.uniform(0, 360),
-            'rake': np.random.uniform(0, 360),
+            'strike': self.rng.uniform(0, 360),
+            'dip': self.rng.normal(90,45), # Preference towards vertical fold planes
+            'rake': self.rng.uniform(0, 360),
             'period': period,
-            'amplitude': period*proportion,
+            'amplitude': amp,
             'periodic_func': None
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
 
-class ShapedFold(GeoWord):
+class ShapedFold(GeoWord): # Validated
     """ A fold structure with a random shape factor."""
     def build_history(self):
-        period = np.random.uniform(100, 11000)
-        proportion = np.random.normal(.05,.03)
+        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=500, max_val=11000)
+        shape = .5
+        harmonic_weight = shape/np.sqrt(1+shape**2)
+        period = (1-(2/3)*harmonic_weight)*true_period # Effective period due to shape 
+        min_amp = period * .01
+        max_amp = period * (.21 - .1 * period/10000) # Linear interp, 1000 -> .20 , 11000 -> .10
+        amp = self.rng.beta(a=2.1, b=3) * (max_amp - min_amp) + min_amp
+        print(f"Period: {period}, Amplitude: {amp}")
+
         fold_params = {
-            'strike': np.random.uniform(0, 360),
-            'dip': np.random.uniform(0, 360),
-            'rake': np.random.uniform(0, 360),
-            'period': period,
-            'amplitude': period*proportion,
-            'shape':  np.random.normal(1,1),
-            'periodic_func': None,
+            'strike': self.rng.uniform(0, 360),
+            'dip': self.rng.normal(90,45), # Preference towards vertical fold planes
+            'rake': self.rng.uniform(0, 360),
+            'period': true_period,
+            'amplitude': amp,
+            'shape' : shape,
+            'periodic_func': None
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -292,7 +302,7 @@ class WaveUnconformity(GeoWord):
         self.add_process([fold_in, unconformity, fold_out])
             
 """ Intrusion Events"""
-class SingleDikePlane(GeoWord):
+class SingleDikePlane(GeoWord): # Validated
     def build_history(self):
         width = rv.beta_min_max(2,4, 50, 500)
         dike_params = {
