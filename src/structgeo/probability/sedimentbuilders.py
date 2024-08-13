@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class SedimentBuilder:
     def __init__(self, start_value, total_thickness, min_layers, max_layers, std=0.5):
         """
