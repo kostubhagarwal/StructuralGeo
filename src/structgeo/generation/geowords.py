@@ -104,8 +104,8 @@ class InfiniteSedimentMarkov(GeoWord): # Validated
                                              rng=self.rng, 
                                              thickness_bounds=(150, Z_RANGE/4),
                                              thickness_variance=self.rng.uniform(0.1,.6),
-                                             dirichlet_alpha=self.rng.uniform(0.6, 2.0),
-                                             anticorrelation_factor=.3
+                                             dirichlet_alpha=self.rng.uniform(.6,1.2),
+                                             anticorrelation_factor=.6
                                              )
         
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -299,7 +299,8 @@ class SingleDikePlane(GeoWord):
             'strike': self.rng.uniform(0, 360),
             'dip': self.rng.normal(90, 30),      # Bias towards vertical dikes
             'origin': rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
-            'width': width
+            'width': width,
+            'value': self.rng.choice(INTRUSION_VALS)
         }
         dike = geo.DikePlane(**dike_params)
         self.add_process(dike)
