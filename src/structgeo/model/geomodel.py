@@ -318,7 +318,7 @@ class GeoModel:
     
     def renormalize_height(self, new_max = 0, auto = False, recompute = True):
         """ Shift the model vertically so that the highest point in view field is at a new maximum height.
-        Note this operation is expensive since it requires recomputing the model.
+        Note this operation can be expensive since it requires recomputing the model.
         
         Parameters:
             - new_max (float): The new maximum height for the model.
