@@ -5,11 +5,14 @@ import pyvista as pv
 from structgeo.generation import * # Generation module contains all of the GeoWords and history generating functions
 import structgeo.model as geo      # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
 import structgeo.plot as geovis    # Plot contains all the tools related to visualizing the geomodels
+import structgeo.probability as rv # markov sediment builders, random variable helpers, etc.
 
 def main():
     # direct_model_generation_demo()
-    geo_sentence_batch_sampling()
-    summary()
+    # geo_sentence_batch_sampling()
+    # sampling_summary()
+    experimenting_with_geowords()
+    pass
    
 def direct_model_generation_demo():
     """ Demonstration of direct model building using GeoProcess class."""    
@@ -109,7 +112,7 @@ def geo_sentence_batch_sampling():
     res = (64,64,32) # Lower resolution can be beneficial for speed when assessing many samples
     viewer = geovis.GeoWordPlotter(geosentence, bounds, res, n_samples=16)
 
-def summary():
+def sampling_summary():
     # To summarize generation and testing via GeoWords:
     
     # 1. A reference guide to GeoProcesses to work with is in /icons/docs/process-icons.drawio-poster.pdf
@@ -125,6 +128,8 @@ def summary():
     history = generate_history(geosentence)
     
     # 5. The history is added to a model and computed with height normalization to generate raw data:
+    bounds = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z)
+    res = (128,128,64)
     model = generate_normalized_model(hist = history,
                                       bounds = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z), # Defined from in geowords.py
                                       resolution= (128,128,64) )
@@ -132,6 +137,70 @@ def summary():
     # 6. Various visualization options are available in plot module:
     geovis.volview(model, show_bounds=True).show()
     
+    # 7. Optionally a batch sampling can be done directly on a geosentence with keyboard commands:
+    geovis.GeoWordPlotter(geosentence, bounds, res, n_samples=16)
+
+def experimenting_with_geowords():
+    """ Demonstration of experimenting with new GeoWords."""   
+    # Geowords can be edited directly from in source, but they can also be constructed elsewhere
+    
+    # The GeoProcess toolkit is described in /icons/docs/process-icons.drawio-poster.pdf
+    # They can be loaded in from the model package (imported as geo)
+    
+    # The probability module contains various helpers that are useful for generating random variables
+    
+    # GeoWords are generally referencing the expected model bounds where possible. These are found in the 
+    # header of the geowords.py file.
+    
+    # It is worth viewing the existing GeoWords to get an idea of how they are constructed, as well
+    # as the GeoWord base class in geowords.py
+    
+    # Note that NumPy docs for random indicate that the new Generator API is preferred over the legacy
+    # Each GeoWord has a random number generator that can be accessed via self.rng that functions
+    # in the same way as the NumPy random module.
+    
+    class MyFaultDikeWord(GeoWord):
+        def build_history(self):
+            
+            # Defining some shared parameters
+            strike = self.rng.uniform(0, 360) 
+            dip =    self.rng.normal(90,15) # Bias towards vertical dikes
+            rake =   self.rng.uniform(0,360)
+            origin = rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)) #bounds from geowords.py
+            
+            # First a Fault
+            fault_params = {
+                'strike'    : strike,
+                'dip'       : dip,
+                'rake'      : rake,
+                'amplitude' : rv.beta_min_max(a=2, b=2, min_val = 50, max_val = 500),      
+                # https://mathlets.org/mathlets/beta-distribution/     
+                'origin'    : origin
+            }
+            fault = geo.Fault(**fault_params)
+            
+            # Then a Dike in the same area
+            dike_params = {
+                'strike'   : strike,
+                'dip'      : dip,          
+                'width'    : rv.beta_min_max(2, 4, 50, 500),
+                # https://mathlets.org/mathlets/beta-distribution/ 
+                'origin'   : origin,
+                'value'    : self.rng.choice(INTRUSION_VALS)
+            }
+            dike = geo.DikePlane(**dike_params)
+            
+            # Simply use built in GeoWord helper to add the processes
+            self.add_process(dike)
+            self.add_process(fault)
+    
+    
+    # Now we can use this GeoWord in a sentence
+    geosentence = [InfiniteSedimentMarkov(), MyFaultDikeWord(), CoarseRepeatSediment()]
+    # And quickly visualize the results
+    bounds = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z)
+    res = (128,128,64)
+    geovis.GeoWordPlotter(geosentence, bounds, res, n_samples=16)
 
 if __name__ == "__main__":
     main()

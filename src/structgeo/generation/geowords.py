@@ -178,7 +178,7 @@ class FineRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 4, std_dev=Z_RANGE / 6)
+            *rv.log_normal_params(mean=Z_RANGE / 5, std_dev=Z_RANGE / 8)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -204,7 +204,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 3, std_dev=Z_RANGE / 8)
+            *rv.log_normal_params(mean=Z_RANGE / 5, std_dev=Z_RANGE / 8)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
