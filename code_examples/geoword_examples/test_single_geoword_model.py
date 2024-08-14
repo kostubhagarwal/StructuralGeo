@@ -8,7 +8,7 @@ import time as clock
 
 
 # List of geological words to generate
-sentence = [InfiniteSedimentMarkov()]
+sentence =  [InfiniteSedimentMarkov(), CoarseRepeatSediment(),SingleDikeWarped()]
 # Model resolution and bounds
 z = 128
 res = (2 * z, 2 * z, z)
@@ -19,14 +19,10 @@ bounds = (
 )  # Bounds imported from generation (geowords file)
 
 hist = generate_history(sentence)
-# model = generate_normalized_model(hist, bounds, res)
-model = geo.GeoModel(bounds=bounds, resolution=res)
-model.add_history(hist)
-model.add_history(geo.Sedimentation(value_list=[7], thickness_list=[2000]))
 start = clock.time()
-model.compute_model()
+model = generate_normalized_model(hist, bounds, res)
 finish = clock.time()
 print(f"Model computed in {finish-start:.2f} seconds.")
 
-# geovis.transformationview(model).show()
+geovis.transformationview(model).show()
 print(model.get_history_string())

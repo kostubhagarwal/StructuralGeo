@@ -7,7 +7,7 @@ import numpy as np
 
 import structgeo.model as geo
 import structgeo.probability as rv
-from structgeo.probability import SedimentBuilder, MarkovSedimentHelper
+from structgeo.probability import MarkovSedimentHelper, FourierWaveGenerator
 
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)
@@ -242,7 +242,7 @@ class MicroNoise(GeoWord):  # Validated
     """A thin layer of noise to simulate small-scale sedimentary features."""
 
     def build_history(self):
-        wave_generator = rv.FourierWaveGenerator(
+        wave_generator = FourierWaveGenerator(
             num_harmonics=self.rng.integers(4, 6), smoothness=0.8
         )
 
@@ -322,7 +322,7 @@ class FourierFold(GeoWord):  # Validated
     """A fold structure with a random number of harmonics."""
 
     def build_history(self):
-        wave_generator = rv.FourierWaveGenerator(
+        wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 7), smoothness=np.random.normal(1.2, 0.2)
         )
         period = self.rng.uniform(500, 22000)
@@ -430,7 +430,7 @@ class SingleDikeWarped(GeoWord):
         self.add_process([fold_in, dike, fold_out])
 
     def get_fold(self, dike_strike, dike_dip):
-        wave_generator = rv.FourierWaveGenerator(
+        wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(4, 9), smoothness=np.random.normal(1.2, 0.2)
         )
         period = self.rng.uniform(1, 4) * X_RANGE
