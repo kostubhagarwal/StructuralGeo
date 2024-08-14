@@ -17,8 +17,8 @@ Plotter Parameters:
 from pyvista import Box
 from pyvistaqt import BackgroundPlotter
 
-from structgeo.generation import *
 import structgeo.plot as geovis
+from structgeo.generation import *
 
 
 class GeoWordPlotter:
@@ -69,29 +69,31 @@ class GeoWordPlotter:
         self.update_samples(use_cache=True)  # Use cached models to avoid recomputation
 
     def update_samples(self, use_cache=False):
-            """Update and plot the samples with the current view mode."""
-            if not use_cache or not self.models_cache:
-                # Generate new models if cache is empty or use_cache is False
-                self.models_cache = [
-                    generate_normalized_model(generate_history(self.sentence), self.bounds, self.res)
-                    for _ in range(self.n_samples)
-                ]
+        """Update and plot the samples with the current view mode."""
+        if not use_cache or not self.models_cache:
+            # Generate new models if cache is empty or use_cache is False
+            self.models_cache = [
+                generate_normalized_model(
+                    generate_history(self.sentence), self.bounds, self.res
+                )
+                for _ in range(self.n_samples)
+            ]
 
-            self.plotter.clear_actors()
-            self.plotter.clear_plane_widgets()
+        self.plotter.clear_actors()
+        self.plotter.clear_plane_widgets()
 
-            for i, model in enumerate(self.models_cache):
-                row, col = divmod(i, self.plotter.shape[1])
-                self.plotter.subplot(row, col)
-                self.current_view_mode(model, plotter=self.plotter)
-                self.add_bounding_box(model, plotter=self.plotter)
+        for i, model in enumerate(self.models_cache):
+            row, col = divmod(i, self.plotter.shape[1])
+            self.plotter.subplot(row, col)
+            self.current_view_mode(model, plotter=self.plotter)
+            self.add_bounding_box(model, plotter=self.plotter)
 
-            self.plotter.link_views()
-            self.plotter.add_scalar_bar(
-                title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
-            )
+        self.plotter.link_views()
+        self.plotter.add_scalar_bar(
+            title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
+        )
 
-            self.plotter.render()
+        self.plotter.render()
 
     def volview(self, model, plotter):
         mesh = geovis.get_voxel_grid_from_model(model)

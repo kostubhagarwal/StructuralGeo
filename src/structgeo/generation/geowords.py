@@ -1,13 +1,13 @@
 """ A collection of curated geological words that combine random variables and geoprocesses into a single generator class. """
 
-from typing import List, Union
 import copy
+from typing import List, Union
 
 import numpy as np
 
 import structgeo.model as geo
 import structgeo.probability as rv
-from structgeo.probability import MarkovSedimentHelper, FourierWaveGenerator
+from structgeo.probability import FourierWaveGenerator, MarkovSedimentHelper
 
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)

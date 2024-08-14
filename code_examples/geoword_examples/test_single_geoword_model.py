@@ -1,14 +1,13 @@
-import pyvista as pv
-
-from structgeo.generation import *
-import structgeo.model as geo
-import structgeo.plot as geovis
-
 import time as clock
 
+import pyvista as pv
+
+import structgeo.model as geo
+import structgeo.plot as geovis
+from structgeo.generation import *
 
 # List of geological words to generate
-sentence =  [InfiniteSedimentMarkov(), CoarseRepeatSediment(),SingleDikeWarped()]
+sentence = [InfiniteSedimentMarkov(), CoarseRepeatSediment(), SingleDikeWarped()]
 # Model resolution and bounds
 z = 128
 res = (2 * z, 2 * z, z)
