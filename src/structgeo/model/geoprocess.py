@@ -965,7 +965,7 @@ class Slip(Transformation):
         # Calculate the movement vector along slip direction
         displacement_vectors = displacements[:, np.newaxis] * slip_vector
         # Return to global coordinates and apply the displacement
-        xyz_transformed = xyz + displacement_vectors + self.origin
+        xyz_transformed = xyz + displacement_vectors
         return xyz_transformed, array
 
 
