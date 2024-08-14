@@ -102,7 +102,7 @@ class InfiniteSedimentMarkov(GeoWord): # Validated
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
         markov_helper = MarkovSedimentHelper(categories=SEDIMENT_VALS, 
                                              rng=self.rng, 
-                                             thickness_bounds=(150, Z_RANGE/4),
+                                             thickness_bounds=(200, Z_RANGE/4),
                                              thickness_variance=self.rng.uniform(0.1,.6),
                                              dirichlet_alpha=self.rng.uniform(.6,1.2),
                                              anticorrelation_factor=.6
@@ -185,7 +185,8 @@ class SingleRandSediment(GeoWord):
         val = self.rng.integers(1, 5)
         sediment = geo.Sedimentation([val], [self.rng.normal(Z_RANGE/5, Z_RANGE/40)])
         self.add_process(sediment)
-             
+
+""" Folding Events"""             
 class MicroNoise(GeoWord): # Validated
     """A thin layer of noise to simulate small-scale sedimentary features.""" 
     def build_history(self):
@@ -206,12 +207,12 @@ class MicroNoise(GeoWord): # Validated
             fold = geo.Fold(**fold_params)
             self.add_process(fold)
           
-class SimpleFold(GeoWord):
+class SimpleFold(GeoWord): #valideated
     """A simple fold structure with random orientation and amplitude."""
     def build_history(self):
         period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
         min_amp = period * .02
-        max_amp = period * (.18 - .1 * period/10000) # Linear interp, 1000 -> .17 , 11000 -> .10
+        max_amp = period * (.18 - .07 * period/10000) # Linear interp, 1000 -> .17 , 11000 -> .10
         amp = self.rng.beta(a=2.1, b=1.4) * (max_amp - min_amp) + min_amp
 
         fold_params = {
@@ -220,7 +221,9 @@ class SimpleFold(GeoWord):
             'rake': self.rng.uniform(0, 360),
             'period': period,
             'amplitude': amp,
-            'periodic_func': None
+            'periodic_func': None,
+            'phase': self.rng.uniform(0, 2*np.pi),
+            'origin': rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z))
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -228,13 +231,13 @@ class SimpleFold(GeoWord):
 class ShapedFold(GeoWord): # Validated
     """ A fold structure with a random shape factor."""
     def build_history(self):
-        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=500, max_val=11000)
-        shape = .5
+        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=1000, max_val=11000)
+        shape = self.rng.normal(.3,.1)
         harmonic_weight = shape/np.sqrt(1+shape**2)
         period = (1-(2/3)*harmonic_weight)*true_period # Effective period due to shape 
         min_amp = period * .01
-        max_amp = period * (.21 - .1 * period/10000) # Linear interp, 1000 -> .20 , 11000 -> .10
-        amp = self.rng.beta(a=2.1, b=3) * (max_amp - min_amp) + min_amp
+        max_amp = period * (.21 - .08 * period/10000) # Linear interp, 1000 -> .20 , 11000 -> .12
+        amp = self.rng.beta(a=1.2, b=2.1) * (max_amp - min_amp) + min_amp
         print(f"Period: {period}, Amplitude: {amp}")
 
         fold_params = {
@@ -244,23 +247,27 @@ class ShapedFold(GeoWord): # Validated
             'period': true_period,
             'amplitude': amp,
             'shape' : shape,
-            'periodic_func': None
+            'periodic_func': None,            
+            'phase': self.rng.uniform(0, 2*np.pi),
+            'origin': rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z))
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
         
-class FourierFold(GeoWord):
+class FourierFold(GeoWord): # Validated
     """ A fold structure with a random number of harmonics."""
     def build_history(self):
-        wave_generator = rv.FourierWaveGenerator(num_harmonics=np.random.randint(4, 6), smoothness=np.random.normal(1,.2))
-        period = np.random.uniform(500, 22000)
-        proportion = np.random.normal(.05,.03)
+        wave_generator = rv.FourierWaveGenerator(num_harmonics=np.random.randint(3, 7), smoothness=np.random.normal(1.2,.2))
+        period =  self.rng.uniform(500, 22000)
+        min_amp = period * .02
+        max_amp = period * (.18 - .07 * period/10000)  # Linear interp, 1000 -> .17 , 11000 -> .10
+        amp = self.rng.beta(a=1.2, b=2.4) * (max_amp - min_amp) + min_amp
         fold_params = {
-            'strike': np.random.uniform(0, 360),
-            'dip': np.random.uniform(0, 360),
-            'rake': np.random.uniform(0, 360),
+            'strike':  self.rng.uniform(0, 360),
+            'dip':  self.rng.normal(90, 45),
+            'rake':  self.rng.uniform(0, 360),
             'period': period,
-            'amplitude': period*proportion,
+            'amplitude': amp,
             'periodic_func': wave_generator.generate()
         }
         fold = geo.Fold(**fold_params)
