@@ -56,7 +56,12 @@ class CompoundProcess(GeoProcess):
 
     def __str__(self) -> str:
         name_str = f" ({self.name})" if self.name else ""
-        return f"{self.__class__.__name__}{name_str} with {len(self.history)} sub-processes."
+        history_str = f"{self.__class__.__name__}{name_str} with {len(self.history)} sub-processes:\n"
+        
+        for index, sub_process in enumerate(self.history):
+            history_str += f"    {index + 1}. {str(sub_process)}\n"
+        
+        return history_str.strip()  # Remove the trailing newline
 
     def _check_history(self):
         if not self.history:

@@ -180,14 +180,9 @@ class GeoModel:
 
         history_str = "Geological History:\n"
         for index, process in enumerate(self.history):
-            if isinstance(process, CompoundProcess):
-                history_str += f"{index + 1}: {process.name if process.name else 'Compound Process'}:\n"
-                for sub_process in process.history:
-                    history_str += f"    - {str(sub_process)}\n"
-            else:
-                history_str += f"{index + 1}: {str(process)}\n"
+            history_str += f"{index + 1}: {str(process)}\n"
 
-        return history_str
+        return history_str.strip()  # Remove the trailing newline
 
     def clear_history(self):
         """Clear all geological process from history."""

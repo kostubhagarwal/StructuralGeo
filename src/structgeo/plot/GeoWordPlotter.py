@@ -27,6 +27,7 @@ class GeoWordPlotter:
         self.bounds = bounds
         self.res = res
         self.n_samples = n_samples
+        self.models_cache = []
         self.current_view_mode = self.volview
         self.plotter = None
         self.clim = clim
@@ -58,32 +59,39 @@ class GeoWordPlotter:
 
     def refresh_samples(self):
         """Refresh the samples using the current view mode."""
+        self.models_cache.clear()  # Clear cache so new models are generated
         self.update_samples()
         print("Updated samples.")
 
     def set_view_mode(self, view_mode):
         """Set the current view mode and refresh samples."""
         self.current_view_mode = view_mode
-        self.update_samples()
+        self.update_samples(use_cache=True)  # Use cached models to avoid recomputation
 
-    def update_samples(self):
-        """Update and plot the samples with the current view mode."""
-        histories = [generate_history(self.sentence) for _ in range(self.n_samples)]
-        self.plotter.clear_actors()
-        self.plotter.clear_plane_widgets()
-        for i, hist in enumerate(histories):
-            row, col = divmod(i, self.plotter.shape[1])
-            self.plotter.subplot(row, col)
-            model = generate_normalized_model(hist, self.bounds, self.res)
-            self.current_view_mode(model, plotter=self.plotter)
-            self.add_bounding_box(model, plotter=self.plotter)
+    def update_samples(self, use_cache=False):
+            """Update and plot the samples with the current view mode."""
+            if not use_cache or not self.models_cache:
+                # Generate new models if cache is empty or use_cache is False
+                self.models_cache = [
+                    generate_normalized_model(generate_history(self.sentence), self.bounds, self.res)
+                    for _ in range(self.n_samples)
+                ]
 
-        self.plotter.link_views()
-        self.plotter.add_scalar_bar(
-            title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
-        )
+            self.plotter.clear_actors()
+            self.plotter.clear_plane_widgets()
 
-        self.plotter.render()
+            for i, model in enumerate(self.models_cache):
+                row, col = divmod(i, self.plotter.shape[1])
+                self.plotter.subplot(row, col)
+                self.current_view_mode(model, plotter=self.plotter)
+                self.add_bounding_box(model, plotter=self.plotter)
+
+            self.plotter.link_views()
+            self.plotter.add_scalar_bar(
+                title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
+            )
+
+            self.plotter.render()
 
     def volview(self, model, plotter):
         mesh = geovis.get_voxel_grid_from_model(model)
