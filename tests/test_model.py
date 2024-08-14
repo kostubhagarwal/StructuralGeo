@@ -26,14 +26,14 @@ class TestGeoModel(unittest.TestCase):
     def test_invalid_resolution(self):
         """Test initialization with invalid resolution values."""
         with self.assertRaises(ValueError):
-            geo.GeoModel(bounds=(0, 10), resolution='high')  # Non-integer resolution
+            geo.GeoModel(bounds=(0, 10), resolution="high")  # Non-integer resolution
 
         with self.assertRaises(AssertionError):
             geo.GeoModel(bounds=(0, 10), resolution=(10, 10))  # Tuple not of length 3
 
     def test_mesh_setup(self):
         """Test the mesh grid setup based on provided bounds and resolution."""
-        resolution = (3,5,7)
+        resolution = (3, 5, 7)
         model = geo.GeoModel(bounds=((0, 1), (0, 1), (0, 1)), resolution=resolution)
         model.setup_mesh()
         self.assertEqual(model.X.shape, resolution)
@@ -42,5 +42,6 @@ class TestGeoModel(unittest.TestCase):
         prod = np.prod(resolution)
         self.assertEqual(len(model.xyz), prod)  # Check if XYZ is correctly flattened
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

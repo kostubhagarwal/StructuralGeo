@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class SedimentBuilder:
     def __init__(self, start_value, total_thickness, min_layers, max_layers, std=0.5):
         """
@@ -78,8 +79,10 @@ class MarkovSedimentHelper:
         self.rng = rng if rng is not None else np.random.default_rng()
         self.thickness_bounds = thickness_bounds
         self.thickness_variance = thickness_variance
-        self.transition_matrix = self.randomize_transition_matrix(dirichlet_alpha, anticorrelation_factor)
-        
+        self.transition_matrix = self.randomize_transition_matrix(
+            dirichlet_alpha, anticorrelation_factor
+        )
+
     def randomize_transition_matrix(self, alpha, anti_correlation_factor):
         """Randomize the Markov transition matrix for sediment categories.
 

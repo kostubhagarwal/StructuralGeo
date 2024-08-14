@@ -11,8 +11,12 @@ import time as clock
 sentence = [InfiniteSedimentMarkov()]
 # Model resolution and bounds
 z = 128
-res = (2*z, 2*z, z)
-bounds = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z) # Bounds imported from generation (geowords file)
+res = (2 * z, 2 * z, z)
+bounds = (
+    BOUNDS_X,
+    BOUNDS_Y,
+    BOUNDS_Z,
+)  # Bounds imported from generation (geowords file)
 
 hist = generate_history(sentence)
 # model = generate_normalized_model(hist, bounds, res)

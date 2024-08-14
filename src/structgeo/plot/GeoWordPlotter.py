@@ -20,6 +20,7 @@ from pyvistaqt import BackgroundPlotter
 from structgeo.generation import *
 import structgeo.plot as geovis
 
+
 class GeoWordPlotter:
     def __init__(self, sentence, bounds, res, n_samples=16, clim=(0, 12)):
         self.sentence = sentence
@@ -35,7 +36,7 @@ class GeoWordPlotter:
     def initialize_plotter(self):
         rows, cols = self.calculate_grid_dims(self.n_samples)
         self.plotter = BackgroundPlotter(shape=(rows, cols))
-        self.plotter.raise_() # Bring plotter to front focus window
+        self.plotter.raise_()  # Bring plotter to front focus window
         self.update_samples()
 
         # Bind keys
@@ -76,37 +77,53 @@ class GeoWordPlotter:
             model = generate_normalized_model(hist, self.bounds, self.res)
             self.current_view_mode(model, plotter=self.plotter)
             self.add_bounding_box(model, plotter=self.plotter)
-            
-        
+
         self.plotter.link_views()
-        self.plotter.add_scalar_bar(title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f")
+        self.plotter.add_scalar_bar(
+            title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
+        )
 
         self.plotter.render()
 
     def volview(self, model, plotter):
         mesh = geovis.get_voxel_grid_from_model(model)
-        plotter.add_mesh(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap, clim=self.clim)
+        plotter.add_mesh(
+            mesh,
+            scalars="values",
+            show_scalar_bar=False,
+            cmap=self.cmap,
+            clim=self.clim,
+        )
 
     def orthsliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
-        plotter.add_mesh_slice_orthogonal(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
+        plotter.add_mesh_slice_orthogonal(
+            mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap
+        )
 
     def nsliceview(self, model, n=5, axis="x", plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         slices = mesh.slice_along_axis(n=n, axis=axis)
-        plotter.add_mesh(slices, scalars="values", show_scalar_bar=False, cmap=self.cmap)
+        plotter.add_mesh(
+            slices, scalars="values", show_scalar_bar=False, cmap=self.cmap
+        )
         plotter.add_axes(line_width=5)
 
     def onesliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         skin = mesh.extract_surface()
-        plotter.add_mesh_slice(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
-        plotter.add_mesh(skin, scalars='values', show_scalar_bar=False, cmap=self.cmap, opacity=0.1)
-        
+        plotter.add_mesh_slice(
+            mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap
+        )
+        plotter.add_mesh(
+            skin, scalars="values", show_scalar_bar=False, cmap=self.cmap, opacity=0.1
+        )
+
     def add_bounding_box(self, model, plotter=None):
         flat_bounds = [item for sublist in model.bounds for item in sublist]
         bounding_box = Box(flat_bounds)
         plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=2)
+
 
 def main():
     sentence = [InfiniteBasement(), InfiniteSedimentUniform()]
@@ -114,6 +131,7 @@ def main():
     res = (64, 64, 32)
     GeoWordPlotter(sentence, bounds, res)
 
+
 if __name__ == "__main__":
     main()
-    print('BackgroundPlotter closed. Exiting script.')
+    print("BackgroundPlotter closed. Exiting script.")
