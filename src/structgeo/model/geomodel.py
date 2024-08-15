@@ -316,14 +316,21 @@ class GeoModel:
                 _, self.data = event.run(current_xyz, self.data)
 
     def _add_height_tracking_bars(self):
-        """Hack to add single-file extension of points above and below model for height renorming.
+        """Add height tracking bars that extend from the center and corners of the bounds above and below the model.
         The class attributes EXT_FACTOR and RES control the number of points and the extension factor.
         """
-
+        
         z_bounds = self.bounds[-1]
-        # Calculate centered x, y coords
+        # Calculate x, y coords for center and corners
         x_center = (self.bounds[0][0] + self.bounds[0][1]) / 2
         y_center = (self.bounds[1][0] + self.bounds[1][1]) / 2
+        
+        corners = [
+            (self.bounds[0][0], self.bounds[1][0]),  # Bottom-left
+            (self.bounds[0][0], self.bounds[1][1]),  # Top-left
+            (self.bounds[0][1], self.bounds[1][0]),  # Bottom-right
+            (self.bounds[0][1], self.bounds[1][1]),  # Top-right
+        ]
 
         # create upper and lower bars
         z_range = z_bounds[1] - z_bounds[0]
@@ -340,23 +347,36 @@ class GeoModel:
             dtype=self.dtype,
         )
 
-        lower_bar = np.column_stack(
-            (np.full(self.RES, x_center), np.full(self.RES, y_center), z_lower)
-        )
+        # Generate bars from center
+        bars = [
+            np.column_stack(
+                (np.full(self.RES, x_center), np.full(self.RES, y_center), z_lower)
+            ),
+            np.column_stack(
+                (np.full(self.RES, x_center), np.full(self.RES, y_center), z_upper)
+            ),
+        ]
 
-        upper_bar = np.column_stack(
-            (np.full(self.RES, x_center), np.full(self.RES, y_center), z_upper)
-        )
+        # Generate bars from corners
+        for (x, y) in corners:
+            lower_bar = np.column_stack(
+                (np.full(self.RES, x), np.full(self.RES, y), z_lower)
+            )
+            upper_bar = np.column_stack(
+                (np.full(self.RES, x), np.full(self.RES, y), z_upper)
+            )
+            bars.extend([lower_bar, upper_bar])
 
-        self.xyz = np.vstack((self.xyz, lower_bar, upper_bar))
+        # Stack all bars together
+        all_bars = np.vstack(bars)
+        self.xyz = np.vstack((self.xyz, all_bars))
         self.data = np.concatenate(
             (
                 self.data,
-                np.full(lower_bar.shape[0], np.nan),
-                np.full(upper_bar.shape[0], np.nan),
+                np.full(all_bars.shape[0], np.nan)
             )
         )
-        self.extra_points = len(lower_bar) + len(upper_bar)
+        self.extra_points = all_bars.shape[0]
         return self.extra_points
 
     def fill_nans(self, value=EMPTY_VALUE):

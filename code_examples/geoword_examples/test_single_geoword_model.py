@@ -9,7 +9,9 @@ from structgeo.generation import *
 sed = SedimentEvent()
 
 # List of geological words to generate
-sentence = [InfiniteBasement(), SedimentEvent(), SingleDikeWarped()]
+sentence = [InfiniteSedimentMarkov(), SedimentEvent(), 
+            TiltedUnconformity(), TiltedUnconformity(), TiltedUnconformity(),
+            TiltedUnconformity(), TiltedUnconformity(), ]
 # Model resolution and bounds
 z = 64
 res = (2 * z, 2 * z, z)

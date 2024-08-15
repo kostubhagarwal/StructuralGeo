@@ -6,7 +6,7 @@ import numpy as np
 
 import structgeo.model as geo
 
-from .geowords import *
+from .geowords import GeoWord
 
 
 def generate_sentence(vocabulary, grammar_structure):
@@ -34,7 +34,7 @@ def generate_normalized_model(
     # First squash the model downwards until it is below the top of the bounds
     new_max = model.get_target_normalization(target_max=0.1)
     model_max = model.bounds[2][1]
-    max_iter = 5
+    max_iter = 10
     while True and max_iter > 0:
         observed_max = model.renormalize_height(new_max=new_max)
         max_iter -= 1

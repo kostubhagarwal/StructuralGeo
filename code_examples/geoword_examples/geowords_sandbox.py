@@ -12,10 +12,10 @@ from structgeo.generation import *  # Generation module contains all of the GeoW
 
 def main():
     # Set of demonstraition functions to run and/or follow
-    # direct_model_generation_demo()
-    # geo_sentence_batch_sampling()
-    # sampling_summary()            # <-- Summary of using GeoWords
-    # experimenting_with_geowords() # <-- Editing GeoWords
+    direct_model_generation_demo()
+    geo_sentence_batch_sampling()
+    sampling_summary()             # <-- Summary of using GeoWords
+    experimenting_with_geowords()  # <-- Editing GeoWords
     clocking_geoword_generation()  # <-- Performance Check
     pass
 
