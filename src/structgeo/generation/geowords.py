@@ -113,7 +113,7 @@ class InfiniteBasement(GeoWord):  # Validated
 
     def build_history(self):
         # Generate a simple basement layer
-        self.add_process(geo.Bedrock(base=BOUNDS_Z[0], value=0))
+        self.add_process(geo.Bedrock(base=0, value=BED_ROCK_VAL))
 
 
 class InfiniteSedimentUniform(GeoWord):  # Validated
@@ -123,7 +123,7 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
         depth = (Z_RANGE) * (
             3 * geo.GeoModel.EXT_FACTOR
         )  # Pseudo-infinite using a large depth
-        sediment_base = BOUNDS_Z[0] - depth
+        sediment_base = -depth
         
         vals = []
         thicks = []
@@ -143,7 +143,7 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
         # Caution, the depth needs to extend beyond the bottom of the model mesh,
         # Including height bar extensions for height tracking, or it will leave a gap underneath
         depth = (Z_RANGE) * (3 * geo.GeoModel.EXT_FACTOR)
-        sediment_base = BOUNDS_Z[0] - depth
+        sediment_base = -depth
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
         markov_helper = MarkovSedimentHelper(
@@ -170,7 +170,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
 
     def build_history(self):
         depth = (Z_RANGE) * (6 * geo.GeoModel.EXT_FACTOR)
-        sediment_base = BOUNDS_Z[0] - .5*depth
+        sediment_base = -.5*depth
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -373,7 +373,7 @@ class FourierFold(GeoWord):  # Validated
 """ Erosion events"""
 
 
-class FlatUnconformity(GeoWord):
+class FlatUnconformity(GeoWord): # Validated
     """Flat unconformity down to a random depth"""
 
     MEAN_DEPTH = Z_RANGE / 8
@@ -389,18 +389,16 @@ class FlatUnconformity(GeoWord):
         self.add_process(unconformity)
 
 
-class TippedUnconformity(GeoWord):
-    # TODO: Use tilt process instead of rotate
+class TiltedUnconformity(GeoWord):
+        
     def build_history(self):
-        tilt_angle = np.random.normal(0, 20)
-        theta = np.random.uniform(0, 360)
-        x, y = np.cos(np.radians(theta)), np.sin(np.radians(theta))
-        rot_axis = np.array([x, y, 0])
+        strike = self.rng.uniform(0, 360)
+        tilt_angle = self.rng.normal(0, 3)
+        tilt_in = geo.Tilt(strike=strike, dip=tilt_angle)
+        tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle)
 
-        rot_in = geo.Rotate(rot_axis, tilt_angle)
-        unconformity = geo.UnconformityDepth(np.random.uniform(0, 2000))
-        rot_out = geo.Rotate(rot_axis, -tilt_angle)
-        self.add_process([rot_in, unconformity, rot_out])
+        unconformity = FlatUnconformity()
+        self.add_process([tilt_in, unconformity, tilt_out])
 
 
 class WaveUnconformity(GeoWord):
