@@ -322,16 +322,18 @@ class FourierFold(GeoWord):  # Validated
     """A fold structure with a random number of harmonics."""
 
     def build_history(self):
+
+        period = self.rng.uniform(3000, 15000)
+        mu_smoothness = 1.4 - .1 * period / 10000
         wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3, 7), smoothness=np.random.normal(1.2, 0.2)
+            num_harmonics=np.random.randint(3, 6), smoothness=np.random.normal(mu_smoothness, 0.2)
         )
-        period = self.rng.uniform(500, 22000)
-        min_amp = period * 0.02
-        max_amp = period * (0.18 - 0.07 * period / 10000)  # Linear interp
-        amp = self.rng.beta(a=1.2, b=1.5) * (max_amp - min_amp) + min_amp
+        min_amp = period * 0.03
+        max_amp = period * (0.18 - 0.06 * period / 10000)  # Linear interp
+        amp = self.rng.beta(a=1.4, b=2.1) * (max_amp - min_amp) + min_amp
         fold_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 45),
+            "dip": self.rng.normal(90, 25),
             "rake": self.rng.uniform(0, 360),
             "period": period,
             "amplitude": amp,
@@ -391,7 +393,7 @@ class WaveUnconformity(GeoWord):
         self.add_process([fold_in, unconformity, fold_out])
 
 
-""" Intrusion Events"""
+""" Dike Events"""
 
 
 class SingleDikePlane(GeoWord):  # Validated
@@ -411,7 +413,7 @@ class SingleDikePlane(GeoWord):  # Validated
 class SingleDikeWarped(GeoWord):
     def build_history(self):
         strike = self.rng.uniform(0, 360)
-        dip = self.rng.normal(90, 30)
+        dip = self.rng.normal(90, 20)
         width = rv.beta_min_max(2, 4, 50, 500)
         dike_params = {
             "strike": strike,
