@@ -131,7 +131,8 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
             vals.append(self.rng.choice(SEDIMENT_VALS))
             thicks.append(self.rng.uniform(50, Z_RANGE / 4))
             depth -= thicks[-1]
-
+            
+        self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
 
@@ -142,6 +143,7 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
         # Caution, the depth needs to extend beyond the bottom of the model mesh,
         # Including height bar extensions for height tracking, or it will leave a gap underneath
         depth = (Z_RANGE) * (3 * geo.GeoModel.EXT_FACTOR)
+        sediment_base = BOUNDS_Z[0] - depth
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
         markov_helper = MarkovSedimentHelper(
@@ -155,7 +157,8 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
 
-        self.add_process(geo.Sedimentation(vals, thicks, base=BOUNDS_Z[0] - depth))
+        self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
+        self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
 
 class InfiniteSedimentTilted(GeoWord):  # Validated
@@ -166,7 +169,8 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     """
 
     def build_history(self):
-        depth = (Z_RANGE) * (2 * geo.GeoModel.EXT_FACTOR + 10)
+        depth = (Z_RANGE) * (6 * geo.GeoModel.EXT_FACTOR)
+        sediment_base = BOUNDS_Z[0] - .5*depth
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -180,7 +184,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
         # Sediment needs to go above and below model bounds for tilt, build from bottom up through extended model
         sed = geo.Sedimentation(
-            vals, thicks, base=BOUNDS_Z[0] - Z_RANGE * geo.GeoModel.EXT_FACTOR
+            vals, thicks, base=sediment_base
         )
 
         tilt = geo.Tilt(
@@ -189,6 +193,8 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
             origin=(0, 0, 0),
         )
         unc = geo.UnconformityBase(BOUNDS_Z[0])
+        
+        self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process([sed, tilt, unc])
 
 """ Sediment Acumulation Events"""
@@ -349,8 +355,8 @@ class FourierFold(GeoWord):  # Validated
             num_harmonics=np.random.randint(3, 6),
             smoothness=np.random.normal(mu_smoothness, 0.2),
         )
-        min_amp = period * 0.03
-        max_amp = period * (0.18 - 0.06 * period / 10000)  # Linear interp
+        min_amp = period * 0.04
+        max_amp = period * (0.18 - 0.09 * period / 10000)  # Linear interp
         amp = self.rng.beta(a=1.4, b=2.1) * (max_amp - min_amp) + min_amp
         fold_params = {
             "strike": self.rng.uniform(0, 360),

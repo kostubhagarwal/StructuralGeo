@@ -6,10 +6,12 @@ import structgeo.model as geo
 import structgeo.plot as geovis
 from structgeo.generation import *
 
+sed = SedimentEvent()
+
 # List of geological words to generate
-sentence = [InfiniteSedimentMarkov(), CoarseRepeatSediment(), SingleDikeWarped()]
+sentence = [InfiniteBasement(), SedimentEvent(), SingleDikeWarped()]
 # Model resolution and bounds
-z = 128
+z = 64
 res = (2 * z, 2 * z, z)
 bounds = (
     BOUNDS_X,

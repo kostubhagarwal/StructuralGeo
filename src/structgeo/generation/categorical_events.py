@@ -115,3 +115,17 @@ class SedimentEvent(EventSampler):
             self.Event(name="SingleSediment", p=0.1, processes=[SingleRandSediment()])
         ]
         super().__init__(cases=cases, rng=rng)
+        
+class FoldEvent(EventSampler):
+    """
+    A sampling regime for folding events.
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="SimpleFold",  p=0.2, processes=[SimpleFold()]),
+            self.Event(name="ShapedFold",  p=0.3, processes=[ShapedFold()]),
+            self.Event(name="FourierFold", p=0.4, processes=[FourierFold()]),
+            self.Event(name="2DFold",      p=0.1, processes=[ShapedFold(),ShapedFold()])
+        ]
+        super().__init__(cases=cases, rng=rng)
