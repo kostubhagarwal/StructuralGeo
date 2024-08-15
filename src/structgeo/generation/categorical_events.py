@@ -96,10 +96,10 @@ class BaseStrataEvent(EventSampler):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="BasementBaseStrata",                p=0.4, processes=[InfiniteBasement(), SedimentEvent()]),
-            self.Event(name="SedimentBaseStrata: Markov",        p=0.2, processes=[InfiniteSedimentMarkov()]),
-            self.Event(name="SedimentBaseStrata: Uniform",       p=0.2, processes=[InfiniteSedimentUniform()]),
-            self.Event(name="SedimentBaseStrata: Tilted Markov", p=0.2, processes=[InfiniteSedimentTilted()])
+            self.Event(name="Basement",                p=0.4, processes=[InfiniteBasement(), SedimentEvent()]),
+            self.Event(name="Sediment: Markov",        p=0.2, processes=[InfiniteSedimentMarkov()]),
+            self.Event(name="Sediment: Uniform",       p=0.2, processes=[InfiniteSedimentUniform()]),
+            self.Event(name="Sediment: Tilted Markov", p=0.2, processes=[InfiniteSedimentTilted()])
         ]
         super().__init__(cases=cases, rng=rng)
 
@@ -110,9 +110,9 @@ class SedimentEvent(EventSampler):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="FineSediment",   p=0.4, processes=[FineRepeatSediment()]),
-            self.Event(name="CoarseSediment", p=0.5, processes=[CoarseRepeatSediment()]),
-            self.Event(name="SingleSediment", p=0.1, processes=[SingleRandSediment()])
+            self.Event(name="Fine",   p=0.4, processes=[FineRepeatSediment()]),
+            self.Event(name="Coarse", p=0.5, processes=[CoarseRepeatSediment()]),
+            self.Event(name="Single", p=0.1, processes=[SingleRandSediment()])
         ]
         super().__init__(cases=cases, rng=rng)
         
@@ -123,9 +123,9 @@ class FoldEvent(EventSampler):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="SimpleFold",  p=0.2, processes=[SimpleFold()]),
-            self.Event(name="ShapedFold",  p=0.3, processes=[ShapedFold()]),
-            self.Event(name="FourierFold", p=0.4, processes=[FourierFold()]),
-            self.Event(name="2DFold",      p=0.1, processes=[ShapedFold(),ShapedFold()])
+            self.Event(name="Simple",  p=0.2, processes=[SimpleFold()]),
+            self.Event(name="Shaped",  p=0.3, processes=[ShapedFold()]),
+            self.Event(name="Fourier", p=0.4, processes=[FourierFold()]),
+            self.Event(name="2DFold",      p=0.1, processes=[ShapedFold(),SimpleFold()])
         ]
         super().__init__(cases=cases, rng=rng)

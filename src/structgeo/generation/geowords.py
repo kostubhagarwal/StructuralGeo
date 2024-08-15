@@ -293,7 +293,7 @@ class SimpleFold(GeoWord):  # validated
 
     def build_history(self):
         period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
-        min_amp = period * 0.02
+        min_amp = period * 0.04
         max_amp = period * (
             0.18 - 0.07 * period / 10000
         )  # Linear interp, 1000 -> .17 , 11000 -> .10
@@ -323,7 +323,7 @@ class ShapedFold(GeoWord):  # Validated
         period = (
             1 - (2 / 3) * harmonic_weight
         ) * true_period  # Effective period due to shape
-        min_amp = period * 0.01
+        min_amp = period * 0.04
         max_amp = period * (
             0.18 - 0.07 * period / 10000
         )  # Linear interp, 1000 -> .17 , 11000 -> .10
