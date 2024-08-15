@@ -4,8 +4,8 @@ import time as clock
 
 import pyvista as pv
 
-import structgeo.model as geo       # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
-import structgeo.plot as geovis     # Plot contains all the tools related to visualizing the geomodels
+import structgeo.model as geo  # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
+import structgeo.plot as geovis  # Plot contains all the tools related to visualizing the geomodels
 import structgeo.probability as rv  # markov sediment builders, random variable helpers, etc.
 from structgeo.generation import *  # Generation module contains all of the GeoWords and history generating functions
 
@@ -16,7 +16,7 @@ def main():
     # geo_sentence_batch_sampling()
     # sampling_summary()            # <-- Summary of using GeoWords
     # experimenting_with_geowords() # <-- Editing GeoWords
-    clocking_geoword_generation() # <-- Performance Check
+    clocking_geoword_generation()  # <-- Performance Check
     pass
 
 

@@ -21,22 +21,42 @@ INTRUSION_VALS = [6, 7, 8, 9, 10]
 
 class GeoWord:
     """
-    Base class providing structure for generating events
+    Base class for generating geological events within a hierarchical structure.
+
+    The `GeoWord` class forms the foundation for constructing tree-like histories of geological processes. 
+    Each instance represents a node in this structure, which can either branch into further `GeoWord` events 
+    or terminate with one or more defined `GeoProcess` instances.
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed: int =None):
+        """
+        Initializes a GeoWord instance with a history bucket and random number generator.
+
+        Parameters
+        ----------
+        seed : Optional[int]
+            An optional seed for the random number generator, ensuring reproducibility.
+        """
         self.hist = []
         self.rng = np.random.default_rng(seed)
 
     def build_history(self):
         """
-        Builds a geological history for the word. Must be implemented by subclasses.
+        Constructs the geological history for the GeoWord.
+
+        This method should be overridden by subclasses to define the geological history for the event.
+        History is built by adding GeoProcess, GeoWords, or lists of these using the `add_process` method.
         """
         raise NotImplementedError()
 
     def generate(self):
         """
-        Generate geological word assigning all rvs to geoprocesses
+        Generates the geological history by building and compiling it into a CompoundProcess.
+
+        Returns
+        -------
+        geo.CompoundProcess
+            A sampled geological history snippet with a CompoundProcess wrapper
         """
         self.hist.clear()
         self.build_history()
@@ -48,20 +68,22 @@ class GeoWord:
         item: Union[geo.GeoProcess, "GeoWord", List[Union[geo.GeoProcess, "GeoWord"]]],
     ):
         """
-        Adds a GeoProcess, GeoWord or a list of processes/words to the GeoWord history. Used during the build_history method.
-        Process and/or GeoWord objects should be added in the chronological order from earliest to latest event.
+        Adds a process or event to the GeoWord history.
+
+        This method supports adding individual `GeoProcess` or `GeoWord` instances, as well as lists of them. 
+        Items are added in chronological order from earliest to latest event.
 
         Parameters
         ----------
-        item : Union[GeoProcess, 'GeoWord', List[Union[GeoProcess, 'GeoWord']]]
-            The item to add, which can be a GeoProcess, GeoWord, or a list containing either.
+        item : Union[geo.GeoProcess, GeoWord, List[Union[geo.GeoProcess, GeoWord]]]
+            The process or event to be added to the history.
 
         Raises
         ------
         ValueError
-            If the provided item is not a GeoWord, GeoProcess, or a list of these.
+            If the item is not a `GeoProcess`, `GeoWord`, or a list of these.
         """
-        if isinstance(item, GeoWord):
+        if   isinstance(item, GeoWord):
             self.hist.extend(item.generate().history)
         elif isinstance(item, geo.GeoProcess):
             self.hist.append(item)
@@ -72,7 +94,6 @@ class GeoWord:
             raise ValueError(
                 f"Expected GeoWord, GeoProcess, or list of these, got {type(item)}"
             )
-
 
 """ Identity word for generating a null event. """
 
@@ -102,6 +123,8 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
         depth = (Z_RANGE) * (
             3 * geo.GeoModel.EXT_FACTOR
         )  # Pseudo-infinite using a large depth
+        sediment_base = BOUNDS_Z[0] - depth
+        
         vals = []
         thicks = []
         while depth > 0:
@@ -109,7 +132,7 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
             thicks.append(self.rng.uniform(50, Z_RANGE / 4))
             depth -= thicks[-1]
 
-        self.add_process(geo.Sedimentation(vals, thicks, base=depth))
+        self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
 
 class InfiniteSedimentMarkov(GeoWord):  # Validated
@@ -143,15 +166,15 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     """
 
     def build_history(self):
-        depth = (Z_RANGE) * (2 * geo.GeoModel.EXT_FACTOR + 1)
+        depth = (Z_RANGE) * (2 * geo.GeoModel.EXT_FACTOR + 10)
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
             rng=self.rng,
-            thickness_bounds=(150, Z_RANGE / 4),
+            thickness_bounds=(200, Z_RANGE / 4),
             thickness_variance=self.rng.uniform(0.1, 0.6),
             dirichlet_alpha=self.rng.uniform(0.6, 2.0),
-            anticorrelation_factor=0.3,
+            anticorrelation_factor=0.05,
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -168,7 +191,6 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
         unc = geo.UnconformityBase(BOUNDS_Z[0])
         self.add_process([sed, tilt, unc])
 
-
 """ Sediment Acumulation Events"""
 
 
@@ -178,7 +200,7 @@ class FineRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 5, std_dev=Z_RANGE / 8)
+            *rv.log_normal_params(mean=Z_RANGE / 4, std_dev=Z_RANGE / 12)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -187,10 +209,8 @@ class FineRepeatSediment(GeoWord):  # Validated
             rng=self.rng,
             thickness_bounds=(100, Z_RANGE / 10),
             thickness_variance=self.rng.uniform(0.1, 0.3),
-            dirichlet_alpha=self.rng.uniform(
-                0.03, 0.1
-            ),  # Low alpha for high repeatability
-            anticorrelation_factor=0.1,
+            dirichlet_alpha=self.rng.uniform(0.6, 2.0),  # Low alpha for high repeatability
+            anticorrelation_factor=0.05,
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -204,7 +224,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 5, std_dev=Z_RANGE / 8)
+            *rv.log_normal_params(mean=Z_RANGE / 4, std_dev=Z_RANGE / 12)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -214,9 +234,9 @@ class CoarseRepeatSediment(GeoWord):  # Validated
             thickness_bounds=(Z_RANGE / 12, Z_RANGE / 6),
             thickness_variance=self.rng.uniform(0.1, 0.2),
             dirichlet_alpha=self.rng.uniform(
-                0.03, 0.1
+                .8,1.2
             ),  # Low alpha for high repeatability
-            anticorrelation_factor=0.1,
+            anticorrelation_factor=.05, # Low factor gives low repeatability
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -230,7 +250,7 @@ class SingleRandSediment(GeoWord):
     def build_history(self):
         val = self.rng.integers(1, 5)
         sediment = geo.Sedimentation(
-            [val], [self.rng.normal(Z_RANGE / 5, Z_RANGE / 40)]
+            [val], [self.rng.normal(Z_RANGE / 5, Z_RANGE / 30)]
         )
         self.add_process(sediment)
 
@@ -324,9 +344,10 @@ class FourierFold(GeoWord):  # Validated
     def build_history(self):
 
         period = self.rng.uniform(3000, 15000)
-        mu_smoothness = 1.4 - .1 * period / 10000
+        mu_smoothness = 1.4 - 0.1 * period / 10000
         wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3, 6), smoothness=np.random.normal(mu_smoothness, 0.2)
+            num_harmonics=np.random.randint(3, 6),
+            smoothness=np.random.normal(mu_smoothness, 0.2),
         )
         min_amp = period * 0.03
         max_amp = period * (0.18 - 0.06 * period / 10000)  # Linear interp
