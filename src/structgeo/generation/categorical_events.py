@@ -125,8 +125,7 @@ class EventFold(EventSampler):
         cases = [
             self.Event(name="Simple",  p=0.2, processes=[SimpleFold()]),
             self.Event(name="Shaped",  p=0.3, processes=[ShapedFold()]),
-            self.Event(name="Fourier", p=0.4, processes=[FourierFold()]),
-            self.Event(name="2DFold",  p=0.1, processes=[ShapedFold(),SimpleFold()])
+            self.Event(name="Fourier", p=0.5, processes=[FourierFold()]),
         ]
         super().__init__(cases=cases, rng=rng)
 
@@ -137,8 +136,8 @@ class EventErosion(EventSampler):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Wave", p=0.2, processes=[FlatUnconformity()]),
-            self.Event(name="Wind", p=0.4, processes=[TiltedUnconformity()]),
-            self.Event(name="Wave", p=0.4, processes=[WaveUnconformity()]),
+            self.Event(name="Flat",   p=0.2, processes=[FlatUnconformity()]),
+            self.Event(name="Tilted", p=0.4, processes=[TiltedUnconformity()]),
+            self.Event(name="Wave",   p=0.4, processes=[WaveUnconformity()]),
         ]
         super().__init__(cases=cases, rng=rng)

@@ -456,14 +456,36 @@ class FourierFold(GeoWord):  # Validated
 
 
 class SingleDikePlane(GeoWord):  # Validated
+    def thickness_function(self, x, y):
+        return np.exp(-np.abs(y) / 1000)
+    
+    def get_organic_thickness_func(self):
+        # Make a fourier based modifier for both x and y
+        fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
+        x_var = fourier.generate()
+        y_var = fourier.generate()
+        amp = self.rng.uniform(0.2, 0.4)
+        
+        # Make a target dike length
+        length = rv.beta_min_max(4, 2, 500, 12000)
+
+        def func(x, y):
+            # Elliptical tapering thickness 0 at ends
+            taper_factor = np.sqrt(np.maximum(1 - (2*y/length)**2, 0))
+            # The thickness modifier combines 2d fourier with tapering at ends
+            return (1 + amp * x_var(x/Z_RANGE)) * (1 + amp * y_var(y/X_RANGE)) * taper_factor
+        
+        return func
+    
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 500)
         dike_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 30),  # Bias towards vertical dikes
+            "dip": self.rng.normal(90, 15),  # Bias towards vertical dikes
             "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
+            'thickness_func': self.get_organic_thickness_func()
         }
         dike = geo.DikePlane(**dike_params)
         self.add_process(dike)

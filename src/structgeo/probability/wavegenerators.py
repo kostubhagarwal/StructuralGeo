@@ -28,6 +28,15 @@ class FourierWaveGenerator:
         self.smoothness = smoothness
 
     def generate(self):
+        """
+        Generate a random Fourier series function.
+
+        The returned function has the signature:
+            f(n_cycles: np.ndarray) -> np.ndarray
+
+        where `n_cycles` is an array of the number of cycles to generate.
+        """
+        
         amplitudes = []
         phases = []
         total_power = 0
