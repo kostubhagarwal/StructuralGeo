@@ -6,13 +6,11 @@ import structgeo.model as geo
 import structgeo.plot as geovis
 from structgeo.generation import *
 
-sed = SedimentEvent()
+sed = EventSediment()
 
 # List of geological words to generate
-sentence = [InfiniteSedimentMarkov(), SedimentEvent(), 
-            TiltedUnconformity(), TiltedUnconformity(), TiltedUnconformity(),
-            TiltedUnconformity(), TiltedUnconformity(), ]
-# Model resolution and bounds
+sentence = [EventBaseStrata(), EventSediment(), EventFold(), EventErosion(), EventSediment(), EventFold(), EventErosion()]
+# Model resolution and boundse
 z = 64
 res = (2 * z, 2 * z, z)
 bounds = (

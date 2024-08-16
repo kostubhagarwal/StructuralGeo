@@ -89,21 +89,21 @@ class EventSampler(GeoWord):
         
         self.probabilities 
 
-class BaseStrataEvent(EventSampler):
+class EventBaseStrata(EventSampler):
     """
     A sampling regime for base strata.
     """
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Basement",                p=0.4, processes=[InfiniteBasement(), SedimentEvent()]),
+            self.Event(name="Basement",                p=0.4, processes=[InfiniteBasement(), EventSediment()]),
             self.Event(name="Sediment: Markov",        p=0.2, processes=[InfiniteSedimentMarkov()]),
             self.Event(name="Sediment: Uniform",       p=0.2, processes=[InfiniteSedimentUniform()]),
             self.Event(name="Sediment: Tilted Markov", p=0.2, processes=[InfiniteSedimentTilted()])
         ]
         super().__init__(cases=cases, rng=rng)
 
-class SedimentEvent(EventSampler):
+class EventSediment(EventSampler):
     """
     A sampling regime for sediment events.
     """
@@ -116,7 +116,7 @@ class SedimentEvent(EventSampler):
         ]
         super().__init__(cases=cases, rng=rng)
         
-class FoldEvent(EventSampler):
+class EventFold(EventSampler):
     """
     A sampling regime for folding events.
     """
@@ -126,6 +126,19 @@ class FoldEvent(EventSampler):
             self.Event(name="Simple",  p=0.2, processes=[SimpleFold()]),
             self.Event(name="Shaped",  p=0.3, processes=[ShapedFold()]),
             self.Event(name="Fourier", p=0.4, processes=[FourierFold()]),
-            self.Event(name="2DFold",      p=0.1, processes=[ShapedFold(),SimpleFold()])
+            self.Event(name="2DFold",  p=0.1, processes=[ShapedFold(),SimpleFold()])
+        ]
+        super().__init__(cases=cases, rng=rng)
+
+class EventErosion(EventSampler):
+    """
+    A sampling regime for erosion events.
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Wave", p=0.2, processes=[FlatUnconformity()]),
+            self.Event(name="Wind", p=0.4, processes=[TiltedUnconformity()]),
+            self.Event(name="Wave", p=0.4, processes=[WaveUnconformity()]),
         ]
         super().__init__(cases=cases, rng=rng)

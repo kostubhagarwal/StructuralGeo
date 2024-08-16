@@ -18,6 +18,8 @@ BED_ROCK_VAL = 0
 SEDIMENT_VALS = [1, 2, 3, 4, 5]
 INTRUSION_VALS = [6, 7, 8, 9, 10]
 
+# A target mean for random sedimentation depth
+MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 4
 
 class GeoWord:
     """
@@ -152,7 +154,7 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
             thickness_bounds=(200, Z_RANGE / 4),
             thickness_variance=self.rng.uniform(0.1, 0.6),
             dirichlet_alpha=self.rng.uniform(0.6, 1.2),
-            anticorrelation_factor=0.6,
+            anticorrelation_factor=0.05,
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -177,7 +179,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
             rng=self.rng,
             thickness_bounds=(200, Z_RANGE / 4),
             thickness_variance=self.rng.uniform(0.1, 0.6),
-            dirichlet_alpha=self.rng.uniform(0.6, 2.0),
+            dirichlet_alpha=self.rng.uniform(0.6, 1.2),
             anticorrelation_factor=0.05,
         )
 
@@ -199,14 +201,13 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
 
 """ Sediment Acumulation Events"""
 
-
 class FineRepeatSediment(GeoWord):  # Validated
     """A series of thin sediment layers with repeating values."""
 
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 4, std_dev=Z_RANGE / 12)
+            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -230,7 +231,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
-            *rv.log_normal_params(mean=Z_RANGE / 4, std_dev=Z_RANGE / 12)
+            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -256,9 +257,88 @@ class SingleRandSediment(GeoWord):
     def build_history(self):
         val = self.rng.integers(1, 5)
         sediment = geo.Sedimentation(
-            [val], [self.rng.normal(Z_RANGE / 5, Z_RANGE / 30)]
+            [val], [self.rng.normal(MEAN_SEDIMENTATION_DEPTH, MEAN_SEDIMENTATION_DEPTH/3)]
         )
         self.add_process(sediment)
+
+
+""" Erosion events"""
+
+class BaseErosionWord(GeoWord):  # Validated
+    """Reusable generic class for calculating total depth of erosion events."""
+    MEAN_DEPTH = Z_RANGE / 8
+    
+    def __init__(self, seed=None):
+        super().__init__(seed)
+        
+    def calculate_depth(self):
+        factor = self.rng.lognormal(
+            *rv.log_normal_params(mean=1, std_dev=0.5)
+        )  # Generally between .25 and 2.5
+        factor = np.clip(factor, 0.25, 3)
+        return factor * self.MEAN_DEPTH
+
+class FlatUnconformity(BaseErosionWord): # Validated
+    """Flat unconformity down to a random depth"""
+
+    def build_history(self):
+        total_depth = self.calculate_depth()
+        unconformity = geo.UnconformityDepth(total_depth)
+        self.add_process(unconformity)
+
+    
+class TiltedUnconformity(BaseErosionWord): # Validated
+    """ Slightly tilted unconformity down to a random depth"""
+    
+    def build_history(self):
+        num_tilts = self.rng.integers(1, 4)
+        total_depth = self.calculate_depth()
+        depths = np.random.dirichlet(alpha=[1]*num_tilts) * total_depth
+        
+        for depth in depths:
+            strike = self.rng.uniform(0, 360)
+            tilt_angle = self.rng.normal(0, 3)
+            x,y,z = rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z))
+            origin = (x,y,0)
+            tilt_in = geo.Tilt(strike=strike, dip=tilt_angle, origin=origin)
+            tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle, origin=origin)
+            
+            unconformity = geo.UnconformityDepth(depth)
+            
+            self.add_process([tilt_in, unconformity, tilt_out])
+
+class WaveUnconformity(BaseErosionWord):
+    """ Change of coordinates/basis with two orthogonal folds to create wavy unconformity"""
+    
+    def build_history(self):
+        total_depth = self.calculate_depth()*.8
+        orientation = self.rng.uniform(0, 360) # Principal orientation of the waves
+        fold_in1, fold_out1 = self.get_fold_pair(strike = orientation, dip = 90)
+        fold_in2, fold_out2 = self.get_fold_pair(strike = orientation + 90, dip = 90)
+        unconformity = geo.UnconformityDepth(total_depth)
+        self.add_process([fold_in1, fold_in2, unconformity, fold_out2, fold_out1])
+        
+    def get_fold_pair(self, strike, dip):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3,5), smoothness=1  
+        )
+        period = self.rng.uniform(.5,2) * X_RANGE
+        min_amp = period * 0.001
+        max_amp = period * 0.03
+        amp = rv.beta_min_max(a=1.5, b=1.5, min_val=min_amp, max_val=max_amp)
+        fold_params = {
+            "strike": strike,
+            "dip": dip,  # average of dike dip and 90
+            "rake": self.rng.normal(0, 10),  # Bias to vertical folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold_in = geo.Fold(**fold_params)
+        fold_out = copy.deepcopy(fold_in)
+        springback_factor = np.clip(self.rng.normal(.8, .1), a_min=0, a_max=1)
+        fold_out.amplitude *= -1*springback_factor
+        return fold_in, fold_out
 
 
 """ Folding Events"""
@@ -368,54 +448,6 @@ class FourierFold(GeoWord):  # Validated
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
-
-
-""" Erosion events"""
-
-
-class FlatUnconformity(GeoWord): # Validated
-    """Flat unconformity down to a random depth"""
-
-    MEAN_DEPTH = Z_RANGE / 8
-
-    def build_history(self):
-        factor = self.rng.lognormal(
-            *rv.log_normal_params(mean=1, std_dev=0.5)
-        )  # Generally between .25 and 2.5
-        factor = np.clip(factor, 0.25, 3)
-        depth = factor * self.MEAN_DEPTH
-        print(f"Depth: {depth}")
-        unconformity = geo.UnconformityDepth(depth)
-        self.add_process(unconformity)
-
-
-class TiltedUnconformity(GeoWord):
-        
-    def build_history(self):
-        strike = self.rng.uniform(0, 360)
-        tilt_angle = self.rng.normal(0, 3)
-        tilt_in = geo.Tilt(strike=strike, dip=tilt_angle)
-        tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle)
-
-        unconformity = FlatUnconformity()
-        self.add_process([tilt_in, unconformity, tilt_out])
-
-
-class WaveUnconformity(GeoWord):
-    def build_history(self):
-        fold_params = {
-            "strike": np.random.uniform(0, 360),
-            "dip": np.random.uniform(0, 360),
-            "rake": np.random.uniform(0, 360),
-            "period": np.random.uniform(100, 11000),
-            "amplitude": np.random.uniform(200, 5000),
-            "periodic_func": None,
-        }
-        fold_in = geo.Fold(**fold_params)
-        fold_out = fold_in.copy()
-        fold_out.amplitude *= -1 * np.random.normal(0.8, 0.1)
-        unconformity = geo.UnconformityDepth(np.random.uniform(200, 2000))
-        self.add_process([fold_in, unconformity, fold_out])
 
 
 """ Dike Events"""
