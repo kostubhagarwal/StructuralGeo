@@ -455,23 +455,21 @@ class FourierFold(GeoWord):  # Validated
 """ Dike Events"""
 
 
-class SingleDikePlane(GeoWord):  # Validated
+class DikePlaneWord(GeoWord):  # Validated
     def thickness_function(self, x, y):
         return np.exp(-np.abs(y) / 1000)
     
-    def get_organic_thickness_func(self):
+    def get_organic_thickness_func(self, length, wobble_factor=1.):
         # Make a fourier based modifier for both x and y
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
         y_var = fourier.generate()
-        amp = self.rng.uniform(0.2, 0.4)
-        
-        # Make a target dike length
-        length = rv.beta_min_max(4, 2, 500, 12000)
+        amp = self.rng.uniform(0.1, 0.2)*wobble_factor # unevenness of the dike thickness        
+        expo = self.rng.uniform(4,10) # Hyper ellipse exponent controls tapering sharpness
 
         def func(x, y):
             # Elliptical tapering thickness 0 at ends
-            taper_factor = np.sqrt(np.maximum(1 - (2*y/length)**2, 0))
+            taper_factor = np.sqrt(np.maximum(1 - np.abs((2*y/length))**expo, 0))
             # The thickness modifier combines 2d fourier with tapering at ends
             return (1 + amp * x_var(x/Z_RANGE)) * (1 + amp * y_var(y/X_RANGE)) * taper_factor
         
@@ -479,29 +477,32 @@ class SingleDikePlane(GeoWord):  # Validated
     
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 500)
+        length = rv.beta_min_max(2, 2, 300, 16000)
         dike_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 15),  # Bias towards vertical dikes
+            "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
             "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            'thickness_func': self.get_organic_thickness_func()
+            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=np.uniform(.5,1.5)),
         }
         dike = geo.DikePlane(**dike_params)
         self.add_process(dike)
 
 
-class SingleDikeWarped(GeoWord):
+class SingleDikeWarped(DikePlaneWord):
     def build_history(self):
         strike = self.rng.uniform(0, 360)
-        dip = self.rng.normal(90, 20)
+        dip = self.rng.normal(90, 10)
         width = rv.beta_min_max(2, 4, 50, 500)
+        length = rv.beta_min_max(2, 2, 300, 16000)
         dike_params = {
             "strike": strike,
             "dip": dip,  # Bias towards vertical dikes
             "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
+            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -514,17 +515,83 @@ class SingleDikeWarped(GeoWord):
 
     def get_fold(self, dike_strike, dike_dip):
         wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(4, 9), smoothness=np.random.normal(1.2, 0.2)
+            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
-        period = self.rng.uniform(1, 4) * X_RANGE
-        min_amp = period * 0.02
-        max_amp = period * 0.08
-        amp = self.rng.beta(a=1.2, b=1.5) * (max_amp - min_amp) + min_amp
-        amp = max_amp
+        period = self.rng.uniform(.5, 2) * X_RANGE
+        amp = self.rng.uniform(10,250)
         fold_params = {
             "strike": dike_strike + 90,
-            "dip": (90 + dike_dip) / 2,  # average of dike dip and 90
-            "rake": self.rng.normal(90, 10),  # Bias to lateral folds
+            "dip": (2*90 + dike_dip) / 3,  # weighted average of dike dip and 90
+            "rake": self.rng.normal(90, 5),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold
+    
+class DikeGroup(DikePlaneWord):  
+    def build_history(self):
+        num_dikes = self.rng.integers(2, 6)              
+        
+        # Starting parameters, to be sequrntially modified
+        origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
+        strike = self.rng.uniform(0, 360)
+        width = rv.beta_min_max(1.5, 4, 40, 400)  
+        dip = self.rng.normal(90, 8)
+        value = self.rng.choice(INTRUSION_VALS)
+        spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=1500, std_dev=400))
+        
+        # Setup slight wave transform
+        fold_in = self.get_fold(strike, dip)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+        
+        self.add_process(fold_in)
+        
+        for _ in range(num_dikes):
+            length = rv.beta_min_max(2, 2, 600, 16000)
+            dike_params = {
+                "strike": strike,
+                "dip": dip, 
+                "origin": origin,
+                "width": width,
+                "value": value,
+                "thickness_func": self.get_organic_thickness_func(length, wobble_factor=.5)
+            }
+            dike = geo.DikePlane(**dike_params)
+            self.add_process(dike)
+            
+            # Modify parameters for next dike
+            origin = self.get_next_origin(origin, strike, spacing_avg)
+            strike += self.rng.normal(0, 2)
+            width *= np.maximum(self.rng.normal(1, 0.1), .8)
+            dip += self.rng.normal(0, 1)
+            
+        # Add final fold out
+        self.add_process(fold_out)
+    
+    def get_next_origin(self, origin, strike, spacing_avg):
+        # Move orthogonally to strike direction (strike measured from y-axis)
+        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
+        orth_distance = spacing_avg * self.rng.uniform(0.9,1.3)
+        # Shift a bit parallel to strike as well
+        par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
+        par_distance =  spacing_avg * self.rng.uniform(-0.2,0.2)
+
+        new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
+        return new_origin   
+
+    def get_fold(self, dike_strike, dike_dip):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(.5, 2) * X_RANGE
+        amp = self.rng.uniform(30,60)
+        fold_params = {
+            "strike": dike_strike + 90,
+            "dip": (2*90 + dike_dip) / 3,  # weighted average of dike dip and 90
+            "rake": self.rng.normal(90, 5),  # Bias to lateral folds
             "period": period,
             "amplitude": amp,
             "periodic_func": wave_generator.generate(),
