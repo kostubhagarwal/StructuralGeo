@@ -12,12 +12,14 @@ from structgeo.probability import FourierWaveGenerator, MarkovSedimentHelper
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)
 BOUNDS_Z = (-1920, 1920)
+MAX_BOUNDS = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z) # Intended maximum bounds for the model
 X_RANGE = BOUNDS_X[1] - BOUNDS_X[0]
 Z_RANGE = BOUNDS_Z[1] - BOUNDS_Z[0]
 BED_ROCK_VAL = 0
 SEDIMENT_VALS = [1, 2, 3, 4, 5]
-INTRUSION_VALS = [6, 7, 8, 9, 10]
-
+DIKE_VALS = [6, 7]
+INTRUSION_VALS = [8, 9]
+BLOB_VALS = [10, 11]
 # A target mean for random sedimentation depth
 MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 4
 
@@ -298,7 +300,7 @@ class TiltedUnconformity(BaseErosionWord): # Validated
         for depth in depths:
             strike = self.rng.uniform(0, 360)
             tilt_angle = self.rng.normal(0, 3)
-            x,y,z = rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z))
+            x,y,z = rv.random_point_in_ellipsoid(MAX_BOUNDS)
             origin = (x,y,0)
             tilt_in = geo.Tilt(strike=strike, dip=tilt_angle, origin=origin)
             tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle, origin=origin)
@@ -356,7 +358,7 @@ class MicroNoise(GeoWord):  # Validated
             period = self.rng.uniform(100, 1000)
             amplitude = period * self.rng.uniform(0.002, 0.005) + 5
             fold_params = {
-                "origin": rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+                "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
                 "strike": self.rng.uniform(0, 360),
                 "dip": self.rng.uniform(0, 360),
                 "rake": self.rng.uniform(0, 360),
@@ -387,7 +389,7 @@ class SimpleFold(GeoWord):  # validated
             "amplitude": amp,
             "periodic_func": None,
             "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -418,7 +420,7 @@ class ShapedFold(GeoWord):  # Validated
             "shape": shape,
             "periodic_func": None,
             "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -459,7 +461,7 @@ class SingleDikePlane(GeoWord):  # Validated
         dike_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90, 30),  # Bias towards vertical dikes
-            "origin": rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
         }
@@ -475,7 +477,7 @@ class SingleDikeWarped(GeoWord):
         dike_params = {
             "strike": strike,
             "dip": dip,  # Bias towards vertical dikes
-            "origin": rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, BOUNDS_Z)),
+            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
         }
