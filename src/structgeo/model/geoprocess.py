@@ -254,24 +254,40 @@ class Sedimentation(Deposition):
     def last_value(self):
         return self.value_list[-1]
 
-
 class DikePlane(Deposition):
-    """A base planar dike intrusion
+    """
+    A base planar dike intrusion with variable thickness.
 
-    Parameters:
-        strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
-        dip (float): Dip angle in degrees
-        width (float): Net Width of the dike
-        origin (float): Origin point of the local coordinate frame
-        value (float): Value of rock-type to assign to the dike
+    Parameters
+    ----------
+    strike : float
+        Strike angle in clockwise degrees (center-line of the dike) from north (y-axis).
+    dip : float
+        Dip angle in degrees.
+    width : float
+        Net width of the dike.
+    origin : tuple of float
+        Origin point of the local coordinate frame (x, y, z).
+    value : int
+        Value of the rock type to assign to the dike.
+    thickness_func : callable, optional
+        Function that determines thickness multiplier as a function of (x, y) in the local dike frame.
+        x corresponds to the vertical (dip) direction, and y corresponds to the lateral (strike)
+        direction. The default thickness function is a constant unity function giving constant width.
+
+    Notes
+    -----
+    The default thickness function assumes a constant thickness, but you can pass a custom 
+    function to vary the thickness across the dike plane.
     """
 
-    def __init__(self, strike=0.0, dip=90.0, width=1.0, origin=(0, 0, 0), value=0.0):
+    def __init__(self, strike=0.0, dip=90.0, width=1.0, origin=(0, 0, 0), value=0.0, thickness_func=None):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.width = width
         self.origin = np.array(origin)
         self.value = value
+        self.thickness_func = thickness_func if thickness_func else self.default_thickness_func
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -287,25 +303,32 @@ class DikePlane(Deposition):
         )
 
     def run(self, xyz, data):
-        # Calculate rotation matrices
-        M1 = rotate([0, 0, 1.0], -self.strike)  # Rotation around z-axis for strike
-        M2 = rotate(
-            [0.0, 1.0, 0], self.dip
-        )  # Rotation around y-axis in strike frame for dip
+        # Calculate rotation matrices to align coordinates with the dike plane
+        M1 = rotate([0, 0, 1.0], self.strike)  # Rotation around z-axis for strike
+        M2 = rotate([0.0, 1.0, 0], -self.dip)    # Rotation around y-axis in strike frame for dip
 
-        N = M1 @ M2 @ [0.0, 0.0, 1.0]
-        N /= np.linalg.norm(N)  # Normalize the normal vector
+        # Combine rotations and apply to the coordinates
+        xyz_local = (xyz - self.origin) @ M1.T @ M2.T
 
-        # Calculate distances from the dike plane
-        dists = np.dot(xyz - self.origin, N)
+        # Calculate distances from the dike plane in the local frame
+        x_dist = xyz_local[:, 0]  # Dipped direction distance
+        y_dist = xyz_local[:, 1]  # Strike direction distance
+        z_dist = xyz_local[:, 2]  # Normal direction distance
 
-        # Update data based on whether points are within the width of the dike and only where there
-        # is existing data to avoid sky dikes
-        mask = (np.abs(dists) <= self.width / 2.0) & (~np.isnan(data))
+        # Determine the thickness based on the thickness function and width
+        local_thickness = self.thickness_func(x_dist, y_dist)*self.width
 
+        # Create mask for points within the dike thickness
+        mask = (np.abs(z_dist) <= local_thickness / 2.0) & (~np.isnan(data))
+
+        # Update data where the mask is true
         data[mask] = self.value
 
         return xyz, data
+
+    def default_thickness_func(self, x,y):
+        """Default thickness function: constant thickness across the dike plane."""
+        return 1  # Constant unity function
 
     def last_value(self):
         return self.value
