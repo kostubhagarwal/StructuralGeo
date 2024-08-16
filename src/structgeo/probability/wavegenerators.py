@@ -1,6 +1,7 @@
 import functools
 
 import numpy as np
+from scipy.ndimage import gaussian_filter1d
 
 
 def damped_fourier_wave_fun(
