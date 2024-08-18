@@ -10,7 +10,7 @@ model = geo.GeoModel(bounds=(-1920, 1920), resolution=128)
 model.add_history(geo.Sedimentation([1, 3, 4, 5], [500, 200, 300, 200, 500]))
 
 plug = geo.DikePlug(
-    origin=(0, 0, 0),
+    origin=geo.BacktrackedPoint((0, 0, 0)),
     diam=100,
     minor_axis_scale=0.4,
     rotation=30,
@@ -23,7 +23,7 @@ model.add_history(plug)
 
 model.add_history(
     geo.PushHemisphere(
-        origin=(0, 0, -1000),
+        origin=geo.BacktrackedPoint((0, 0, -1000)),
         diam=2000,
         height=350,
         minor_axis_scale=0.8,
@@ -32,7 +32,7 @@ model.add_history(
 )
 model.add_history(
     geo.DikeHemisphere(
-        origin=(0, 0, -1000),
+        origin=geo.BacktrackedPoint((0, 0, -1000)),
         diam=2000,
         height=350,
         minor_axis_scale=0.8,
@@ -43,7 +43,7 @@ model.add_history(
 )
 model.add_history(
     geo.DikeColumn(
-        origin=(0, 0, -1000),
+        origin=geo.BacktrackedPoint((0, 0, -1000)),
         diam=500,
         depth=-1600,
         minor_axis_scale=0.3,
@@ -55,7 +55,7 @@ model.add_history(
 
 model.add_history(
     geo.Laccolith(
-        origin=(0, 0, -2000),
+        origin=geo.BacktrackedPoint((0, 0, -2000)),
         cap_diam=4000,
         stem_diam=300,
         height=600,

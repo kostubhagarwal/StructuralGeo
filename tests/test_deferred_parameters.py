@@ -39,19 +39,31 @@ def main():
     defer_origin = geo.BacktrackedPoint(point = (0,0,0))
     metaball = geo.MetaBall(balls = [ball], threshold = 0.5, value = 5, reference_origin=defer_origin, clip=False)
     model_deferred.add_history([bed,sed,metaball, fold])
+    print(model_deferred.history[-2].reference_origin)
     start = clock.time()
     model_deferred.compute_model()
     stop = clock.time()
     print(f"Deferred model computed in {stop-start:.2f} seconds.")
-    
+    print(model_deferred.history[-2].reference_origin)
     p = pv.Plotter(shape=(1,2))
     p.subplot(0,0)
     geovis.volview(model, plotter=p)
     p.subplot(0,1)
     geovis.volview(model_deferred, plotter=p)  
-    
-    
+
     p.show()
+    
+    dike = geo.DikePlane(strike=0, 
+                         dip=45, 
+                         width=2, 
+                         origin=geo.BacktrackedPoint((0,0,0)), 
+                         value=5)
+    
+    model.clear_history()
+    model.add_history([bed,sed,metaball, dike, fold, ])
+    model.compute_model()
+    geovis.volview(model).show()
+    
     
 
 if __name__ == "__main__":

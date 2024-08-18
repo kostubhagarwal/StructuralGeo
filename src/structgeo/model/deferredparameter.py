@@ -23,11 +23,14 @@ class BacktrackedPoint(DeferredParameter):
         after the current process in the model's history, effectively backtracking the point to its original 
         position in the initial coordinate frame.
     """    
-    def __init__(self, point):
+    def __init__(self, point: tuple):
         super().__init__()
         self.point = point
+        
+    def __str__(self):
+        return f"BacktrackedPoint: {self.point}"
     
-    def compute_func(self, xyz, data, history, index):
+    def compute_func(self, xyz, data, history, index) -> tuple:
         point = np.atleast_2d(np.array(self.point)) # Cast tuple into 2D array for processing
         data   = np.array([np.nan]) # Dummy data to go with point
         

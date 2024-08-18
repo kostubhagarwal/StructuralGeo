@@ -46,6 +46,8 @@ class GeoModel:
         self.resolution = resolution
         self.height_tracking = height_tracking
         self.history = []
+        # modified history with deferred parameters resolved (post-computation)
+        self.processed_history = []
         # Placeholders for mesh data
         self.data = np.empty(0)  # Vector of data values on mesh points
         self.xyz = np.empty((0, 0))  # nx3 matrix of mesh points (x, y, z)
@@ -188,6 +190,7 @@ class GeoModel:
     def clear_history(self):
         """Clear all geological process from history."""
         self.history = []
+        self.processed_history = []
 
     def clear_data(self):
         """Clear the model but retain build parameters."""
@@ -215,6 +218,16 @@ class GeoModel:
         Forward pass:
         The deposition events are applied to the xyz mesh in its intermediate
         transformed state.
+        
+        Conditional height tracking:
+        If height tracking is enabled, additional points are added to the model so that 
+        additional low resolution context is known to help with renormalization of model height.
+        
+        Deferred Parameters:
+        The GeoProcess are allowed to use DeferredParameters, they are process parameters that
+        are resolved at the time of computation since they depend on the context of the history.
+        For example it could be tracking an origin point backwards through history to get its 
+        equivalent position in the past. History and index are passed for this purpose.
         """
         if len(self.history) == 0:
             raise ValueError("No geological history to compute.")
@@ -229,9 +242,13 @@ class GeoModel:
         ):  # Handle earlier versions of GeoModel without height tracking
             n_tracking_bar_points = self._add_height_tracking_bars()
 
+        # Make a copy of the history to be processed to avoid modifying orignal history
+        # with any deferred parameters.
+        self.processed_history = copy.deepcopy(self.history)
+
         # Unpack all compound events into atomic components
         history_unpacked = []
-        for event in self.history:
+        for event in self.processed_history:
             if isinstance(event, CompoundProcess):
                 history_unpacked.extend(event.unpack())
             else:

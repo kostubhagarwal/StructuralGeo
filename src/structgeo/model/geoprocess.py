@@ -374,7 +374,7 @@ class DikePlane(Deposition):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
         self.width = width
-        self.origin = np.array(origin)
+        self.origin = origin
         self.value = value
         self.thickness_func = thickness_func if thickness_func else self.default_thickness_func
 
@@ -382,9 +382,7 @@ class DikePlane(Deposition):
         # Convert radians back to degrees for more intuitive understanding
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
-        origin_str = ", ".join(
-            f"{coord:.1f}" for coord in self.origin
-        )  # Format each coordinate component
+        origin_str = str(self.origin).replace(" ", "")
 
         return (
             f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, width {self.width:.1f}, "
@@ -392,6 +390,7 @@ class DikePlane(Deposition):
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Calculate rotation matrices to align coordinates with the dike plane
         M1 = rotate([0, 0, 1.0], self.strike)  # Rotation around z-axis for strike
         M2 = rotate([0.0, 1.0, 0], -self.dip)    # Rotation around y-axis in strike frame for dip
@@ -449,7 +448,7 @@ class DikeColumn(Deposition):
         value=0.0,
         clip=False,
     ):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diam = diam
         self.depth = depth
         self.minor_scale = minor_axis_scale
@@ -458,13 +457,14 @@ class DikeColumn(Deposition):
         self.clip = clip
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
         return (
             f"DikeColumn: origin ({origin_str}), diam {self.diam:.1f}, depth {self.depth:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
         # Rotate the points in the xy plane of the plug formation ccw
@@ -498,7 +498,7 @@ class DikeHemisphere(Deposition):
         upper=True,
         clip=False,
     ):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diam = diam
         self.height = height
         self.minor_scale = minor_axis_scale
@@ -508,13 +508,14 @@ class DikeHemisphere(Deposition):
         self.clip = clip
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
         return (
             f"DikeHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame (bottom center of the sill)
         v0 = xyz - self.origin
         # Rotate the points in the xy plane of the lenticle formation ccw
@@ -554,7 +555,7 @@ class PushHemisphere(Transformation):
         rotation=0.0,
         upper=True,
     ):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diam = diam
         self.height = height
         self.minor_scale = minor_axis_scale
@@ -562,13 +563,14 @@ class PushHemisphere(Transformation):
         self.upper = upper
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
         return (
             f"PushHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}."
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame (bottom center of the sill)
         v0 = xyz - self.origin
         # Rotate the points in the xy plane of the lenticle formation ccw
@@ -716,7 +718,7 @@ class DikePlug(Deposition):
         value=0.0,
         clip=True,
     ):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diameter = diam
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
@@ -725,13 +727,14 @@ class DikePlug(Deposition):
         self.value = value
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
         return (
             f"DikePlug: origin ({origin_str}), conic_scaling {self.conic_scaling:.1f}, "
             f"rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
         # Rotate the points in the xy plane of the plug formation ccw
@@ -761,7 +764,7 @@ class DikePlug(Deposition):
 class PushPlug(Transformation):
 
     def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diameter = diam
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
@@ -772,6 +775,7 @@ class PushPlug(Transformation):
         return f"DikePush: vector {self.vector}"
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
         # Rotate the points in the xy plane of the plug formation ccw
@@ -807,7 +811,7 @@ class DikePlugPushed(CompoundProcess):
         push=1.0,
         value=0.0,
     ):
-        self.origin = np.array(origin)
+        self.origin = origin
         self.diameter = diam
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
@@ -832,7 +836,7 @@ class DikePlugPushed(CompoundProcess):
         self.history = [transformation, deposition]
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
         return (
             f"DikePlugPushed: origin ({origin_str}), diam {self.diam:.1f}, minor scaling {self.minor_scale:.1f}, "
             f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}."
@@ -903,7 +907,7 @@ class Tilt(Transformation):
     def __init__(self, strike, dip, origin=(0, 0, 0)):
         self.strike = np.radians(strike)  # Convert degrees to radians
         self.dip = np.radians(dip)  # Convert degrees to radians
-        self.origin = np.array(origin)
+        self.origin = origin
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -919,6 +923,7 @@ class Tilt(Transformation):
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Calculate rotation axis from strike (rotation around z-axis)
         axis = rotate([0, 0, 1], -self.strike) @ [0, 1.0, 0]
         # Calculate rotation matrix from dip (tilt)
@@ -969,7 +974,7 @@ class Fold(Transformation):
         self.amplitude = amplitude
         self.phase = phase
         self.shape = shape
-        self.origin = np.array(origin)
+        self.origin = origin
         # Accept a custom periodic function or use the default otherwise
         self.periodic_func = (
             periodic_func if periodic_func else self.periodic_func_default
@@ -980,7 +985,7 @@ class Fold(Transformation):
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
         rake_deg = np.degrees(self.rake)
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.origin)
+        origin_str = str(self.origin).replace(" ", "")
 
         return (
             f"Fold: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, period {self.period:.1f},"
@@ -988,6 +993,7 @@ class Fold(Transformation):
         )
 
     def run(self, xyz, data):
+        self.origin = np.array(self.origin)
         # Adjust the rake to have slip vector (fold amplitude) perpendicular to the strike
         slip_vector, normal_vector = slip_normal_vectors(
             self.rake + np.pi / 2, self.dip, self.strike
@@ -1044,7 +1050,7 @@ class Slip(Transformation):
         self.dip = np.radians(dip)
         self.rake = np.radians(rake)
         self.amplitude = amplitude
-        self.origin = np.array(origin)
+        self.origin = origin
         self.displacement_func = displacement_func
 
     def __str__(self):
@@ -1064,6 +1070,7 @@ class Slip(Transformation):
         )  # Displaces positively where the distance is positive
 
     def run(self, xyz, array):
+        self.origin = np.array(self.origin)
         # Slip is measured from dip vector, while the slip_normal convention is from strike vector, add 90 degrees
         slip_vector, normal_vector = slip_normal_vectors(
             self.rake, self.dip, self.strike
