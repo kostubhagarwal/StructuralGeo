@@ -15,9 +15,9 @@ class Ball:
         self.radius = radius
         self.goo_factor = goo_factor
 
-    def potential(self, points):
+    def potential(self, points, reference_origin=(0,0,0)): # Pass a reference offset to the ball
         # Calculate the distance from the points to the ball's origin
-        distances = np.sum((points - self.origin) ** 2, axis=1)
+        distances = np.sum((points - self.origin - reference_origin) ** 2, axis=1)
         # Avoid division by zero
         distances = np.maximum(distances, 1e-6)
         return (self.radius / distances) ** self.goo_factor
@@ -83,10 +83,11 @@ class MetaBall(Deposition):
     value (int): The value to assign to points below the threshold potential.
     """
 
-    def __init__(self, balls: List[Ball], threshold, value, clip=True):
+    def __init__(self, balls: List[Ball], threshold, value, reference_origin=(0,0,0), clip=True):
         self.balls = balls
         self.threshold = threshold
         self.value = value
+        self.reference_origin = reference_origin
         self.clip = clip
 
     def __str__(self):
@@ -99,7 +100,7 @@ class MetaBall(Deposition):
         # Compute the net potential for each point in xyz
         potentials = np.zeros(xyz.shape[0])
         for ball in self.balls:
-            potentials += ball.potential(xyz)
+            potentials += ball.potential(xyz, self.reference_origin)
 
         # Apply the threshold and relabel points
         mask = potentials > self.threshold

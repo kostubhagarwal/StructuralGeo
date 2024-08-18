@@ -2,6 +2,7 @@ import logging
 import traceback
 
 import numpy as np
+import copy
 
 from .geoprocess import *
 from .util import resample_mesh, rotate, slip_normal_vectors
@@ -301,7 +302,12 @@ class GeoModel:
                 log.debug(f"Snapshot taken at index {i}")
             # Apply transformation to the mesh (skipping depositon events that do not alter the mesh)
             if isinstance(event, Transformation):
-                current_xyz, _ = event.run(current_xyz, self.data)
+                current_xyz, _ = event.apply_process(
+                        xyz=current_xyz, 
+                        data=self.data, 
+                        history=copy.deepcopy(self.history), # Pass a copy of history for context
+                        index = i                            # Pass the index of the event in the history
+                    )
             i -= 1
 
     def _forward_pass(self, history):
@@ -313,7 +319,12 @@ class GeoModel:
                 current_xyz = self.mesh_snapshots[snapshot_index, ...]
                 self.data_snapshots[snapshot_index] = self.data.copy()
             if isinstance(event, Deposition):
-                _, self.data = event.run(current_xyz, self.data)
+                _, self.data = event.apply_process(
+                        xyz=current_xyz, 
+                        data=self.data, 
+                        history=copy.deepcopy(self.history), # Pass a copy of history for context
+                        index = i                            # Pass the index of the event in the history
+                    )
 
     def _add_height_tracking_bars(self):
         """Add height tracking bars that extend from the center and corners of the bounds above and below the model.

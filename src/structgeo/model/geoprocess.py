@@ -9,14 +9,106 @@ from structgeo.model.util import *
 
 class GeoProcess:
     """
-    Base class for all geological processes.
+    Base class for all geological processes. Includes handling for cases where process
+    parameters that are conditional such as origin are not known until runtime or model generation time.
 
     Conventions:
     Strike, dip, and rake are in degrees.
     """
+        
+    def apply_process(self, xyz, data, history, index):
+        """
+        This method should not be overridden by subclasses. The subclass should implement the `run` method.
+        
+        Parameters
+        ----------
+        xyz : np.ndarray
+            The coordinates of the model points.
+        data : np.ndarray
+            The geological data to modify.
+        history : list
+            The history of geological processes applied to the model.
+        index : int
+            The index of this process in the history list for context.
+        """
+        # Ensure deferred parameters are resolved (conditioned on model state and history)
+        self.resolve_deferred_parameters(xyz, data, history, index)
+        # Delegate actual processing to the subclass's `run` method (mutates xyz and data)
+        return self.run(xyz, data)
+    
+    def resolve_deferred_parameters(self, xyz, data, history, index):
+        """
+        Resolves all deferred parameters in the process by iterating over attributes.
+        A deferred parameter is a special class that allows for conditioning the parameter based
+        on the model state and history and run time, instead of being fixed at initialization.
+        
+        For example: self.origin = DeferredParameter(lambda xyz, data: np.mean(xyz, axis=0))
 
-    pass
+        Parameters
+        ----------
+        xyz : np.ndarray
+            The coordinates of the model points.
+        data : np.ndarray
+            The geological data.
+        history : list
+            The history of geological processes applied to the model.
+        """
+        for attr_name, attr_value in self.__dict__.items():
+            if isinstance(attr_value, DeferredParameter):
+                resolved_value = attr_value.resolve(xyz, data, history, index)
+                setattr(self, attr_name, resolved_value)
 
+    def run(self, xyz, data):
+        """
+        The method to be implemented by subclasses for the actual geological process logic.
+
+        This is where the specific logic for each subclass should go.
+
+        Parameters
+        ----------
+        xyz : np.ndarray
+            The coordinates of the model points.
+        data : np.ndarray
+            The geological data to modify.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented in the subclass.
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+    
+class DeferredParameter:
+    """
+    A class to allow option for a GeoProcess parameter to be deferred until runtime.
+
+    Attributes:
+        compute_func (callable): A function that computes the parameter's value.
+    """
+
+    def __init__(self):
+        """
+        Initializes the DeferredParameter with a computation function.
+
+        """
+        self.value = None  # Holds the resolved value once computed
+
+    def resolve(self, xyz, data, history, index):
+        """
+        Resolve the deferred parameter using the provided computation function.
+
+        Parameters
+        ----------
+        *args, **kwargs : 
+            Arguments passed to the compute_func during resolution.
+        
+        Returns
+        -------
+        The resolved value.
+        """
+        self.value = self.compute_func(xyz, data, history, index)
+        return self.value
+    
 
 class Deposition(GeoProcess):
     """
@@ -25,10 +117,8 @@ class Deposition(GeoProcess):
     Depositions modify the geological data (e.g., rock types) associated with a mesh point
     without altering or transforming the mesh.
     """
-
-    def run(self, xyz, data):
-        raise NotImplementedError()
-
+    
+    pass
 
 class Transformation(GeoProcess):
     """
@@ -38,8 +128,7 @@ class Transformation(GeoProcess):
     Frame convention is that north is 0 strike on positive y-axis
     """
 
-    def run(self, xyz, data):
-        raise NotImplementedError()
+    pass
 
 
 class CompoundProcess(GeoProcess):

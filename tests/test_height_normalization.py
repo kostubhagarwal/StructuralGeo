@@ -1,44 +1,10 @@
 import time
 
 import numpy as np
-from pyvistaqt import BackgroundPlotter
 
 import structgeo.generation as gen
 import structgeo.model as geo
 import structgeo.plot as geovis
-from structgeo.model import Dike, Fault
-from structgeo.probability import random_point_in_ellipsoid
-
-
-class MyFaultDikeWord(gen.GeoWord):
-    def build_history(self):
-        bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
-        strike = np.random.uniform(0, 360)
-        dip = np.random.uniform(75, 90)
-        rake = np.random.uniform(0, 360)
-        origin = random_point_in_ellipsoid(bounds)
-        # First a Fault
-        fault_params = {
-            "strike": strike,
-            "dip": dip,
-            "rake": rake,
-            "amplitude": np.random.lognormal(0, 0.25) * 200,
-            "origin": origin,
-        }
-        fault = Fault(**fault_params)
-        # Then a Dike in the same area
-        dike_params = {
-            "strike": strike,
-            "dip": dip,
-            "width": np.random.normal(150, 50),
-            "origin": origin,
-        }
-        dike = Dike(**dike_params)
-
-        self.add_process(fault)
-        self.add_process(dike)
-        # No return value needed
-
 
 sentence = [
     gen.InfiniteBasement(),
