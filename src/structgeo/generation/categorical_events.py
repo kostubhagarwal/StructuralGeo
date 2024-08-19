@@ -7,7 +7,7 @@ from .geowords import *
 from structgeo.model import GeoProcess
 import numpy as np
 
-class EventSampler(GeoWord):
+class EventTemplateClass(GeoWord):
     """
     A special case of GeoWord that selects from a set of cases with associated probabilities.
     This class is used to form more general categories of events that can be sampled from.
@@ -89,7 +89,7 @@ class EventSampler(GeoWord):
         
         self.probabilities 
 
-class EventBaseStrata(EventSampler):
+class BaseStrata(EventTemplateClass):
     """
     A sampling regime for base strata.
     """
@@ -103,7 +103,7 @@ class EventBaseStrata(EventSampler):
         ]
         super().__init__(cases=cases, rng=rng)
 
-class EventSediment(EventSampler):
+class Sediment(EventTemplateClass):
     """
     A sampling regime for sediment events.
     """
@@ -116,7 +116,7 @@ class EventSediment(EventSampler):
         ]
         super().__init__(cases=cases, rng=rng)
         
-class EventFold(EventSampler):
+class Fold(EventTemplateClass):
     """
     A sampling regime for folding events.
     """
@@ -129,7 +129,7 @@ class EventFold(EventSampler):
         ]
         super().__init__(cases=cases, rng=rng)
 
-class EventErosion(EventSampler):
+class Erosion(EventTemplateClass):
     """
     A sampling regime for erosion events.
     """

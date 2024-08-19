@@ -454,6 +454,7 @@ class DikeColumn(Deposition):
         rotation (float): Rotation of the dike in the xy plane
         value (int): Value of rock-type to assign to the dike
         clip (bool): Clip the dike to not protrude above the surface
+        end_point (tuple): Optional end point of the dike, if provided, the dike will extend to this point from origin
     """
 
     def __init__(
@@ -465,6 +466,7 @@ class DikeColumn(Deposition):
         rotation=0.0,
         value=0.0,
         clip=False,
+        end_point=None
     ):
         self.origin = origin
         self.diam = diam
@@ -473,6 +475,7 @@ class DikeColumn(Deposition):
         self.rotation = rotation
         self.value = value
         self.clip = clip
+        self.end_point = end_point
 
     def __str__(self):
         if isinstance(self.origin, DeferredParameter):
@@ -487,8 +490,19 @@ class DikeColumn(Deposition):
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
+        self.end_point = np.array(self.end_point) if self.end_point is not None else None
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
+        
+        # Rotate the frame to align with endpoint if provided, calculate new downward depth
+        if self.end_point is not None:
+            # Calculate the direction vector from origin to end point
+            direction = self.end_point - self.origin
+            self.depth = np.linalg.norm(direction)
+            # Calculate the rotation matrix to align the direction vector with the z-axis
+            R = self.align_vector_with_axis(direction)
+            v0 = -v0 @ R.T
+        
         # Rotate the points in the xy plane of the plug formation ccw
         R = rotate([0, 0, 1], np.deg2rad(self.rotation))
         v0 = v0 @ R.T
@@ -505,6 +519,18 @@ class DikeColumn(Deposition):
 
         return xyz, data
 
+    def align_vector_with_axis(self, v):
+        """Calculate the rotation matrix to align a vector with z axis."""
+        v = np.array(v)
+        z_axis = np.array([0, 0, 1])
+        # Calculate the cross product between the vector and z-axis
+        axis = np.cross(v, z_axis)
+        # Calculate the angle between the vector and z-axis
+        angle = np.arccos(np.dot(v, z_axis) / (np.linalg.norm(v) * np.linalg.norm(z_axis)))
+        # Calculate the rotation matrix
+        return rotate(axis, angle)
+        
+
 
 class DikeHemisphere(Deposition):
     """A lenticular dike intrusion"""
@@ -519,6 +545,7 @@ class DikeHemisphere(Deposition):
         value=0.0,
         upper=True,
         clip=False,
+        z_function=None,
     ):
         self.origin = origin
         self.diam = diam
@@ -528,6 +555,7 @@ class DikeHemisphere(Deposition):
         self.value = value
         self.upper = upper
         self.clip = clip
+        self.z_function = self.default_z_function if z_function is None else z_function
 
     def __str__(self):
         if isinstance(self.origin, DeferredParameter):
@@ -539,7 +567,14 @@ class DikeHemisphere(Deposition):
             f"DikeHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
-
+    
+    def default_z_function(self, x, y):
+        """Default z function: elliptical hemisphere."""
+        r=1
+        inner = r**2 - x**2 - y**2
+        z_surf = np.sqrt(np.maximum(0, inner))        
+        return z_surf
+        
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
         # Translate points to origin coordinate frame (bottom center of the sill)
@@ -554,14 +589,14 @@ class DikeHemisphere(Deposition):
         x /= self.minor_scale
         x /= self.diam / 2.0
         y /= self.diam / 2.0
-        z /= self.height
-
-        r = np.sqrt(x**2 + y**2 + z**2)
-
+        z /= self.height      
+        
         if self.upper:
-            mask = (r <= 1.0) & (z >= 0)
+            inside = z < self.z_function(x, y)
+            mask = inside & (z > 0)
         else:
-            mask = (r <= 1.0) & (z <= 0)
+            inside = z > -self.z_function(x, y)
+            mask = inside & (z < 0)
         if self.clip:
             mask &= ~np.isnan(data)
         data[mask] = self.value
@@ -665,6 +700,7 @@ class DikeHemispherePushed(CompoundProcess):
         upper=True,
         clip=False,
         value=0.0,
+        z_function=None,
     ):
         deposition = DikeHemisphere(
             diam=diam,
@@ -675,6 +711,7 @@ class DikeHemispherePushed(CompoundProcess):
             value=value,
             upper=upper,
             clip=clip,
+            z_function=z_function,
         )
         transformation = PushHemisphere(
             diam=diam,
@@ -708,12 +745,13 @@ class Laccolith(CompoundProcess):
         value=0.0,
         upper=True,
         clip=False,
+        z_function=None,
     ):
         col = DikeColumn(
             origin, stem_diam, np.inf, minor_axis_scale, rotation, value, clip
         )
         cap = DikeHemisphere(
-            origin, cap_diam, height, minor_axis_scale, rotation, value, upper, clip
+            origin, cap_diam, height, minor_axis_scale, rotation, value, upper, clip, z_function=z_function
         )
         push = PushHemisphere(
             origin, cap_diam, height, minor_axis_scale, rotation, upper

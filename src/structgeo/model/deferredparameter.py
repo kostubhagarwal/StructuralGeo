@@ -107,6 +107,9 @@ class SedimentConditionedOrigin(DeferredParameter):
         self.y = y
         self.boundary_index = boundary_index
         
+    def __str__(self):
+        return f"({self.x}, {self.y}, boundary {self.boundary_index})"
+        
     def compute_func(self, xyz, data, history, index):
         # Find the most recent sedimentation process
         for event in reversed(history[:index]):

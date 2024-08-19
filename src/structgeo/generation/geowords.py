@@ -17,9 +17,9 @@ X_RANGE = BOUNDS_X[1] - BOUNDS_X[0]
 Z_RANGE = BOUNDS_Z[1] - BOUNDS_Z[0]
 BED_ROCK_VAL = 0
 SEDIMENT_VALS = [1, 2, 3, 4, 5]
-DIKE_VALS = [6, 7]
-INTRUSION_VALS = [8, 9]
-BLOB_VALS = [10, 11]
+DIKE_VALS = [6, 7, 8]
+INTRUSION_VALS = [9, 10, 11]
+BLOB_VALS = [12, 13]
 # A target mean for random sedimentation depth
 MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 4
 
@@ -602,7 +602,7 @@ class DikeGroup(DikePlaneWord):  # Validated
         fold = geo.Fold(**fold_params)
         return fold
     
-""" Intrusion Events"""
+""" Intrusion Events: Sills"""
 
 class SillWord(GeoWord):
     """ A sill construction mechanism using horizontal dike planes """
@@ -628,7 +628,7 @@ class SillWord(GeoWord):
         amp = np.random.uniform(0.1, 0.2)*wobble_factor # unevenness of the dike thickness        
         exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
         exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_z = np.random.uniform(4,10)  # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(3,6)  # Hyper ellipse exponent controls tapering sharpness
         
         def func(x, y):
             # 3d ellipse with thickness axis of 1 and hyper ellipse tapering in x and y
@@ -642,16 +642,15 @@ class SillWord(GeoWord):
         return func
     
     def build_history(self):  
-        width = rv.beta_min_max(2, 4, 50, 500)
-        x_length = rv.beta_min_max(2, 2, 800, 16000)
+        width = rv.beta_min_max(2, 4, 50, 250)
+        x_length = rv.beta_min_max(2, 2, 600, 5000)
         y_length = self.rng.normal(1,.2) * x_length
         origin = geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS))
         
-
         dike_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
-            "origin": origin, # WARNING: This requires sediment to compute first
+            "dip": self.rng.normal(0, .1),  # Bias towards horizontal sills
+            "origin": origin, 
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
             "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
@@ -663,50 +662,195 @@ class SillWord(GeoWord):
 class SillSystem(SillWord):
     """ A sill construction mechanism using horizontal dike planes """
     
+    def __init__(self, seed=None):
+        super().__init__(seed)
+        self.rock_val = None
+        self.origins = []
+        self.sediment = None
+    
     def build_history(self):  
         # Build a sediment substrate to sill into
-        sed = self.build_sedimentation()    
+        self.build_sedimentation()   
+        self.add_process(self.sediment)         
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
+        indices = self.get_layer_indices()
+        origins = self.build_sills(indices)
+        self.link_sills(origins)
+
+    def build_sills(self, indices):
+        origins = []
+        for i, boundary in enumerate(indices):
+            x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
+            y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])*.75
+            sill_origin = geo.SedimentConditionedOrigin(x=x_loc, y=y_loc, boundary_index=boundary)
+            origins.append(sill_origin)  
+            
+            width = rv.beta_min_max(2, 4, 40, 250)
+            x_length = rv.beta_min_max(2, 2, 600, 4000)
+            y_length = self.rng.lognormal(*rv.log_normal_params(mean = 1, std_dev=.2)) * x_length
+
+            dike_params = {
+                "strike": self.rng.uniform(0, 360),
+                "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
+                "origin": sill_origin, # WARNING: This requires sediment to compute first
+                "width": width,
+                "value": self.rock_val,
+                "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
+            }
+            sill = geo.DikePlane(**dike_params)
+            
+            self.add_process([sill])
+            
+        return origins
         
-        layers = sed.thickness_list
-        # Choose for each boundary if it will harbor a sill or not, final boundary is never a sill
-        sill_layers = [self.rng.choice([True, False]) for _ in range(len(layers)-1)]
-        sill_layers.append(False)
-        
-        index = len(layers) - 2 
-        # Use a special deferred parameter to find a correct boundary z valued origin
+    def link_sills(self, origins):
+        # Pair up the sill origins with dike cols, add a final endpoint to the mantle           
+        end_points = origins[1:]
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])*.75
-        sill_origin = geo.SedimentConditionedOrigin(x=x_loc, y=y_loc, boundary_index=index)
-        
-        width = rv.beta_min_max(2, 4, 50, 250)
-        x_length = rv.beta_min_max(2, 2, 800, 16000)
-        y_length = self.rng.normal(1,.2) * x_length
-
-        dike_params = {
-            "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
-            "origin": sill_origin, # WARNING: This requires sediment to compute first
-            "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
-        }
-        dike = geo.DikePlane(**dike_params)
-        
-        self.add_process([sed,dike])
-        
+        final_origin = (x_loc, y_loc, -10000)
+        end_points.append(final_origin)
+        channels = zip(origins, end_points)
+            
+        for i, (start,end) in enumerate(channels):
+            col_params = {
+                "origin": start,
+                "end_point": end,
+                "diam": self.rng.uniform(300, 800),
+                "minor_axis_scale": self.rng.uniform(.1,.4),
+                "rotation": self.rng.uniform(0, 360),
+                "value": self.rock_val,
+                "clip": True,
+            }            
+            col = geo.DikeColumn(**col_params)
+            self.add_process(col)
+ 
     def build_sedimentation(self) -> geo.Sedimentation:
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
             rng=self.rng,
-            thickness_bounds=(Z_RANGE / 12, Z_RANGE / 8),
-            thickness_variance=self.rng.uniform(0.1, 0.2),
+            thickness_bounds=(Z_RANGE / 18, Z_RANGE / 6),
+            thickness_variance=self.rng.uniform(0.1, 0.4),
             dirichlet_alpha=self.rng.uniform(
                 .8,1.2
             ),  # Low alpha for high repeatability
             anticorrelation_factor=.05, # Low factor gives low repeatability
         )
         
-        vals, thicks = markov_helper.generate_sediment_layers(total_depth=Z_RANGE/2) 
+        depth = Z_RANGE / 2
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth) 
         sed = geo.Sedimentation(vals, thicks)
-        return sed
+        self.sediment = sed
+    
+    def get_layer_indices(self):
+        # Create a range from 1 to len(layers) - 2 (inclusive)
+        valid_indices = np.arange(1, len(self.sediment.thickness_list) - 1)
+        
+        # Randomly select n unique layers to place sills in
+        n = self.rng.integers(1, 5)
+        n = np.clip(n, 1, len(valid_indices))
+        
+        selected_indices = self.rng.choice(valid_indices, size=n, replace=False)
+        print(f"Selecting {n} sills: {selected_indices}")
+        
+        # Sort in ascending order, then reverse it to get descending order
+        selected_indices = np.sort(selected_indices)[::-1]
+        
+        return selected_indices
+
+""" Intrusion Events: Laccolith and Lopolith"""
+class HemiPushedWord(GeoWord):
+    """ A generic pushed hemisphere word """
+        
+    def __init__(self, seed=None):
+        super().__init__(seed)
+        self.rock_val = None
+        self.origin = None
+                
+    def get_hemi_function(wobble_factor=.1):
+        """ Organic looking warping of hemispheres
+        
+        The hemisphere coordinates xyz have been normalized to a simple hemisphere case where
+        1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
+        """
+        
+        wf = wobble_factor
+        fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
+        x_var = fourier.generate()
+        y_var = fourier.generate()
+        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(1.5,3)
+        radial_var = fourier.generate()
+        
+        def func(x,y):
+            x = (1+ wf*x_var(x))*x
+            y = (1+ wf*y_var(y))*y
+            r = 1+ .3*radial_var(np.arctan2(y,x)/(2*np.pi))
+            inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
+            z_surf = np.maximum(0, inner) ** (1/exp_z)       
+            return z_surf
+        
+        return func   
+        
+        
+class Laccolith(HemiPushedWord):
+    """ A generic pushed hemisphere word """
+                
+    def build_history(self):
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
+        self.place_origin()
+        
+        diam = self.rng.uniform(2000, 20000)
+        height = self.rng.uniform(1e-2,1e-1)*diam
+        
+        hemi_params = {
+            "origin": self.origin,
+            "diam": diam,
+            "height": height,
+            "minor_axis_scale": self.rng.uniform(.1,1),
+            "rotation": self.rng.uniform(0, 360),
+            "value": self.rock_val,
+            "upper": True,
+            "clip": True,
+            "z_function": self.get_hemi_function(wobble_factor=.1),
+        }
+        hemi = geo.DikeHemispherePushed(**hemi_params)
+        self.add_process(hemi)
+     
+    def place_origin(self):
+        # select an origin that is in the bottom half of the model window
+        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
+        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(0, Z_RANGE / 2)
+        self.origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
+        
+    def get_hemi_function(self, wobble_factor=.1):
+        """ Organic looking warping of hemispheres
+        
+        The hemisphere coordinates xyz have been normalized to a simple hemisphere case where
+        1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
+        """
+        
+        wf = wobble_factor
+        fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
+        x_var = fourier.generate()
+        y_var = fourier.generate()
+        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(1.5,3)
+        radial_var = fourier.generate()
+        
+        def func(x,y):
+            x = (1+ wf*x_var(x))*x
+            y = (1+ wf*y_var(y))*y
+            r = 1+ .3*radial_var(np.arctan2(y,x)/(2*np.pi))
+            inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
+            z_surf = np.maximum(0, inner) ** (1/exp_z)       
+            return z_surf
+        
+        return func 
+        
+        
+               
     
