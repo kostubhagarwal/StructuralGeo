@@ -194,7 +194,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
         tilt = geo.Tilt(
             strike=self.rng.uniform(0, 360),
             dip=self.rng.normal(0, 10),
-            origin=(0, 0, 0),
+            origin=geo.BacktrackedPoint((0, 0, 0)),
         )
         unc = geo.UnconformityBase(BOUNDS_Z[0])
         
@@ -301,7 +301,7 @@ class TiltedUnconformity(BaseErosionWord): # Validated
             strike = self.rng.uniform(0, 360)
             tilt_angle = self.rng.normal(0, 3)
             x,y,z = rv.random_point_in_ellipsoid(MAX_BOUNDS)
-            origin = (x,y,0)
+            origin = geo.BacktrackedPoint((x,y,0))
             tilt_in = geo.Tilt(strike=strike, dip=tilt_angle, origin=origin)
             tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle, origin=origin)
             
@@ -358,7 +358,7 @@ class MicroNoise(GeoWord):  # Validated
             period = self.rng.uniform(100, 1000)
             amplitude = period * self.rng.uniform(0.002, 0.005) + 5
             fold_params = {
-                "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
+                "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
                 "strike": self.rng.uniform(0, 360),
                 "dip": self.rng.uniform(0, 360),
                 "rake": self.rng.uniform(0, 360),
@@ -389,7 +389,7 @@ class SimpleFold(GeoWord):  # validated
             "amplitude": amp,
             "periodic_func": None,
             "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
+            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -420,7 +420,7 @@ class ShapedFold(GeoWord):  # Validated
             "shape": shape,
             "periodic_func": None,
             "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
+            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
         }
         fold = geo.Fold(**fold_params)
         self.add_process(fold)
@@ -478,19 +478,22 @@ class DikePlaneWord(GeoWord):  # Validated
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 500)
         length = rv.beta_min_max(2, 2, 300, 16000)
+        origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
+        back_origin = geo.BacktrackedPoint(origin) # Use a backtracked point to ensure origin is in view
         dike_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
-            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
+            "origin": back_origin,
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=np.uniform(.5,1.5)),
+            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=self.rng.uniform(.5,1.5)),
         }
         dike = geo.DikePlane(**dike_params)
+        
         self.add_process(dike)
 
 
-class SingleDikeWarped(DikePlaneWord):
+class SingleDikeWarped(DikePlaneWord): #
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip = self.rng.normal(90, 10)
@@ -499,7 +502,7 @@ class SingleDikeWarped(DikePlaneWord):
         dike_params = {
             "strike": strike,
             "dip": dip,  # Bias towards vertical dikes
-            "origin": rv.random_point_in_ellipsoid(MAX_BOUNDS),
+            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
             "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
@@ -530,7 +533,7 @@ class SingleDikeWarped(DikePlaneWord):
         fold = geo.Fold(**fold_params)
         return fold
     
-class DikeGroup(DikePlaneWord):  
+class DikeGroup(DikePlaneWord):  # Validated
     def build_history(self):
         num_dikes = self.rng.integers(2, 6)              
         
@@ -554,7 +557,7 @@ class DikeGroup(DikePlaneWord):
             dike_params = {
                 "strike": strike,
                 "dip": dip, 
-                "origin": origin,
+                "origin": geo.BacktrackedPoint(origin),
                 "width": width,
                 "value": value,
                 "thickness_func": self.get_organic_thickness_func(length, wobble_factor=.5)
@@ -598,3 +601,112 @@ class DikeGroup(DikePlaneWord):
         }
         fold = geo.Fold(**fold_params)
         return fold
+    
+""" Intrusion Events"""
+
+class SillWord(GeoWord):
+    """ A sill construction mechanism using horizontal dike planes """
+    
+    def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.):
+        """ Organic Sheet Maker
+        
+        variance is introduced through 3 different fourier waves. x_var and y_var add ripple to the sheet thickness,
+        while the radial_var adds a ripple around the edges of the sheet in the distance that it extends.
+        
+        The exponents (p) control the sharpness of the hyper ellipse:
+        $$ 1 = (\frac{|z|}{d_z})^{p_z} + (\frac{|y|}{d_y})^{p_y} + (\frac{|x|}{d_x})^{p_x}$$
+        
+        This function has the z dimension normalized to 1, and the x and y dimensions are 
+        normalized to the x_length and y_length. A sharp taper off at the edges is controlled with a 
+        higher exp_z value.
+        """
+        # Make a fourier based modifier for both x and y
+        fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
+        x_var = fourier.generate()
+        y_var = fourier.generate()
+        radial_var = fourier.generate()
+        amp = np.random.uniform(0.1, 0.2)*wobble_factor # unevenness of the dike thickness        
+        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(4,10)  # Hyper ellipse exponent controls tapering sharpness
+        
+        def func(x, y):
+            # 3d ellipse with thickness axis of 1 and hyper ellipse tapering in x and y
+            theta = np.arctan2(y, x)
+            ellipse_factor = (1+ .6*radial_var(theta/(2*np.pi))) - np.abs(x/x_length)**exp_x - np.abs(y/y_length)**exp_y
+            ellipse_factor = (np.maximum(ellipse_factor, 0))**(1/exp_z) 
+
+            # The thickness modifier combines 2d fourier with tapering at ends
+            return (1 + amp * x_var(x/X_RANGE)) * (1 + amp * y_var(y/X_RANGE)) * ellipse_factor
+        
+        return func
+    
+    def build_history(self):  
+        width = rv.beta_min_max(2, 4, 50, 500)
+        x_length = rv.beta_min_max(2, 2, 800, 16000)
+        y_length = self.rng.normal(1,.2) * x_length
+        origin = geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS))
+        
+
+        dike_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
+            "origin": origin, # WARNING: This requires sediment to compute first
+            "width": width,
+            "value": self.rng.choice(INTRUSION_VALS),
+            "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
+        }
+        dike = geo.DikePlane(**dike_params)
+        
+        self.add_process(dike)
+    
+class SillSystem(SillWord):
+    """ A sill construction mechanism using horizontal dike planes """
+    
+    def build_history(self):  
+        # Build a sediment substrate to sill into
+        sed = self.build_sedimentation()    
+        
+        layers = sed.thickness_list
+        # Choose for each boundary if it will harbor a sill or not, final boundary is never a sill
+        sill_layers = [self.rng.choice([True, False]) for _ in range(len(layers)-1)]
+        sill_layers.append(False)
+        
+        index = len(layers) - 2 
+        # Use a special deferred parameter to find a correct boundary z valued origin
+        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
+        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])*.75
+        sill_origin = geo.SedimentConditionedOrigin(x=x_loc, y=y_loc, boundary_index=index)
+        
+        width = rv.beta_min_max(2, 4, 50, 250)
+        x_length = rv.beta_min_max(2, 2, 800, 16000)
+        y_length = self.rng.normal(1,.2) * x_length
+
+        dike_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
+            "origin": sill_origin, # WARNING: This requires sediment to compute first
+            "width": width,
+            "value": self.rng.choice(INTRUSION_VALS),
+            "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
+        }
+        dike = geo.DikePlane(**dike_params)
+        
+        self.add_process([sed,dike])
+        
+    def build_sedimentation(self) -> geo.Sedimentation:
+        markov_helper = MarkovSedimentHelper(
+            categories=SEDIMENT_VALS,
+            rng=self.rng,
+            thickness_bounds=(Z_RANGE / 12, Z_RANGE / 8),
+            thickness_variance=self.rng.uniform(0.1, 0.2),
+            dirichlet_alpha=self.rng.uniform(
+                .8,1.2
+            ),  # Low alpha for high repeatability
+            anticorrelation_factor=.05, # Low factor gives low repeatability
+        )
+        
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=Z_RANGE/2) 
+        sed = geo.Sedimentation(vals, thicks)
+        return sed
+    

@@ -9,11 +9,9 @@ from structgeo.model.util import *
 
 class GeoProcess:
     """
-    Base class for all geological processes. Includes handling for cases where process
+    Base class template for all geological processes. Includes handling for cases where process
     parameters that are conditional such as origin are not known until runtime or model generation time.
-
-    Conventions:
-    Strike, dip, and rake are in degrees.
+    These are deferred parameters that are resolved at runtime.
     """
         
     def apply_process(self, xyz, data, history, index):
@@ -31,10 +29,17 @@ class GeoProcess:
         index : int
             The index of this process in the history list for context.
         """
-        # Ensure deferred parameters are resolved (conditioned on model state and history)
-        self.resolve_deferred_parameters(xyz, data, history, index)
-        # Delegate actual processing to the subclass's `run` method (mutates xyz and data)
-        return self.run(xyz, data)
+        try:
+            # Ensure deferred parameters are resolved (conditioned on model state and history)
+            self.resolve_deferred_parameters(xyz, data, history, index)
+            # Delegate actual processing to the subclass's `run` method (mutates xyz and data)
+            return self.run(xyz, data)
+
+        except Exception as e:
+            # Handle the exception, log the issue, and potentially skip the process if cant be resolved
+            warnings.warn(f"Process {str(self)} at index {index} failed: {e}. Skipping process.")
+            return xyz, data  # Return unmodified data or handle differently based on the case
+
     
     def resolve_deferred_parameters(self, xyz, data, history, index):
         """
@@ -42,7 +47,8 @@ class GeoProcess:
         A deferred parameter is a special class that allows for conditioning the parameter based
         on the model state and history and run time, instead of being fixed at initialization.
         
-        For example: self.origin = DeferredParameter(lambda xyz, data: np.mean(xyz, axis=0))
+        For example: self.origin = BacktrackedPoint((0, 0, 0)) will trace the point (0,0,0) back
+        through history from the present state at runtime.
 
         Parameters
         ----------
@@ -52,11 +58,19 @@ class GeoProcess:
             The geological data.
         history : list
             The history of geological processes applied to the model.
+        index : int
+            The index of this process in the history list for context.
         """
         for attr_name, attr_value in self.__dict__.items():
             if isinstance(attr_value, DeferredParameter):
-                resolved_value = attr_value.resolve(xyz, data, history, index)
-                setattr(self, attr_name, resolved_value)
+                try:
+                    # Attempt to resolve the deferred parameter
+                    resolved_value = attr_value.resolve(xyz, data, history, index)
+                    setattr(self, attr_name, resolved_value)
+                except Exception as e:
+                    # Raise an error to be caught in apply_process
+                    raise RuntimeError(f"Error resolving deferred parameter '{attr_name}': {e}")       
+
 
     def run(self, xyz, data):
         """
@@ -80,17 +94,14 @@ class GeoProcess:
     
 class DeferredParameter:
     """
-    A class to allow option for a GeoProcess parameter to be deferred until runtime.
+    Base class template to allow option for a GeoProcess parameter to be deferred until runtime.
+    This allows for conditioning based on the model history.
 
     Attributes:
         compute_func (callable): A function that computes the parameter's value.
     """
 
     def __init__(self):
-        """
-        Initializes the DeferredParameter with a computation function.
-
-        """
         self.value = None  # Holds the resolved value once computed
 
     def resolve(self, xyz, data, history, index):
@@ -106,7 +117,9 @@ class DeferredParameter:
         -------
         The resolved value.
         """
-        self.value = self.compute_func(xyz, data, history, index)
+        # Avoid recomputing the value if it has already been resolved
+        if self.value is None:
+            self.value = self.compute_func(xyz, data, history, index)
         return self.value
     
 
@@ -272,11 +285,11 @@ class Bedrock(Deposition):
 class Sedimentation(Deposition):
     """Fill with layers of sediment, with rock values and thickness of layers given as lists.
     The base elevation from which to fill can either be specified or can be deduced at generation time from
-    the lowest unfilled value in the mesh
+    the lowest unfilled value in the mesh. Will not overwrite existing rock.
 
     Parameters:
           value_list (iterable float): a list of values to sample from for rock types
-          value_selector (iterable float): a list of thicknesses for each layer
+          thickness_list (iterable float): a list of thicknesses for each layer
           base (float): Optional floor value for sedimentation, otherwise starts at lowest NaN mesh point
     """
 
@@ -284,6 +297,7 @@ class Sedimentation(Deposition):
         self.value_list = list(value_list)
         self.thickness_list = thickness_list
         self.base = base  # If the base is np.nan, it will be calculated at runtime
+        self.boundaries = None # Calculated at runtime
 
     def __str__(self):
         values_summary = ", ".join(
@@ -301,8 +315,8 @@ class Sedimentation(Deposition):
         z_values, nan_idxs = self.get_nan_z_values(xyz, data)
         current_base = self.calculate_base(z_values)
         thicknesses = self.extend_thicknesses()
-        boundaries = self.calculate_boundaries(current_base, thicknesses)
-        self.assign_values_to_data(z_values, nan_idxs, boundaries, data)
+        self.boundaries = self.calculate_boundaries(current_base, thicknesses)
+        self.assign_values_to_data(z_values, nan_idxs, self.boundaries, data)
         return xyz, data
 
     def get_nan_z_values(self, xyz, data):
@@ -382,7 +396,11 @@ class DikePlane(Deposition):
         # Convert radians back to degrees for more intuitive understanding
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
         return (
             f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, width {self.width:.1f}, "
@@ -457,7 +475,11 @@ class DikeColumn(Deposition):
         self.clip = clip
 
     def __str__(self):
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikeColumn: origin ({origin_str}), diam {self.diam:.1f}, depth {self.depth:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -508,7 +530,11 @@ class DikeHemisphere(Deposition):
         self.clip = clip
 
     def __str__(self):
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikeHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -563,7 +589,11 @@ class PushHemisphere(Transformation):
         self.upper = upper
 
     def __str__(self):
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"PushHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}."
@@ -727,7 +757,11 @@ class DikePlug(Deposition):
         self.value = value
 
     def __str__(self):
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikePlug: origin ({origin_str}), conic_scaling {self.conic_scaling:.1f}, "
             f"rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -836,7 +870,11 @@ class DikePlugPushed(CompoundProcess):
         self.history = [transformation, deposition]
 
     def __str__(self):
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikePlugPushed: origin ({origin_str}), diam {self.diam:.1f}, minor scaling {self.minor_scale:.1f}, "
             f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}."
@@ -985,7 +1023,11 @@ class Fold(Transformation):
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
         rake_deg = np.degrees(self.rake)
-        origin_str = str(self.origin).replace(" ", "")
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
         return (
             f"Fold: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, period {self.period:.1f},"

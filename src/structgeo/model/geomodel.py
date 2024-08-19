@@ -182,7 +182,11 @@ class GeoModel:
             return "No geological history to display."
 
         history_str = "Geological History:\n"
-        for index, process in enumerate(self.history):
+        
+        # Print from the processed history if available
+        ref_history = self.history if self.processed_history is None else self.processed_history
+        
+        for index, process in enumerate(ref_history):
             history_str += f"{index + 1}: {str(process)}\n"
 
         return history_str.strip()  # Remove the trailing newline
@@ -322,8 +326,8 @@ class GeoModel:
                 current_xyz, _ = event.apply_process(
                         xyz=current_xyz, 
                         data=self.data, 
-                        history=copy.deepcopy(self.history), # Pass a copy of history for context
-                        index = i                            # Pass the index of the event in the history
+                        history=history, # Pass a copy of history for context
+                        index = i        # Pass the index of the event in the history
                     )
             i -= 1
 
@@ -339,8 +343,8 @@ class GeoModel:
                 _, self.data = event.apply_process(
                         xyz=current_xyz, 
                         data=self.data, 
-                        history=copy.deepcopy(self.history), # Pass a copy of history for context
-                        index = i                            # Pass the index of the event in the history
+                        history=history, # Pass a copy of history for context
+                        index = i        # Pass the index of the event in the history
                     )
 
     def _add_height_tracking_bars(self):
