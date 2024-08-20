@@ -38,7 +38,9 @@ def single_sentence_test():
     p = pv.Plotter(shape=(4, 4))
     for i, hist in enumerate(selected_histories):
         p.subplot(i // 4, i % 4)
-        model = generate_normalized_model(hist)
+        model = geo.GeoModel(bounds=(-1920, 1920), resolution=128)
+        model.add_history(hist)
+        model.compute_model(normalize=True)
         geovis.volview(model, plotter=p)
     p.show()
 

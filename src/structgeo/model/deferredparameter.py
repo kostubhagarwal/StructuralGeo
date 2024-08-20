@@ -28,7 +28,7 @@ class BacktrackedPoint(DeferredParameter):
         self.point = point
         
     def __str__(self):
-        return self.point
+        return str(self.point)
     
     def compute_func(self, xyz, data, history, index) -> tuple:
         backtracked_point = np.atleast_2d(np.array(self.point)) # Cast tuple into 2D array for processing

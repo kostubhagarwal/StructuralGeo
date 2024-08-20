@@ -9,25 +9,28 @@ import structgeo.plot as geovis
 from structgeo.generation import *
 
 
+
 def single_plotter():
     # List of geological words to generate
-    sentence = [EventBaseStrata(), EventSediment(), EventSediment(), EventSediment(), SillWord()]
+    sentence = [BaseStrata(),Laccolith()]
     # Model resolution and boundse
-    z = 32
+    z = 64
     res = (2 * z, 2 * z, z)
     bounds = (
         BOUNDS_X,
         BOUNDS_Y,
         BOUNDS_Z,
-    )  # Bounds imported from generation (geowords file)
+    )  # Bounds imported from generation (geowords file)e
 
     hist = generate_history(sentence)
     start = clock.time()
-    model = generate_normalized_model(hist, bounds, res)
+    model = geo.GeoModel(bounds=bounds, resolution=res)
+    model.add_history(hist)
+    model.compute_model(normalize=True)
     finish = clock.time()
     print(f"Model computed in {finish-start:.2f} seconds.")
 
-    # geovis.transformationview(model).show()
+    # geovis.transformationview(model).show()e
     geovis.categorical_grid_view(model).show()
     print(model.get_history_string())
 
@@ -65,13 +68,51 @@ def get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=1.):
     
     return func
 
+def get_hemi_function(wobble_factor=.1):
+    """ Organic looking hemispheres
+    
+    The hemisphere coordinates xyz have been normalized to a simple hemisphere case where
+    1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
+    """
+    
+    wf = wobble_factor
+    fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
+    x_var = fourier.generate()
+    y_var = fourier.generate()
+    exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+    exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
+    exp_z = np.random.uniform(1.5,3)
+    radial_var = fourier.generate()
+    
+    def func(x,y):
+        x = (1+ wf*x_var(x))*x
+        y = (1+ wf*y_var(y))*y
+        r = 1+ .3*radial_var(np.arctan2(y,x)/(2*np.pi))
+        inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
+        z_surf = np.maximum(0, inner) ** (1/exp_z)       
+        return z_surf
+    
+    return func  
+    
+    
 def process_plotter():
-    thick_fun = get_ellipsoid_shaping_function(2200, 1200, .5)
-    
     bed = geo.Bedrock(0,1)
-    sill = geo.DikePlane(strike=45, dip=5, width=300, origin=(0,0,-1000), value=6, thickness_func=thick_fun)
+    sediment_word = Sediment()
+    sediment = sediment_word.generate()
     
-    hist = [bed, sill]
+    hemi = geo.DikeHemispherePushed(
+        origin=(0,0,1500),
+        diam  =2000,
+        height=300,
+        minor_axis_scale=.5,
+        rotation=0,
+        value=5,
+        upper=True,
+        clip=False,
+        z_function=get_hemi_function(wobble_factor=.05),
+    )
+    
+    hist = [bed, sediment_word.generate(), sediment_word.generate(), hemi]
     # Model resolution and boundse
     z = 64
     res = (2 * z, 2 * z, z)
@@ -80,8 +121,11 @@ def process_plotter():
         BOUNDS_Y,
         BOUNDS_Z,
     )  # Bounds imported from generation (geowords file)
-    model = generate_normalized_model(hist, bounds, res)
+    model = geo.GeoModel(bounds=bounds, resolution=res)
+    model.add_history(hist)
+    model.compute_model(normalize=True)
     geovis.categorical_grid_view(model).show()
 
 if __name__ == "__main__":
     single_plotter()
+    

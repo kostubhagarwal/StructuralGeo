@@ -205,8 +205,30 @@ class GeoModel:
         self.X = np.empty((0, 0, 0))
         self.Y = np.empty((0, 0, 0))
         self.Z = np.empty((0, 0, 0))
+        
+    def compute_model(self, normalize=False, low_res=(8, 8, 64), max_iter=10, keep_snapshots=True):
+        """
+        Compute the present day model based on the geological history with an option to normalize the height.
 
-    def compute_model(self, keep_snapshots=True):
+        Parameters:
+            - normalize (boolean) : Whether to auto-normalize the model's height to fit in view field.
+            - low_res (tuple) : The resolution for the preliminary model used for renormalization.
+            - max_iter (int) : Maximum iterations for the renormalization loop.
+            - keep_snapshots (boolean) : Whether to keep snapshots of the mesh during computation.
+
+        Returns:
+            - None
+        """
+        if normalize:
+            normed_history = self._get_lowres_normalized_history(low_res=low_res, max_iter=max_iter)
+            self.clear_history()
+            self.add_history(normed_history)
+
+        # Run the actual model computation (whether normalized or not)
+        self._apply_history_computation(keep_snapshots)
+                
+
+    def _apply_history_computation(self, keep_snapshots=True):
         """Compute the present day model based on the geological history
 
         Snapshots:
@@ -410,6 +432,33 @@ class GeoModel:
         )
         self.extra_points = all_bars.shape[0]
         return self.extra_points
+    
+    def _get_lowres_normalized_history(self, low_res=(8, 8, 64), max_iter=10):
+        """Normalize the model to a new maximum height through iterative correction.
+        """
+        # Step 1: Generate a low-resolution model to estimate renormalization
+        temp_model = GeoModel(self.bounds, resolution=low_res)
+        temp_model.add_history(self.history)
+        temp_model.compute_model(keep_snapshots=False)  # Run without snapshots for efficiency
+
+        # Step 2: Normalize the temporary model's height to 10% filled height through iterative correction
+        new_max = temp_model.get_target_normalization(target_max=0.1)
+        model_max = temp_model.bounds[2][1] # Get the maximum height of the model
+
+        while True and max_iter > 0:
+            observed_max = temp_model.renormalize_height(new_max=new_max)
+            max_iter -= 1
+            if observed_max < model_max:
+                break
+
+        # Step 3: Rerun normalization to reach randomized height fill near auto value
+        for _ in range(3):
+            temp_model.renormalize_height(auto=True)
+            
+        # Step 4: Return the normalized history to be re-run at full resolution    
+        normed_history = temp_model.history
+        
+        return normed_history
 
     def fill_nans(self, value=EMPTY_VALUE):
         assert self.data is not None, "Data array is empty."
@@ -425,6 +474,9 @@ class GeoModel:
             - new_max (float): The new maximum height for the model.
             - auto (boolean): Automatically select a new maximum height based on the model's current height.
             - recompute: Recompute the model after renormalization.
+            
+        Returns:
+            - The current maximum height of the model.
         """
         assert self.data is not None, "Data array is empty."
         # Find the highest point

@@ -30,17 +30,15 @@ class GeoWord:
     The `GeoWord` class forms the foundation for constructing tree-like histories of geological processes. 
     Each instance represents a node in this structure, which can either branch into further `GeoWord` events 
     or terminate with one or more defined `GeoProcess` instances.
+    
+    
+    Parameters
+    ----------
+    seed : Optional[int]
+        An optional seed for the random number generator, ensuring reproducibility.
     """
 
     def __init__(self, seed: int =None):
-        """
-        Initializes a GeoWord instance with a history bucket and random number generator.
-
-        Parameters
-        ----------
-        seed : Optional[int]
-            An optional seed for the random number generator, ensuring reproducibility.
-        """
         self.hist = []
         self.rng = np.random.default_rng(seed)
 

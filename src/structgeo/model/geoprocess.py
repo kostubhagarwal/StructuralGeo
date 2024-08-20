@@ -702,7 +702,7 @@ class DikeHemispherePushed(CompoundProcess):
         value=0.0,
         z_function=None,
     ):
-        deposition = DikeHemisphere(
+        self.deposition = DikeHemisphere(
             diam=diam,
             height=height,
             origin=origin,
@@ -713,7 +713,7 @@ class DikeHemispherePushed(CompoundProcess):
             clip=clip,
             z_function=z_function,
         )
-        transformation = PushHemisphere(
+        self.transformation = PushHemisphere(
             diam=diam,
             height=height,
             origin=origin,
@@ -721,7 +721,7 @@ class DikeHemispherePushed(CompoundProcess):
             rotation=rotation,
             upper=upper,
         )
-        self.history = [transformation, deposition]
+        self.history = [self.transformation, self.deposition]
 
     def __str__(self):
         origin_str = ", ".join(f"{coord:.1f}" for coord in self.deposition.origin)

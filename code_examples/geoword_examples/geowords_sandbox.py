@@ -17,7 +17,6 @@ def main():
     sampling_summary()             # <-- Summary of using GeoWords
     experimenting_with_geowords()  # <-- Editing GeoWords
     clocking_geoword_generation()  # <-- Performance Check
-    pass
 
 
 def direct_model_generation_demo():
@@ -37,7 +36,7 @@ def direct_model_generation_demo():
     # We can inspect each one to get an idea of what they do
     for geoword in geosentence:
         print(f"Generating Sample from {geoword.__class__.__name__}")
-        print(geoword.generate())
+        print(geoword.generate()) # GeoProcess classes generated mostly have descriptive __str__ methods
         print("\n")
 
     # Now we can chain them together to form a history
@@ -55,11 +54,8 @@ def direct_model_generation_demo():
     visualize_model_demo(model)
 
     # There is an issue to be addressed, the model is not filled in well.
-    # An automatic normalization scheme has been implemented to address this
-    # in the generation module.
-    model = generate_normalized_model(
-        hist=history, bounds=(BOUNDS_X, BOUNDS_Y, BOUNDS_Z), resolution=(128, 128, 64)
-    )
+    # An automatic normalization scheme has been implemented to address this.    
+    model.compute_model(normalize=True)
     visualize_model_demo(model)
 
     # There is also a visualization to show categorical chunks of the model
@@ -133,9 +129,10 @@ def geo_sentence_batch_sampling():
         - n_samples (int): The number of samples to generate and plot. Plotter defaults to square grid layout.
     """
     # A helper object to sample geosentences is provided in the plotting module:
+    # Some very general events can be found in categorical_events.py in the generation module
     geosentence = [
-        InfiniteSedimentMarkov(),
-        FourierFold(),
+        BaseStrata(),
+        Fold(),
         SingleDikeWarped(),
         CoarseRepeatSediment(),
     ]
@@ -157,10 +154,10 @@ def sampling_summary():
 
     # 3. GeoWords can be chained together in a list:
     geosentence = [
-        InfiniteSedimentUniform(),
-        SimpleFold(),
+        BaseStrata(),
+        Fold(),
         SingleDikeWarped(),
-        CoarseRepeatSediment(),
+        Sediment(),
     ]
 
     # 4. The sentence can be sampled into a concrete history:
@@ -169,37 +166,28 @@ def sampling_summary():
     history = generate_history(geosentence)
 
     # 5. The history is added to a model and computed with height normalization to generate raw data:
-    bounds = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z)
-    res = (128, 128, 64)
-    model = generate_normalized_model(
-        hist=history,
-        bounds=(BOUNDS_X, BOUNDS_Y, BOUNDS_Z),  # Defined from in geowords.py
-        resolution=(128, 128, 64),
-    )
+    model = get_empty_model(64)
+    model.add_history(history)
+    model.compute_model(normalize=True)
 
     # 6. Various visualization options are available in plot module:
     geovis.volview(model, show_bounds=True).show()
 
     # 7. Optionally a batch sampling can be done directly on a geosentence with keyboard commands:
-    geovis.GeoWordPlotter(geosentence, bounds, res, n_samples=16)
+    geovis.GeoWordPlotter(geosentence, model.bounds, model.resolution, n_samples=16)
 
 
 def clocking_geoword_generation():
     """Demonstration of timing the generation of a geomodel."""
     # List of geological words to generate
     sentence = [InfiniteSedimentMarkov(), CoarseRepeatSediment(), SingleDikeWarped()]
-    # Model resolution and bounds
-    z = 128
-    res = (2 * z, 2 * z, z)
-    bounds = (
-        BOUNDS_X,
-        BOUNDS_Y,
-        BOUNDS_Z,
-    )  # Bounds imported from generation (geowords file)
 
     hist = generate_history(sentence)
+    model = get_empty_model(128)
+    model.add_history(hist)
+
     start = clock.time()
-    model = generate_normalized_model(hist, bounds, res)
+    model.compute_model(normalize=True)
     finish = clock.time()
     print(f"Model computed in {finish-start:.2f} seconds.")
 
