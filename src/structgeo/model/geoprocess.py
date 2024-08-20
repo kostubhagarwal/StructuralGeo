@@ -615,6 +615,7 @@ class PushHemisphere(Transformation):
         minor_axis_scale=1.0,
         rotation=0.0,
         upper=True,
+        z_function=None
     ):
         self.origin = origin
         self.diam = diam
@@ -622,6 +623,7 @@ class PushHemisphere(Transformation):
         self.minor_scale = minor_axis_scale
         self.rotation = rotation
         self.upper = upper
+        self.z_function = self.default_z_function if z_function is None else z_function
 
     def __str__(self):
         if isinstance(self.origin, DeferredParameter):
@@ -633,49 +635,63 @@ class PushHemisphere(Transformation):
             f"PushHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}."
         )
+        
+    def default_z_function(self, x, y):
+        """Default z function: elliptical hemisphere."""
+        r=1
+        inner = r**2 - x**2 - y**2
+        z_surf = np.sqrt(np.maximum(0, inner))        
+        return z_surf
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
-        # Translate points to origin coordinate frame (bottom center of the sill)
+        # Step 1: Translate points to origin coordinate frame (bottom center of the sill)
         v0 = xyz - self.origin
-        # Rotate the points in the xy plane of the lenticle formation ccw
+        # Step 2: Rotate the points in the xy plane of the lenticle formation ccw
         R = rotate([0, 0, 1], np.deg2rad(self.rotation))
         v0 = v0 @ R.T
 
         x, y, z = v0[:, 0], v0[:, 1], v0[:, 2]
 
-        # Apply scaling transforms to form a uniform hemisphere
+        # Step 3: Apply scaling transforms to normalize all directions to 1
         x /= self.minor_scale
         x /= self.diam / 2.0
         y /= self.diam / 2.0
         z /= self.height
 
+        # Step 4: Calculate radial and rho distances of all points in xyz' local coords
         r = np.sqrt(x**2 + y**2 + z**2)
         rho = np.sqrt(x**2 + y**2)
-        # Calculate normalized unit vectors pointing away from origin
         xyz_prime = np.column_stack((x, y, z))
+        
+        # Step 5: Use projected unit vector onto z as basis of deflection
         norms = np.linalg.norm(xyz_prime, axis=1)
         unit_vectors = xyz_prime / norms[:, np.newaxis]
         z_proj = unit_vectors[:, 2]
 
+        # Apply to outer points first
+        z_surf = self.z_function(x, y)
         # far points are full deflected vertically by height projection
         if self.upper:
-            mask = (r >= 1.0) & (z >= 0)
+            outside = z > z_surf
+            mask = outside & (z > 0)
         else:
-            mask = (r >= 1.0) & (z <= 0)
+            outside = z < -z_surf
+            mask = outside & (z < 0)
 
         scaling = np.ones(z.shape)
         scaling = 1 / (1 + np.exp(8 * (rho - 1)))
         # also scale by distance away from origin
         scaling *= 1 / (r + 1e-6) ** 1.5
-        z[mask] -= scaling[mask] * z_proj[mask]
+        z[mask] -= scaling[mask] * z_proj[mask] * (1-np.exp(-10*np.abs(z[mask]))) 
 
         # inside points interpolate towards origin
+        inside = ~outside
         if self.upper:
-            mask = (r < 1.0) & (z >= 0)
+            mask = inside & (z > 0)
         else:
-            mask = (r < 1.0) & (z <= 0)
-        z[mask] = z[mask] - r[mask] * z_proj[mask]
+            mask = inside & (z < 0)
+        z[mask] -= r[mask] * z_proj[mask] * (1-np.exp(-10*np.abs(z[mask]))) 
 
         # invert back to original space
         xyz_prime = np.column_stack((x, y, z))
@@ -720,6 +736,7 @@ class DikeHemispherePushed(CompoundProcess):
             minor_axis_scale=minor_axis_scale,
             rotation=rotation,
             upper=upper,
+            z_function=z_function,
         )
         self.history = [self.transformation, self.deposition]
 
@@ -801,7 +818,7 @@ class DikePlug(Deposition):
             # Format the tuple to limit decimal points
             origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
-            f"DikePlug: origin ({origin_str}), conic_scaling {self.conic_scaling:.1f}, "
+            f"DikePlug: origin ({origin_str}), diameter {self.diameter:.1f}, "
             f"rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
 
@@ -989,9 +1006,11 @@ class Tilt(Transformation):
         # Convert radians back to degrees for more intuitive understanding
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
-        origin_str = ", ".join(
-            f"{coord:.1f}" for coord in self.origin
-        )  # Format each coordinate component
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
         return (
             f"Tilt: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°,"

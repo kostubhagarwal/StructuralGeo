@@ -71,19 +71,12 @@ class GeoWordPlotter:
     def update_samples(self, use_cache=False):
         """Update and plot the samples with the current view mode."""
         if not use_cache or not self.models_cache:
-            # # Generate new models if cache is empty or use_cache is False
-            # self.models_cache = [
-            #     generate_normalized_model(
-            #         generate_history(self.sentence), self.bounds, self.res
-            #     )
-            #     for _ in range(self.n_samples)
-            # ]
             
             for _ in range(self.n_samples):
                 hist = generate_history(self.sentence)
                 model = geo.GeoModel(bounds=self.bounds, resolution=self.res)
                 model.add_history(hist)
-                model.compute_model(normalize=True)                
+                model.compute_model(normalize=True, keep_snapshots=False)                
                 self.models_cache.append(model)
 
         self.plotter.clear_actors()

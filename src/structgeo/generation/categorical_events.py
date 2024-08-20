@@ -141,3 +141,41 @@ class Erosion(EventTemplateClass):
             self.Event(name="Wave",   p=0.4, processes=[WaveUnconformity()]),
         ]
         super().__init__(cases=cases, rng=rng)
+        
+class Dike(EventTemplateClass):
+    """
+    A sampling regime for intrusion events.
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Dike",       p=0.4, processes=[DikePlaneWord()]),
+            self.Event(name="WarpedDike", p=0.4, processes=[SingleDikeWarped()]),
+            self.Event(name="DikeGroup",  p=0.2, processes=[DikeGroup()]),
+        ]
+        super().__init__(cases=cases, rng=rng)
+        
+class Sills(EventTemplateClass):
+    """
+    A sampling regime for sill events.
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="SillSingle", p=0.2, processes=[SillWord()]),
+            # Note the sill system places a large sediment deposit at same time for embedding
+            self.Event(name="SillSystem", p=0.8, processes=[SillSystem()]),
+        ]
+        super().__init__(cases=cases, rng=rng)
+        
+class Pluton(EventTemplateClass):
+    """
+    A sampling regime for volcanic events.
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Laccolith", p=0.4, processes=[Laccolith()]),
+            self.Event(name="Lopolith",  p=0.6, processes=[Lopolith()]),
+        ]
+        super().__init__(cases=cases, rng=rng)

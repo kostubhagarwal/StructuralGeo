@@ -1,5 +1,6 @@
 import numpy as np
 
+from structgeo.model import GeoModel
 from structgeo.model.geoprocess import DeferredParameter, Transformation, Sedimentation
 
 class BacktrackedPoint(DeferredParameter):
@@ -101,7 +102,7 @@ class SedimentConditionedOrigin(DeferredParameter):
         The index of the boundary to retrieve from the previous sedimentation process.
     """
     
-    def __init__(self, x, y, boundary_index):
+    def __init__(self, x: float, y:float, boundary_index:int):
         super().__init__()
         self.x = x
         self.y = y
@@ -110,7 +111,7 @@ class SedimentConditionedOrigin(DeferredParameter):
     def __str__(self):
         return f"({self.x}, {self.y}, boundary {self.boundary_index})"
         
-    def compute_func(self, xyz, data, history, index):
+    def compute_func(self, xyz, data, history, index) -> tuple:
         # Find the most recent sedimentation process
         for event in reversed(history[:index]):
             if isinstance(event, Sedimentation):
@@ -128,5 +129,74 @@ class SedimentConditionedOrigin(DeferredParameter):
         
         # Set the z coordinate to the boundary value
         return (self.x, self.y, boundary)
+    
+class MeshFloorOffsetPoint(DeferredParameter):
+    """
+    A deferred parameter the specifies a point offset from the lowest point of the mesh in that time frame
+    
+    Parameters
+    ----------
+    x : float
+        The x coordinate of the point.
+    y : float
+        The y coordinate of the point.
+    offset : float
+        The z offset from the lowest point of the mesh.
+    """
+    
+    def __init__(self, x: float, y: float, offset: float):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.offset = offset
+        
+    def __str__(self):
+        return f"({self.x}, {self.y}, offset {self.offset})"
+    
+    def compute_func(self, xyz, data, history, index) -> tuple:
+        valid_z = xyz[:, 2]
+        valid_z = GeoModel.remove_height_tracking_bars(valid_z)
+        # Need to
+        valid_z = valid_z[~np.isnan(valid_z)]
+        # Get the lowest z value of the mesh
+        lowest_z = np.min(valid_z)
+        
+        # Set the z coordinate to the lowest value plus the offset
+        return (self.x, self.y, lowest_z + self.offset)
+    
+class TopDownOffset(DeferredParameter):
+    """
+    A deferred parameter the specifies a point offset from the highest rock point of the mesh in that time frame
+    
+    Parameters
+    ----------
+    x : float
+        The x coordinate of the point.
+    y : float
+        The y coordinate of the point.
+    offset : float
+        The z offset from the highest rock point.
+    """
+    
+    def __init__(self, x: float, y: float, offset: float):
+        super().__init__()
+        self.x = x
+        self.y = y
+        self.offset = offset
+        
+    def __str__(self):
+        return f"({self.x}, {self.y}, offset {self.offset})"
+    
+    def compute_func(self, xyz, data, history, index) -> tuple:
+        valid_z = xyz[:, 2]
+        valid_z = valid_z[~np.isnan(data)]
+        # Get the lowest z value of the mesh
+        top_z = np.max(valid_z)
+        print(f"Top z: {top_z}")
+        
+        # Set the z coordinate to the lowest value plus the offset
+        return (self.x, self.y, top_z + self.offset)
+    
+    
     
     

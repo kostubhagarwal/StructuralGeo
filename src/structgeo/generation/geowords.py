@@ -792,67 +792,6 @@ class HemiPushedWord(GeoWord):
         self.rock_val = None
         self.origin = None
                 
-    def get_hemi_function(wobble_factor=.1):
-        """ Organic looking warping of hemispheres
-        
-        The hemisphere coordinates xyz have been normalized to a simple hemisphere case where
-        1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
-        """
-        
-        wf = wobble_factor
-        fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
-        x_var = fourier.generate()
-        y_var = fourier.generate()
-        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_z = np.random.uniform(1.5,3)
-        radial_var = fourier.generate()
-        
-        def func(x,y):
-            x = (1+ wf*x_var(x))*x
-            y = (1+ wf*y_var(y))*y
-            r = 1+ .3*radial_var(np.arctan2(y,x)/(2*np.pi))
-            inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
-            z_surf = np.maximum(0, inner) ** (1/exp_z)       
-            return z_surf
-        
-        return func   
-    
-    def build_history(self):
-        NotImplementedError()
-        
-        
-class Laccolith(HemiPushedWord):
-    """ A large laccolith intrusion with a pushed hemisphere shape above"""
-                
-    def build_history(self):
-        self.rock_val = self.rng.choice(INTRUSION_VALS)
-        self.place_origin()
-        
-        diam = self.rng.uniform(2000, 20000)
-        height = self.rng.uniform(1e-2,1e-1)*diam
-        
-        hemi_params = {
-            "origin": self.origin,
-            "diam": diam,
-            "height": height,
-            "minor_axis_scale": self.rng.uniform(.1,1),
-            "rotation": self.rng.uniform(0, 360),
-            "value": self.rock_val,
-            "upper": True,
-            "clip": True,
-            "z_function": self.get_hemi_function(wobble_factor=.1),
-        }
-        hemi = geo.DikeHemispherePushed(**hemi_params)
-        self.add_process(hemi)
-     
-    def place_origin(self):
-        # select an origin that is in the bottom half of the model window
-        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
-        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(0, Z_RANGE / 2)
-        self.origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
-        
     def get_hemi_function(self, wobble_factor=.1):
         """ Organic looking warping of hemispheres
         
@@ -872,12 +811,155 @@ class Laccolith(HemiPushedWord):
         def func(x,y):
             x = (1+ wf*x_var(x))*x
             y = (1+ wf*y_var(y))*y
-            r = 1+ .3*radial_var(np.arctan2(y,x)/(2*np.pi))
+            r = 1+ .1*radial_var(np.arctan2(y,x)/(2*np.pi))
             inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
             z_surf = np.maximum(0, inner) ** (1/exp_z)       
             return z_surf
         
-        return func 
+        return func   
+    
+    def build_history(self):
+        NotImplementedError()
+        
+        
+class Laccolith(HemiPushedWord): # Validated
+    """ A large laccolith intrusion with a pushed hemisphere shape above"""
+                
+    def build_history(self):
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
+        
+        diam = self.rng.uniform(1000, 15000)
+        height = (.5*self.rng.uniform(5e-2,2e-1) + .5*self.rng.uniform(500,2000))
+        self.place_origin(height) # places the self.origin parameter
+        rotation = self.rng.uniform(0, 360)
+        min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
+        
+        hemi_params = {
+            "origin": self.origin,
+            "diam": diam,
+            "height": height,
+            "minor_axis_scale": min_axis_scale,
+            "rotation": rotation,
+            "value": self.rock_val,
+            "upper": True,
+            "clip": True,
+            "z_function": self.get_hemi_function(wobble_factor=.1),
+        }
+        hemi = geo.DikeHemispherePushed(**hemi_params)
+        
+        # Add a plug underneath as a feeder dike
+        col_params = {
+            "origin": self.origin,
+            "diam": diam/5 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)),
+            "minor_axis_scale": min_axis_scale/2 * self.rng.normal(1,.1),
+            "rotation": rotation + self.rng.normal(0,10),
+            "value": self.rock_val,
+            "clip": True,
+        }
+        col = geo.DikeColumn(**col_params)
+        
+        self.fold = self.get_fold()
+        fold_out = copy.deepcopy(self.fold)
+        fold_out.amplitude *= -1
+        
+        self.add_process([self.fold, hemi, col, fold_out])
+     
+    def place_origin(self, height):
+        #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
+        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
+        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
+        z_offset = self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        self.origin = geo.MeshFloorOffsetPoint(x=x_loc, y=y_loc, offset=z_offset)
+            # Wrap the dike in a change of coordinates via fold
+
+
+    def get_fold(self):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(.5, 2) * X_RANGE
+        amp = self.rng.uniform(100,200)
+        fold_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(90,5),  # weighted average of dike dip and 90
+            "rake": self.rng.normal(90, 5),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold   
+            
+    
+        
+class Lopolith(HemiPushedWord):
+    """ Lopoliths are larger than laccoliths and have a pushed hemisphere downward """
+    
+    def build_history(self):
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
+        
+        diam = self.rng.uniform(5000, 30000)
+        height = (.3*self.rng.uniform(1e-2,1e-1) + .7*self.rng.uniform(200,800))
+        self.place_origin(height) # places the self.origin parameter
+        rotation = self.rng.uniform(0, 360)
+        min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
+        
+        hemi_params = {
+            "origin": self.origin,
+            "diam": diam,
+            "height": height,
+            "minor_axis_scale": min_axis_scale,
+            "rotation": rotation,
+            "value": self.rock_val,
+            "upper": False,
+            "clip": True,
+            "z_function": self.get_hemi_function(wobble_factor=.1),
+        }
+        hemi = geo.DikeHemispherePushed(**hemi_params)
+        
+        # Add a plug underneath as a feeder dike
+        col_params = {
+            "origin": self.origin,
+            "diam": diam/10 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)),
+            "minor_axis_scale": min_axis_scale/2 * self.rng.normal(1,.1),
+            "rotation": rotation + self.rng.normal(0,10),
+            "value": self.rock_val,
+            "clip": True,
+        }
+        col = geo.DikeColumn(**col_params)
+        
+        self.fold = self.get_fold()
+        fold_out = copy.deepcopy(self.fold)
+        fold_out.amplitude *= -1
+        
+        self.add_process([ self.fold, hemi, col, fold_out])
+     
+    def place_origin(self, height):
+        #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
+        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
+        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
+        z_offset = self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        self.origin = geo.MeshFloorOffsetPoint(x=x_loc, y=y_loc, offset=z_offset)
+            # Wrap the dike in a change of coordinates via fold
+
+
+    def get_fold(self):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(.5, 2) * X_RANGE
+        amp = self.rng.uniform(100,200)
+        fold_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(90,10),  # weighted average of dike dip and 90
+            "rake": self.rng.normal(90, 3),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold   
+
         
         
                

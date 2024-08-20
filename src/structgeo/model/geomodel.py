@@ -27,9 +27,7 @@ class GeoModel:
     """
 
     EMPTY_VALUE = -1
-    EXT_FACTOR = (
-        3  # Factor of z-range to extend above and below model for depth measurement
-    )
+    EXT_FACTOR = 3  # Factor of z-range to extend above and below model for depth measurement
     RES = 128  # Resolution of the extension bars (number of points computed above and below model)
 
     def __init__(
@@ -45,6 +43,7 @@ class GeoModel:
         self.bounds = bounds
         self.resolution = resolution
         self.height_tracking = height_tracking
+        self.extra_points = 0  # Number of extra points currently added for height tracking
         self.history = []
         # modified history with deferred parameters resolved (post-computation)
         self.processed_history = []
@@ -60,6 +59,7 @@ class GeoModel:
         self.data_snapshots = np.empty(
             (0, 0)
         )  # 2D array to store intermediate data states
+
         self._validate_model_params()
 
     def _validate_model_params(self):
@@ -401,7 +401,7 @@ class GeoModel:
             dtype=self.dtype,
         )
 
-        # Generate bars from center
+        # Generate bars from center, adds 2 bars
         bars = [
             np.column_stack(
                 (np.full(self.RES, x_center), np.full(self.RES, y_center), z_lower)
@@ -411,7 +411,7 @@ class GeoModel:
             ),
         ]
 
-        # Generate bars from corners
+        # Generate bars from corners, adds 8 bars
         for (x, y) in corners:
             lower_bar = np.column_stack(
                 (np.full(self.RES, x), np.full(self.RES, y), z_lower)
@@ -433,6 +433,12 @@ class GeoModel:
         self.extra_points = all_bars.shape[0]
         return self.extra_points
     
+    @classmethod
+    def remove_height_tracking_bars(self, array):
+        """ Helper that should reflect the implementation above, allowing external removal"""
+        n_points = 2*5*GeoModel.RES # 2 center bars and 8 corner bars
+        return array[:-n_points]
+        
     def _get_lowres_normalized_history(self, low_res=(8, 8, 64), max_iter=10):
         """Normalize the model to a new maximum height through iterative correction.
         """
@@ -457,6 +463,8 @@ class GeoModel:
             
         # Step 4: Return the normalized history to be re-run at full resolution    
         normed_history = temp_model.history
+        
+        del(temp_model)  # Clean up the temporary model
         
         return normed_history
 
