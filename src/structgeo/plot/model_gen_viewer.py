@@ -1,4 +1,7 @@
-""" A Jupyter notebook based single-model review tool/object for GeoWord models. 
+""" A Jupyter notebook based single-model review tool/object for GeoWord models.
+
+Requirements:
+A Jupyter notebook environment with the PyVista and ipywidgets packages installed.
 
 Parameters:
 - generate_model_func: function that returns a new model instance

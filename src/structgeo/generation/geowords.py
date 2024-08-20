@@ -830,7 +830,7 @@ class Laccolith(HemiPushedWord): # Validated
         
         diam = self.rng.uniform(1000, 15000)
         height = (.5*self.rng.uniform(5e-2,2e-1) + .5*self.rng.uniform(500,2000))
-        self.place_origin(height) # places the self.origin parameter
+        self.origin = self.get_origin(height) # places the self.origin parameter
         rotation = self.rng.uniform(0, 360)
         min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
         
@@ -864,13 +864,13 @@ class Laccolith(HemiPushedWord): # Validated
         
         self.add_process([self.fold, hemi, col, fold_out])
      
-    def place_origin(self, height):
+    def get_origin(self, height):
         #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_offset = self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
-        self.origin = geo.MeshFloorOffsetPoint(x=x_loc, y=y_loc, offset=z_offset)
-            # Wrap the dike in a change of coordinates via fold
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
+        return origin
 
 
     def get_fold(self):
@@ -878,7 +878,7 @@ class Laccolith(HemiPushedWord): # Validated
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
         period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(100,200)
+        amp = self.rng.uniform(100,300)
         fold_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90,5),  # weighted average of dike dip and 90
@@ -890,8 +890,7 @@ class Laccolith(HemiPushedWord): # Validated
         fold = geo.Fold(**fold_params)
         return fold   
             
-    
-        
+            
 class Lopolith(HemiPushedWord):
     """ Lopoliths are larger than laccoliths and have a pushed hemisphere downward """
     
@@ -900,7 +899,7 @@ class Lopolith(HemiPushedWord):
         
         diam = self.rng.uniform(5000, 30000)
         height = (.3*self.rng.uniform(1e-2,1e-1) + .7*self.rng.uniform(200,800))
-        self.place_origin(height) # places the self.origin parameter
+        self.origin = self.get_origin(height) # places the self.origin parameter
         rotation = self.rng.uniform(0, 360)
         min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
         
@@ -934,13 +933,13 @@ class Lopolith(HemiPushedWord):
         
         self.add_process([ self.fold, hemi, col, fold_out])
      
-    def place_origin(self, height):
+    def get_origin(self, height):
         #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_offset = self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
-        self.origin = geo.MeshFloorOffsetPoint(x=x_loc, y=y_loc, offset=z_offset)
-            # Wrap the dike in a change of coordinates via fold
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
+        return origin
 
 
     def get_fold(self):
@@ -948,7 +947,7 @@ class Lopolith(HemiPushedWord):
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
         period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(100,200)
+        amp = self.rng.uniform(100,300)
         fold_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90,10),  # weighted average of dike dip and 90

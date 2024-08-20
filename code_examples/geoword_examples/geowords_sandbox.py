@@ -21,8 +21,11 @@ def main():
 
 def direct_model_generation_demo():
     """Demonstration of direct model building using GeoProcess class."""
-    # Now chain some geowords together to form a history
-    # Hint: The infinite base-strata use 'Infinite' in their name, the provide a base foundation for the model
+
+    # All GeoWords have a generate() method that returns a packaged snippet of history
+    sample = InfiniteSedimentMarkov().generate()
+    
+    # Hint: The infinite base-strata use 'Infinite' in their name, they provide a base foundation for the model
     geosentence = [
         InfiniteSedimentMarkov(),
         FourierFold(),
@@ -30,14 +33,20 @@ def direct_model_generation_demo():
         CoarseRepeatSediment(),
     ]
 
-    # All GeoWords have a generate() method that returns a packaged snippet of history
-    sample = InfiniteSedimentMarkov().generate()
-
     # We can inspect each one to get an idea of what they do
     for geoword in geosentence:
         print(f"Generating Sample from {geoword.__class__.__name__}")
         print(geoword.generate()) # GeoProcess classes generated mostly have descriptive __str__ methods
         print("\n")
+        
+    # The most general classes are categorical events, which sample from a subset of GeoWords
+    geosentence = [
+        BaseStrata(),
+        Fold(),
+        Dike(),
+        Erosion(),
+        Sediment(),
+    ]
 
     # Now we can chain them together to form a history
     history = [geoword.generate() for geoword in geosentence]

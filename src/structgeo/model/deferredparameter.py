@@ -45,46 +45,6 @@ class BacktrackedPoint(DeferredParameter):
     
         return backtracked_point # Sets the backtracked point as the resolved value  
     
-class LookBackParameter(DeferredParameter):
-    """
-    A deferred parameter that looks back a specified number of processes in the history and
-    retrieves an attribute. If the attribute is a list, it can optionally return an element at a specified index.
-    
-    Parameters
-    ----------
-    steps_back : int
-        The number of steps to look back in the history.
-    attr_name : str
-        The name of the attribute to retrieve from the targeted process.
-    list_index : int, optional
-        The index to retrieve from the list attribute. If not provided, the entire attribute is returned.
-    """
-    def __init__(self, steps_back, attr_name, list_index=None):
-        super().__init__()
-        self.steps_back = steps_back
-        self.attr_name = attr_name
-        self.list_index = list_index
-
-    def compute_func(self, xyz, data, history, index):
-        target_index = index - self.steps_back
-        if target_index < 0:
-            raise IndexError("LookBackParameter: Cannot look back beyond the start of the history.")
-        
-        target_process = history[target_index]
-        if not hasattr(target_process, self.attr_name):
-            raise AttributeError(f"LookBackParameter: The attribute '{self.attr_name}' does not exist in the target process.")
-        
-        attr_value = getattr(target_process, self.attr_name)
-        
-        # If list_index is provided, return the specific element
-        if self.list_index is not None:
-            if isinstance(attr_value, list):
-                return attr_value[self.list_index]
-            else:
-                raise TypeError(f"LookBackParameter: The attribute '{self.attr_name}' is not a list, so cannot index it.")
-        
-        # Otherwise, return the whole attribute
-        return attr_value
     
 class SedimentConditionedOrigin(DeferredParameter):
     """
@@ -130,73 +90,45 @@ class SedimentConditionedOrigin(DeferredParameter):
         # Set the z coordinate to the boundary value
         return (self.x, self.y, boundary)
     
-class MeshFloorOffsetPoint(DeferredParameter):
+class LookBackParameter(DeferredParameter):
     """
-    A deferred parameter the specifies a point offset from the lowest point of the mesh in that time frame
+    A deferred parameter that looks back a specified number of processes in the history and
+    retrieves an attribute. If the attribute is a list, it can optionally return an element at a specified index.
     
     Parameters
     ----------
-    x : float
-        The x coordinate of the point.
-    y : float
-        The y coordinate of the point.
-    offset : float
-        The z offset from the lowest point of the mesh.
+    steps_back : int
+        The number of steps to look back in the history.
+    attr_name : str
+        The name of the attribute to retrieve from the targeted process.
+    list_index : int, optional
+        The index to retrieve from the list attribute. If not provided, the entire attribute is returned.
     """
-    
-    def __init__(self, x: float, y: float, offset: float):
+    def __init__(self, steps_back, attr_name, list_index=None):
         super().__init__()
-        self.x = x
-        self.y = y
-        self.offset = offset
+        self.steps_back = steps_back
+        self.attr_name = attr_name
+        self.list_index = list_index
+
+    def compute_func(self, xyz, data, history, index):
+        target_index = index - self.steps_back
+        if target_index < 0:
+            raise IndexError("LookBackParameter: Cannot look back beyond the start of the history.")
         
-    def __str__(self):
-        return f"({self.x}, {self.y}, offset {self.offset})"
-    
-    def compute_func(self, xyz, data, history, index) -> tuple:
-        valid_z = xyz[:, 2]
-        valid_z = GeoModel.remove_height_tracking_bars(valid_z)
-        # Need to
-        valid_z = valid_z[~np.isnan(valid_z)]
-        # Get the lowest z value of the mesh
-        lowest_z = np.min(valid_z)
+        target_process = history[target_index]
+        if not hasattr(target_process, self.attr_name):
+            raise AttributeError(f"LookBackParameter: The attribute '{self.attr_name}' does not exist in the target process.")
         
-        # Set the z coordinate to the lowest value plus the offset
-        return (self.x, self.y, lowest_z + self.offset)
-    
-class TopDownOffset(DeferredParameter):
-    """
-    A deferred parameter the specifies a point offset from the highest rock point of the mesh in that time frame
-    
-    Parameters
-    ----------
-    x : float
-        The x coordinate of the point.
-    y : float
-        The y coordinate of the point.
-    offset : float
-        The z offset from the highest rock point.
-    """
-    
-    def __init__(self, x: float, y: float, offset: float):
-        super().__init__()
-        self.x = x
-        self.y = y
-        self.offset = offset
+        attr_value = getattr(target_process, self.attr_name)
         
-    def __str__(self):
-        return f"({self.x}, {self.y}, offset {self.offset})"
-    
-    def compute_func(self, xyz, data, history, index) -> tuple:
-        valid_z = xyz[:, 2]
-        valid_z = valid_z[~np.isnan(data)]
-        # Get the lowest z value of the mesh
-        top_z = np.max(valid_z)
-        print(f"Top z: {top_z}")
+        # If list_index is provided, return the specific element
+        if self.list_index is not None:
+            if isinstance(attr_value, list):
+                return attr_value[self.list_index]
+            else:
+                raise TypeError(f"LookBackParameter: The attribute '{self.attr_name}' is not a list, so cannot index it.")
         
-        # Set the z coordinate to the lowest value plus the offset
-        return (self.x, self.y, top_z + self.offset)
-    
-    
+        # Otherwise, return the whole attribute
+        return attr_value  
     
     

@@ -433,11 +433,6 @@ class GeoModel:
         self.extra_points = all_bars.shape[0]
         return self.extra_points
     
-    @classmethod
-    def remove_height_tracking_bars(self, array):
-        """ Helper that should reflect the implementation above, allowing external removal"""
-        n_points = 2*5*GeoModel.RES # 2 center bars and 8 corner bars
-        return array[:-n_points]
         
     def _get_lowres_normalized_history(self, low_res=(8, 8, 64), max_iter=10):
         """Normalize the model to a new maximum height through iterative correction.
