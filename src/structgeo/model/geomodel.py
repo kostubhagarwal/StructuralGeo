@@ -563,15 +563,15 @@ class GeoModel:
         self.data = data.flatten()
 
     @classmethod
-    def from_tensor(cls, bounds, data_tensor):
+    def from_tensor(cls, data_tensor, bounds = None):
         """
         Special initializer to create a GeoModel instance from a 1xXxYxZ or XxYxZ shaped data tensor.
         Initializes history to [NullProcess()] and sets up the mesh and data to allow GeoModel
         plotting tools and processing methods to be used.
 
         Args:
-            bounds (tuple): The bounds of the model.
             data_tensor (torch.Tensor): The data tensor to initialize the model with; can be 1xXxYxZ or XxYxZ tensor.
+            bounds (tuple, optional): The bounds of the model in measurement units, if not provided defaults to the resolution of the tensor.
 
         Returns:
             GeoModel: An instance of the GeoModel class.
@@ -587,6 +587,8 @@ class GeoModel:
 
         # Extract resolution from tensor shape
         resolution = data_tensor.shape  # Already a tuple of three dimensions
+        if bounds is None:
+            bounds = (0, resolution[0]), (0, resolution[1]), (0, resolution[2])
 
         instance = cls(bounds, resolution)
         # Setup mesh for X, Y, Z coordinates and flattened xyz array
@@ -595,7 +597,7 @@ class GeoModel:
         instance.data = (
             data_tensor.detach().numpy().flatten()
         )  # Convert tensor to numpy array and flatten it
-        # Set history to [NullProcess()]
+        # Set history to [NullProcess()] signifying no known geological history
         instance.history = [NullProcess()]
 
         return instance

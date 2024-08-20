@@ -122,18 +122,21 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
     """A large sediment accumulation to simulate deep sedimentary layers."""
 
     def build_history(self):
+        # Choose a large depth that runs beyond the model's height extension bars
         depth = (Z_RANGE) * (
             3 * geo.GeoModel.EXT_FACTOR
         )  # Pseudo-infinite using a large depth
-        sediment_base = -depth
+        sediment_base = -depth # The sediment base is located so that it builds back up to z=0
         
+        # calculate layer thicknesses to fill the depth of sediment
         vals = []
         thicks = []
         while depth > 0:
             vals.append(self.rng.choice(SEDIMENT_VALS))
             thicks.append(self.rng.uniform(50, Z_RANGE / 4))
             depth -= thicks[-1]
-            
+        
+        # Bedrock ensures full coverage underneath sediment in all cases    
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
@@ -148,6 +151,7 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
         sediment_base = -depth
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
+        # Explanation can be found in the helper class
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
             rng=self.rng,
@@ -156,9 +160,10 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
             dirichlet_alpha=self.rng.uniform(0.6, 1.2),
             anticorrelation_factor=0.05,
         )
-
+        
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
 
+        # Bedrock ensures full coverage underneath sediment in all cases  
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
@@ -171,8 +176,9 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     """
 
     def build_history(self):
+        # Choose a large depth that runs beyond the model's height extension bars below and above
         depth = (Z_RANGE) * (6 * geo.GeoModel.EXT_FACTOR)
-        sediment_base = -.5*depth
+        sediment_base = -.5*depth # In this case we overbuild up and down to allow for tilting and eroding after
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -194,8 +200,10 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
             dip=self.rng.normal(0, 10),
             origin=geo.BacktrackedPoint((0, 0, 0)),
         )
+        # Shave off all excess sediment above the tilt operation
         unc = geo.UnconformityBase(BOUNDS_Z[0])
         
+        # Bedrock ensures full coverage underneath sediment in all cases
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process([sed, tilt, unc])
 
@@ -207,6 +215,7 @@ class FineRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
+            # This helper calculates the required parameters to hit target mean and std for distro
             *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
         )
 
@@ -231,6 +240,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
     def build_history(self):
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
+            # This helper calculates the required parameters to hit target mean and std for distro
             *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
         )
 
@@ -348,6 +358,7 @@ class MicroNoise(GeoWord):  # Validated
     """A thin layer of noise to simulate small-scale sedimentary features."""
 
     def build_history(self):
+        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
         wave_generator = FourierWaveGenerator(
             num_harmonics=self.rng.integers(4, 6), smoothness=0.8
         )
@@ -431,6 +442,7 @@ class FourierFold(GeoWord):  # Validated
 
         period = self.rng.uniform(3000, 15000)
         mu_smoothness = 1.4 - 0.1 * period / 10000
+        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 6),
             smoothness=np.random.normal(mu_smoothness, 0.2),
@@ -453,11 +465,21 @@ class FourierFold(GeoWord):  # Validated
 """ Dike Events"""
 
 
-class DikePlaneWord(GeoWord):  # Validated
-    def thickness_function(self, x, y):
-        return np.exp(-np.abs(y) / 1000)
+class DikePlaneWord(GeoWord):  # Validated   
+    """ Base GeoWord for forming dikes with organic thickness variations. """
     
     def get_organic_thickness_func(self, length, wobble_factor=1.):
+        """ 
+        Thickness provides a multiplier for the thickness of the dike using the
+        local x-y coordinates of the dike plane itself. A zero multiplier closes the dike.
+        
+        The x and y directions have thickness variations introduced using low pass fourier waves.
+        The exponent controls the sharpness of the tapering at the ends of the dike.
+        
+        The taper factor is and elliptical cross section shape 1 = t^2 - (y/L)^exponent 
+        
+        The wobble and elliptical tapering are multiplicatively combined to shape the dike.
+        """
         # Make a fourier based modifier for both x and y
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
@@ -491,7 +513,9 @@ class DikePlaneWord(GeoWord):  # Validated
         self.add_process(dike)
 
 
-class SingleDikeWarped(DikePlaneWord): #
+class SingleDikeWarped(DikePlaneWord): #Validated
+    """ A single dike with organic thickness and a more serpentine length """
+    
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip = self.rng.normal(90, 10)
@@ -532,6 +556,8 @@ class SingleDikeWarped(DikePlaneWord): #
         return fold
     
 class DikeGroup(DikePlaneWord):  # Validated
+    """ A correlated grouping of vertical dikes with varying thicknesses and lengths. """
+    
     def build_history(self):
         num_dikes = self.rng.integers(2, 6)              
         
@@ -555,7 +581,7 @@ class DikeGroup(DikePlaneWord):  # Validated
             dike_params = {
                 "strike": strike,
                 "dip": dip, 
-                "origin": geo.BacktrackedPoint(origin),
+                "origin": geo.BacktrackedPoint(origin), # Backtracked point ensures dike is in view
                 "width": width,
                 "value": value,
                 "thickness_func": self.get_organic_thickness_func(length, wobble_factor=.5)
@@ -702,6 +728,7 @@ class SillSystem(SillWord):
         return origins
         
     def link_sills(self, origins):
+        """ Link the sills with some connector between their origins """
         # Pair up the sill origins with dike cols, add a final endpoint to the mantle           
         end_points = origins[1:]
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
@@ -758,7 +785,7 @@ class SillSystem(SillWord):
 
 """ Intrusion Events: Laccolith and Lopolith"""
 class HemiPushedWord(GeoWord):
-    """ A generic pushed hemisphere word """
+    """ A generic pushed hemisphere word providing an organic warping function """
         
     def __init__(self, seed=None):
         super().__init__(seed)
@@ -790,10 +817,13 @@ class HemiPushedWord(GeoWord):
             return z_surf
         
         return func   
+    
+    def build_history(self):
+        NotImplementedError()
         
         
 class Laccolith(HemiPushedWord):
-    """ A generic pushed hemisphere word """
+    """ A large laccolith intrusion with a pushed hemisphere shape above"""
                 
     def build_history(self):
         self.rock_val = self.rng.choice(INTRUSION_VALS)

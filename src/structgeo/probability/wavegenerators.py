@@ -17,9 +17,22 @@ class FourierWaveGenerator:
     """
     Generates a Fourier series function with given number of harmonics.
     Amplitudes decrease with frequency and the total RMS is normalized
-    to sqrt(2)/2 like a normal sine wave.
-
-    This is a required hack to make the random generated functions pickleable.
+    to sqrt(2)/2 like a normal sine wave. This gives an overall appearance
+    of amplitude of roughly 1 like a regular sine wave.
+    
+    Parameters
+    ----------
+    num_harmonics : int
+        Number of harmonics to generate.
+    frequency : float, optional
+        Frequency of the wave, by default 1.
+    smoothness : float, optional
+        Exponent of the amplitude decay with frequency, by default 1.0.
+        
+    Methods
+    -------
+    generate()
+        Generate a random Fourier series function f(n_cycles: np.ndarray) -> np.ndarray
     """
 
     def __init__(self, num_harmonics, frequency=1, smoothness=1.0):
