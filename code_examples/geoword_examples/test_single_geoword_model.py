@@ -12,7 +12,7 @@ from structgeo.generation import *
 
 def single_plotter():
     # List of geological words to generate
-    sentence = [BaseStrata(),Laccolith()]
+    sentence = [BaseStrata(), BlobWord()]
     # Model resolution and boundse
     z = 64
     res = (2 * z, 2 * z, z)
@@ -38,34 +38,44 @@ def single_plotter():
 def process_plotter():
     bed = geo.Bedrock(0,1)
     sediment_word = Sediment()
-    sediment = sediment_word.generate()
+
+    blg = geo.BallListGenerator(
+            step_range=(20,40),
+            rad_range = (20,40),
+            goo_range = (.5,.7)
+        )
+    ball_list = blg.generate(n_balls = 10, origin =(0,0,0),variance=.7)
+    # ball_list += blg.generate(n_balls = 10, origin =(1000,1000,1000),variance=.1)
+    blob = geo.MetaBall(
+            balls=ball_list, 
+            threshold = 1, 
+            value=9,
+            reference_origin= geo.BacktrackedPoint((0,0,0)),
+            clip=True,
+            fast_filter=True
+            )
     
-    hemi = geo.DikeHemispherePushed(
-        origin=(0,0,1500),
-        diam  =2000,
-        height=300,
-        minor_axis_scale=.5,
-        rotation=0,
-        value=5,
-        upper=True,
-        clip=False,
-        z_function=get_hemi_function(wobble_factor=.05),
-    )
-    
-    hist = [bed, sediment_word.generate(), sediment_word.generate(), hemi]
+    hist = [bed, sediment_word.generate(), sediment_word.generate(), blob]
     # Model resolution and boundse
-    z = 64
+    z = 128
     res = (2 * z, 2 * z, z)
     bounds = (
         BOUNDS_X,
         BOUNDS_Y,
         BOUNDS_Z,
     )  # Bounds imported from generation (geowords file)
+    
+    res = (64,64,64)
+    bounds = (tuple([x/4 for x in BOUNDS_X]), tuple([x/4 for x in BOUNDS_Y]), tuple([x/2 for x in BOUNDS_Z]))
+    
     model = geo.GeoModel(bounds=bounds, resolution=res)
     model.add_history(hist)
+    start = clock.time()
     model.compute_model(normalize=True)
+    stop = clock.time()
+    print(f"Model computed in {stop-start:.2f} seconds.")
     geovis.categorical_grid_view(model).show()
 
 if __name__ == "__main__":
-    single_plotter()
+    process_plotter()
     

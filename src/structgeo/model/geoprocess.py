@@ -791,6 +791,10 @@ class DikePlug(Deposition):
         shape (float): Shape parameter for the plug, controls the exponent of the rotated polynomial
         value (int): Value of rock-type to assign to the plug
         clip (bool): Clip the plug to not protrude above the surface
+        
+    Shaping function:
+    
+    
     """
 
     def __init__(
@@ -913,6 +917,7 @@ class DikePlugPushed(CompoundProcess):
             rotation=rotation,
             shape=shape,
             value=value,
+            clip=False,
         )
         transformation = PushPlug(
             diam=diam,
@@ -931,7 +936,7 @@ class DikePlugPushed(CompoundProcess):
             # Format the tuple to limit decimal points
             origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
-            f"DikePlugPushed: origin ({origin_str}), diam {self.diam:.1f}, minor scaling {self.minor_scale:.1f}, "
+            f"DikePlugPushed: origin ({origin_str}), diam {self.diameter:.1f}, minor scaling {self.minor_scale:.1f}, "
             f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}."
         )
 

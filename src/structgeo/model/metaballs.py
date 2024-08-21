@@ -11,15 +11,13 @@ class Ball:
     """A single metaball object with a given origin, radius, and goo factor. Base building class for Blob"""
 
     def __init__(self, origin, radius, goo_factor=1.0):
-        self.origin = np.array(origin)
+        self.origin = np.array(origin).astype(np.float16) # Keep precision low for performance
         self.radius = radius
         self.goo_factor = goo_factor
 
-    def potential(self, points, reference_origin=(0,0,0)): # Pass a reference offset to the ball
+    def potential(self, points): # Pass a reference offset to the ball
         # Calculate the distance from the points to the ball's origin
-        distances = np.sum((points - self.origin - reference_origin) ** 2, axis=1)
-        # Avoid division by zero
-        distances = np.maximum(distances, 1e-6)
+        distances = np.sum((points - self.origin) ** 2, axis=1)
         return (self.radius / distances) ** self.goo_factor
 
 
@@ -38,14 +36,13 @@ class BallListGenerator:
         self.rad_range = rad_range
         self.goo_range = goo_range
 
-    def generate(self, n_balls, origin, direction_weight=0.2, variance=5):
+    def generate(self, n_balls, origin, variance=1):
         """Generate a list of n Ball objects with random parameters starting at seeded origin.
 
         Parameters:
         ----------------
         n_balls (int): Number of Ball objects to generate.
         origin (tuple): Starting point for the first Ball.
-        direction_weight (float): Weight for the previous direction in determining the new direction. Should be between 0 and 1.
         variance (float): Variance for the Gaussian distribution to add randomness to the direction.
         """
         balls = []
@@ -60,8 +57,8 @@ class BallListGenerator:
             balls.append(Ball(current_point, radius, goo_factor))
 
             # Generate the next point with a Gaussian bias towards the previous direction
-            random_variation = np.random.normal(scale=variance, size=3)
-            direction = direction_weight * previous_direction + random_variation
+            random_variation = np.random.normal(loc=0, scale=1, size=3)
+            direction = previous_direction + variance*random_variation
             direction /= np.linalg.norm(direction)
             step = direction * np.random.uniform(*self.step_range)
             current_point += step
@@ -70,25 +67,39 @@ class BallListGenerator:
             previous_direction = direction
 
         return balls
-
-
+    
+    
 class MetaBall(Deposition):
     """
     A Blob geological process that modifies points within a specified potential range.
+    
+    A fast filter option is provided for cases where all the balls are close to eachother.
+    The filter will prune the mesh based on distance vs a factor of the average radius of the balls
+    to speed up computation.
 
-    Parameters:
-    ----------------
-    balls (list): A list of Ball objects defining the metaball.
-    threshold (float): The threshold potential below which points will be relabeled.
-    value (int): The value to assign to points below the threshold potential.
+    Parameters
+    ----------
+    balls : List[Ball]
+        A list of Ball objects defining the metaball.
+    threshold : float
+        The threshold potential below which points will be relabeled.
+    value : int
+        The value to assign to points below the threshold potential.
+    reference_origin : tuple, optional
+        The reference origin to normalize the points, by default (0, 0, 0).
+    clip : bool, optional
+        If True, ensures that data points that are NaN will not be overwritten, by default True.
+    fast_filter : bool, optional
+        If True, apply a mesh filter to prune the points and speed up computation, by default False.
     """
 
-    def __init__(self, balls: List[Ball], threshold, value, reference_origin=(0,0,0), clip=True):
+    def __init__(self, balls: List[Ball], threshold, value, reference_origin=(0,0,0), clip=True, fast_filter=False):
         self.balls = balls
         self.threshold = threshold
         self.value = value
         self.reference_origin = reference_origin
         self.clip = clip
+        self.fast_filter = fast_filter # A flag to use pruning on the mesh to speed up computation
 
     def __str__(self):
         return (
@@ -97,16 +108,49 @@ class MetaBall(Deposition):
         )
 
     def run(self, xyz, data):
-        # Compute the net potential for each point in xyz
-        potentials = np.zeros(xyz.shape[0])
+        # Change of coordinates to the reference origin
+        xyz_p = (xyz - self.reference_origin).astype(np.float32)  # Normalize points to the reference origin
+        
+        # Conditional filtering of the mesh, if enabled the mesh is crudely pruned to eliminate far away points
+        if self.fast_filter:
+            mask = self.mesh_filter(xyz_p)
+            data_filtered = data[mask]
+            xyz_filtered = xyz_p[mask]
+        else:
+            # No filtering-- mask is all true
+            mask = np.ones(xyz_p.shape[0], dtype=bool)
+            data_filtered = data
+            xyz_filtered = xyz_p
+        
+        # Compute the net potential for each point in mesh
+        # Vectorizing this computation did not yield a significant speedup, left as for-loop
+        potentials = np.zeros(xyz_filtered.shape[0])
         for ball in self.balls:
-            potentials += ball.potential(xyz, self.reference_origin)
+            potentials += ball.potential(xyz_filtered)
 
-        # Apply the threshold and relabel points
-        mask = potentials > self.threshold
+        # Filter which points will be included in the blob and clip if necessary
+        pot_mask = potentials > self.threshold
         if self.clip:
-            mask = mask & (data != np.nan)
-        data[mask] = self.value
+            pot_mask = pot_mask & (~np.isnan(data_filtered))
+        
+        # Apply the transformation to the filtered data
+        data_filtered[pot_mask] = self.value
+        
+        # Apply the changes to the original data
+        data[mask] = data_filtered        
 
-        # Return the unchanged xyz and the potentially modified data
         return xyz, data
+    
+    def mesh_filter(self, xyz_p):
+        """ Perform a crude filter on the mesh to reduce number of points to compute potential"""
+        
+        ball_origins = np.array([b.origin for b in self.balls])
+        avg_origin = np.mean(ball_origins, axis=0).astype(np.float32)
+        ball_radii = np.array([b.radius for b in self.balls])
+        avg_radius = np.mean(ball_radii).astype(np.float32)
+        n_balls = len(self.balls)
+        
+        # Calculate the distance from the points to the ball's origins
+        dist = np.linalg.norm(xyz_p - avg_origin, axis=1)
+        mask = dist < np.sum(ball_radii)*.5
+        return mask
