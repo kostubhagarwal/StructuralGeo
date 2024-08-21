@@ -40,6 +40,7 @@ class GeoWord:
 
     def __init__(self, seed: int =None):
         self.hist = []
+        self.seed = seed
         self.rng = np.random.default_rng(seed)
 
     def build_history(self):
@@ -201,7 +202,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
             origin=geo.BacktrackedPoint((0, 0, 0)),
         )
         # Shave off all excess sediment above the tilt operation
-        unc = geo.UnconformityBase(BOUNDS_Z[0])
+        unc = geo.UnconformityBase(1000)
         
         # Bedrock ensures full coverage underneath sediment in all cases
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
@@ -783,7 +784,7 @@ class SillSystem(SillWord):
         
         return selected_indices
 
-""" Intrusion Events: Laccolith and Lopolith"""
+""" Intrusion Events: Plutons"""
 class HemiPushedWord(GeoWord):
     """ A generic pushed hemisphere word providing an organic warping function """
         
@@ -958,6 +959,157 @@ class Lopolith(HemiPushedWord):
         }
         fold = geo.Fold(**fold_params)
         return fold   
+
+#TODO: The push factor is not working at this scale, for now using regular plug    
+class VolcanicPlug(GeoWord):
+    """ A volcanic plug that is resistant to erosion """
+    
+    def build_history(self):
+        rock_val = self.rng.choice(INTRUSION_VALS)
+        
+        diam = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)) * 200
+        origin = geo.BacktrackedPoint(rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, (BOUNDS_Z[0], BOUNDS_Z[1]*.8))))
+        rotation = self.rng.uniform(0, 360)
+        min_axis_scale = rv.beta_min_max(2, 2, .2, 1.8)
+        
+        plug_params = {
+            "origin": origin,
+            "diam": diam,
+            "minor_axis_scale": min_axis_scale,
+            "rotation": rotation,
+            "shape": 5,
+            # "push" : 1000,
+            "value": rock_val,
+            "clip": False,
+        }
+        hemi = geo.DikePlug(**plug_params)
+        
+        self.add_process(hemi)
+        
+class BlobWord(GeoWord):
+    """ A single blob intrusion event
+    
+    Parameters
+    ----------
+    seed : int
+        The seed value for the random number generator.
+    origin : tuple (optional)
+        The origin point of the blob intrusion. Randomly generated if not provided.
+    value : float (optional)
+        The rock value of the blob intrusion. Randomly selected if not provided.
+    """
+    
+    def __init__(self, seed=None, origin=None, value=None):
+        super().__init__(seed)
+        self.rock_val = value
+        self.origin = origin
+        self.blg = None
+    
+    def build_history(self):
+        # Pick a rock value from the blob types
+        if self.rock_val is None:
+            self.rock_val = self.rng.choice(BLOB_VALS) 
+        if self.origin is None:
+            x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
+            y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
+            z_loc = self.rng.uniform(BOUNDS_Z[0], BOUNDS_Z[1])
+            self.origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
+        
+
+        # Ball list generator is a markov chain maker for point distribution
+        n_balls = int(rv.beta_min_max(2,2,8,60))
+        scale_factor = .5**((n_balls-30)/40) # Heuristically tuned to adjust radius             
+        blg = geo.BallListGenerator(
+                step_range=(10,25),
+                rad_range = (10*scale_factor,20*scale_factor), # Correlate the radius with the number of balls
+                goo_range = (.5,.7)
+            )   
+        
+        # Blobs look better with multi-branched approach
+        itr = self.rng.integers(2,4)
+        for _ in range(itr):
+
+            
+            ball_list = blg.generate(n_balls = n_balls, origin =(0,0,0),variance=.8)
+            blob = geo.MetaBall(
+                    balls=ball_list, 
+                    threshold = 1, 
+                    value=self.rock_val,
+                    reference_origin= self.origin,
+                    clip=True,
+                    fast_filter=True
+                    )
+            self.add_process(blob)
+
+class BlobCluster(GeoWord):
+    """ A clustering of blob intrusions with correlated centers and rock values 
+    
+    This word generates a correlated set of blob clusters mimicking ore body deposits.
+    """
+    
+    def build_history(self):
+        n_blobs =  self.rng.integers(2, 7)    
+        blob_val = self.rng.choice(BLOB_VALS)    
+        starting_origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
+        
+        # generate a set of origins for the blobs using a markov stepping algorithm
+        origin_list = [starting_origin]
+        for _ in range(n_blobs-1):
+            origin_list.append(self.get_next_origin(starting_origin))
+        
+        # Process each sampled point into a blob    
+        for origin in origin_list:
+            origin = geo.BacktrackedPoint(origin)
+            blob_word = BlobWord(seed=self.seed, origin=origin, value=blob_val)
+            sub_hist = blob_word.generate()
+            self.add_process(sub_hist)
+            
+    def get_next_origin(self, origin):
+        """
+        Determine the next origin point for the next blob using a correlated random walk.
+        
+        Parameters
+        ----------
+        origin : geo.BacktrackedPoint
+            The current origin point from which the next origin is determined.
+
+        Returns
+        -------
+        geo.BacktrackedPoint
+            The next origin point, adjusted to stay within the model bounds.
+        """
+        MAX_ATTEMPTS = 5
+        # Define the step size distribution (mean step size can be adjusted)
+        step_min = 100
+        step_max = 1000
+        
+        for _ in range(MAX_ATTEMPTS):
+            step_size = rv.beta_min_max(1.3, 2, step_min, step_max)
+            # Random direction on the unit sphere
+            direction = self.rng.normal(size=3)
+            direction /= np.linalg.norm(direction) 
+            # Calculate the new origin
+            new_origin = np.array(origin) + step_size * direction
+            
+            # Check if the new origin is within the model bounds
+            x,y,z = new_origin
+            if BOUNDS_X[0] < x < BOUNDS_X[1] and BOUNDS_Y[0] < y < BOUNDS_Y[1] and BOUNDS_Z[0] < z < BOUNDS_Z[1]:
+                break
+            else:
+                continue
+        
+        # Either max iterations reached or an in bounds was found, return the new origin
+        return tuple(new_origin)
+
+    
+        
+            
+        
+         
+        
+        
+            
+        
 
         
         

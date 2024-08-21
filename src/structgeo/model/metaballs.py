@@ -114,14 +114,17 @@ class MetaBall(Deposition):
         # Conditional filtering of the mesh, if enabled the mesh is crudely pruned to eliminate far away points
         if self.fast_filter:
             mask = self.mesh_filter(xyz_p)
-            data_filtered = data[mask]
-            xyz_filtered = xyz_p[mask]
         else:
             # No filtering-- mask is all true
             mask = np.ones(xyz_p.shape[0], dtype=bool)
-            data_filtered = data
-            xyz_filtered = xyz_p
         
+        if self.clip:
+            mask = mask & (~np.isnan(data))
+        
+        # apply mask to reduce the computation size  
+        data_filtered = data[mask] 
+        xyz_filtered = xyz_p[mask]
+
         # Compute the net potential for each point in mesh
         # Vectorizing this computation did not yield a significant speedup, left as for-loop
         potentials = np.zeros(xyz_filtered.shape[0])
@@ -130,8 +133,6 @@ class MetaBall(Deposition):
 
         # Filter which points will be included in the blob and clip if necessary
         pot_mask = potentials > self.threshold
-        if self.clip:
-            pot_mask = pot_mask & (~np.isnan(data_filtered))
         
         # Apply the transformation to the filtered data
         data_filtered[pot_mask] = self.value

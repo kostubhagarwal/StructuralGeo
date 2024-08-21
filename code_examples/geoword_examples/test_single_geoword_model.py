@@ -12,9 +12,9 @@ from structgeo.generation import *
 
 def single_plotter():
     # List of geological words to generate
-    sentence = [BaseStrata(), BlobWord()]
+    sentence = [BaseStrata(), BlobCluster()]
     # Model resolution and boundse
-    z = 64
+    z = 128
     res = (2 * z, 2 * z, z)
     bounds = (
         BOUNDS_X,
@@ -38,24 +38,13 @@ def single_plotter():
 def process_plotter():
     bed = geo.Bedrock(0,1)
     sediment_word = Sediment()
+    hist = [bed, sediment_word.generate(), sediment_word.generate()]
 
-    blg = geo.BallListGenerator(
-            step_range=(20,40),
-            rad_range = (20,40),
-            goo_range = (.5,.7)
-        )
-    ball_list = blg.generate(n_balls = 10, origin =(0,0,0),variance=.7)
-    # ball_list += blg.generate(n_balls = 10, origin =(1000,1000,1000),variance=.1)
-    blob = geo.MetaBall(
-            balls=ball_list, 
-            threshold = 1, 
-            value=9,
-            reference_origin= geo.BacktrackedPoint((0,0,0)),
-            clip=True,
-            fast_filter=True
-            )
+    blob = BlobWord(origin=geo.BacktrackedPoint((0,0,0))).generate()
+    print(blob)
+    hist.append(blob)
     
-    hist = [bed, sediment_word.generate(), sediment_word.generate(), blob]
+    
     # Model resolution and boundse
     z = 128
     res = (2 * z, 2 * z, z)
@@ -77,5 +66,5 @@ def process_plotter():
     geovis.categorical_grid_view(model).show()
 
 if __name__ == "__main__":
-    process_plotter()
+    single_plotter()
     
