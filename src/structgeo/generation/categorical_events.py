@@ -56,6 +56,7 @@ class EventTemplateClass(GeoWord):
         """
         Randomly select a case based on probabilities and build the corresponding history.
         """
+        assert self.probabilities is not None, "Probabilities are not defined."
         selected_index = self.rng.choice(len(self.cases), p=self.probabilities)
         self.selected_case = self.cases[selected_index]
         self.add_process(self.selected_case.processes)
@@ -100,7 +101,7 @@ class EventTemplateClass(GeoWord):
             )
             probabilities = np.array(probabilities) / sum_prob
 
-        self.probabilities
+        self.probabilities = probabilities
 
 
 class BaseStrata(EventTemplateClass):

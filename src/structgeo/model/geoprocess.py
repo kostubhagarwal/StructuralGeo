@@ -509,7 +509,7 @@ class DikeColumn(Deposition):
             )
         return (
             f"DikeColumn: origin ({origin_str}), diam {self.diam:.1f}, depth {self.depth:.1f}, "
-            f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
+            f"minor_axis_scale {self.minor_scale:.2f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
         )
 
     def run(self, xyz, data):

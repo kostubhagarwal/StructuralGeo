@@ -1,6 +1,6 @@
 import numpy as np
 
-from structgeo.model import GeoModel
+from structgeo.model.geomodel import GeoModel
 from structgeo.model.geoprocess import DeferredParameter, Sedimentation, Transformation
 
 

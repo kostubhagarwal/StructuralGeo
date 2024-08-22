@@ -815,7 +815,7 @@ class SillSystem(SillWord):
                 "origin": start,
                 "end_point": end,
                 "diam": self.rng.uniform(300, 800),
-                "minor_axis_scale": self.rng.uniform(0.1, 0.4),
+                "minor_axis_scale": self.rng.uniform(0.15, 0.4),
                 "rotation": self.rng.uniform(0, 360),
                 "value": self.rock_val,
                 "clip": True,
