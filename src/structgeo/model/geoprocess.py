@@ -676,7 +676,7 @@ class PushHemisphere(Transformation):
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
-        # Step 1: Translate points to origin coordinate frame (bottom center of the sill)
+        # Step 1: Translate points to origin coordinate frame (bottom center of hemisphere)
         v0 = xyz - self.origin
         # Step 2: Rotate the points in the xy plane of the lenticle formation ccw
         R = rotate([0, 0, 1], np.deg2rad(self.rotation))
@@ -711,8 +711,9 @@ class PushHemisphere(Transformation):
             mask = outside & (z < 0)
 
         scaling = np.ones(z.shape)
+        # Scale based on lateral distance from origin
         scaling = 1 / (1 + np.exp(8 * (rho - 1)))
-        # also scale by distance away from origin
+        # also scale by overall distance away from origin
         scaling *= 1 / (r + 1e-6) ** 1.5
         z[mask] -= scaling[mask] * z_proj[mask] * (1 - np.exp(-10 * np.abs(z[mask])))
 
@@ -724,12 +725,8 @@ class PushHemisphere(Transformation):
             mask = inside & (z < 0)
         z[mask] -= r[mask] * z_proj[mask] * (1 - np.exp(-10 * np.abs(z[mask])))
 
-        # invert back to original space
-        xyz_prime = np.column_stack((x, y, z))
-        xyz_prime[:, 2] *= self.height
-        xyz_prime[:, 0:1] *= self.diam / 2.0
-        xyz_prime[:, 0] *= self.minor_scale
-        xyz = xyz_prime @ R + self.origin
+        # Update the original xyz z-coordinates without inverting back the rest
+        xyz[:, 2] = z * self.height + self.origin[2]
 
         return xyz, data
 

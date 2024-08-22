@@ -12,7 +12,7 @@ class Ball:
 
     def __init__(self, origin, radius, goo_factor=1.0):
         self.origin = np.array(origin).astype(
-            np.float16
+            np.float32
         )  # Keep precision low for performance
         self.radius = radius
         self.goo_factor = goo_factor

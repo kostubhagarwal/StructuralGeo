@@ -13,14 +13,10 @@ def single_plotter():
     # List of geological words to generate
     sentence = [
         BaseStrata(),
-        Sills(),
-        Pluton(),
-        Fault(),
-        Erosion(),
-        Fold(),
-        Dike(),
-        Sediment(),
+        DikeGroup(),
         BlobCluster(),
+        Erosion(),
+        Pluton()
     ]
     # Model resolution and boundse
     z = 128
@@ -30,7 +26,7 @@ def single_plotter():
         BOUNDS_Y,
         BOUNDS_Z,
     )  # Bounds imported from generation (geowords file)e
-
+ 
     hist = generate_history(sentence)
     start = clock.time()
     model = geo.GeoModel(bounds=bounds, resolution=res)
@@ -38,10 +34,11 @@ def single_plotter():
     model.compute_model(normalize=True)
     finish = clock.time()
     print(f"Model computed in {finish-start:.2f} seconds.")
+    print(model.get_history_string())
 
     # geovis.transformationview(model).show()e
     geovis.categorical_grid_view(model).show()
-    print(model.get_history_string())
+
 
 
 def process_plotter():

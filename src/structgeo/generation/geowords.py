@@ -739,7 +739,7 @@ class SillWord(GeoWord):
             "dip": self.rng.normal(0, 0.1),  # Bias towards horizontal sills
             "origin": origin,
             "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
+            "value": self.rng.choice(DIKE_VALS),
             "thickness_func": self.get_ellipsoid_shaping_function(
                 x_length, y_length, wobble_factor=0.0
             ),
@@ -762,7 +762,7 @@ class SillSystem(SillWord):
         # Build a sediment substrate to sill into
         self.build_sedimentation()
         self.add_process(self.sediment)
-        self.rock_val = self.rng.choice(INTRUSION_VALS)
+        self.rock_val = self.rng.choice(DIKE_VALS)
         indices = self.get_layer_indices()
         origins = self.build_sills(indices)
         self.link_sills(origins)
