@@ -1285,7 +1285,7 @@ class FaultHorstGraben(FaultWord):
         origin = rv.random_point_in_box(MAX_BOUNDS)
 
         # Throw distance between faults, correlated with amplitude
-        distance = rv.beta_min_max(2, 2, 2, 8) * amplitude * (1+ dip_offset/5)
+        distance = rv.beta_min_max(2, 2, 2, 8) * amplitude * (1 + dip_offset / 5)
 
         fault1_params = {
             "strike": strike,
@@ -1333,7 +1333,8 @@ class FaultHorstGraben(FaultWord):
 
         new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
         return new_origin
-    
+
+
 class FaultStrikeSlip(FaultWord):
     """A classic strike-slip faulting event"""
 
@@ -1342,9 +1343,9 @@ class FaultStrikeSlip(FaultWord):
         dip_offset = np.abs(self.rng.normal(0, 5))
         rake = self.rng.normal(0, 5)
         direction = self.rng.choice([-1, 1])
-        # Similar to lognormal distribution in shape, 
+        # Similar to lognormal distribution in shape,
         # most values within 30-200m, but outliers up to 2km
-        amplitude = rv.beta_min_max(1.5, 17, 30, 2000)*direction
+        amplitude = rv.beta_min_max(1.5, 17, 30, 2000) * direction
         origin = rv.random_point_in_box(MAX_BOUNDS)
 
         fault_params = {
@@ -1356,11 +1357,11 @@ class FaultStrikeSlip(FaultWord):
         }
 
         fault = geo.Fault(**fault_params)
-        
+
         # Handle folded warping
         fold_amp = self.rng.uniform(0, 30)
         fold_in = self.get_fold(strike, fold_amp)
         fold_out = copy.deepcopy(fold_in)
         fold_out.amplitude *= -1
 
-        self.add_process([fold_in, fault ,fold_out])
+        self.add_process([fold_in, fault, fold_out])
