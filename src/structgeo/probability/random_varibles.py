@@ -4,25 +4,26 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 
 
+def _parse_bounds(bounds):
+    """Ensure bounds are in the form of ((x_min, x_max), (y_min, y_max), (z_min, z_max))."""
+    if isinstance(bounds[0], tuple):
+        assert len(bounds) == 3 and all(
+            len(b) == 2 for b in bounds
+        ), "Invalid bounds format."
+    elif isinstance(bounds, tuple) and len(bounds) == 2:
+        bounds = (bounds, bounds, bounds)
+    else:
+        raise ValueError(
+            "Bounds must be a tuple of 2 values or a tuple of three 2-tuples."
+        )
+    return bounds
+
+
 def random_point_in_ellipsoid(bounds):
     """Generate a random point within an ellipsoid defined by bounds on x, y, z axes."""
 
-    def parse_bounds(bounds):
-        """Ensure bounds are in the form of ((x_min, x_max), (y_min, y_max), (z_min, z_max))."""
-        if isinstance(bounds[0], tuple):
-            assert len(bounds) == 3 and all(
-                len(b) == 2 for b in bounds
-            ), "Invalid bounds format."
-        elif isinstance(bounds, tuple) and len(bounds) == 2:
-            bounds = (bounds, bounds, bounds)
-        else:
-            raise ValueError(
-                "Bounds must be a tuple of 2 values or a tuple of three 2-tuples."
-            )
-        return bounds
-
     # Parse bounds and calculate centers and radii
-    (x_min, x_max), (y_min, y_max), (z_min, z_max) = parse_bounds(bounds)
+    (x_min, x_max), (y_min, y_max), (z_min, z_max) = _parse_bounds(bounds)
     x_radius = (x_max - x_min) / 2
     y_radius = (y_max - y_min) / 2
     z_radius = (z_max - z_min) / 2
@@ -42,6 +43,14 @@ def random_point_in_ellipsoid(bounds):
     z = r * np.cos(theta) * z_radius + center_z
 
     return x, y, z
+
+
+def random_point_in_box(bounds):
+    (x_min, x_max), (y_min, y_max), (z_min, z_max) = _parse_bounds(bounds)
+    x_loc = np.random.uniform(x_min, x_max)
+    y_loc = np.random.uniform(y_min, y_max)
+    z_loc = np.random.uniform(z_min, z_max)
+    return x_loc, y_loc, z_loc
 
 
 def random_angle_degrees():

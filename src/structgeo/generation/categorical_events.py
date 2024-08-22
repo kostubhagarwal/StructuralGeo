@@ -3,26 +3,31 @@
 import warnings
 from collections import namedtuple
 from typing import List
-from .geowords import *
-from structgeo.model import GeoProcess
+
 import numpy as np
+
+from structgeo.model import GeoProcess
+
+from .geowords import *
+
 
 class EventTemplateClass(GeoWord):
     """
     A special case of GeoWord that selects from a set of cases with associated probabilities.
     This class is used to form more general categories of events that can be sampled from.
-    
-    The cases include a name, probability of selection, and a sequence of actions (GeoWords or GeoProcesses) 
+
+    The cases include a name, probability of selection, and a sequence of actions (GeoWords or GeoProcesses)
     that form the history of the event.
-    
+
     Parameters
     ----------
     cases : List[Case]
         A list of Cases to sample from. Each case should have a name, probability, and a sequence of GeoWords or GeoProcesses.
     rng : Optional[np.random.Generator]
-        A random number generator for reproducibility.   
+        A random number generator for reproducibility.
     """
-    Event = namedtuple('Case', ['name', 'p', 'processes'])
+
+    Event = namedtuple("Case", ["name", "p", "processes"])
 
     def __init__(self, cases: List[Event], rng=None):
         super().__init__(rng)
@@ -61,17 +66,25 @@ class EventTemplateClass(GeoWord):
         """
         if not self.cases:
             raise ValueError("Cases are not defined.")
-        
+
         for case in self.cases:
             if not isinstance(case.name, str):
-                raise TypeError(f"Case name must be a string, got {type(case.name).__name__}.")
+                raise TypeError(
+                    f"Case name must be a string, got {type(case.name).__name__}."
+                )
             if not isinstance(case.p, float):
-                raise TypeError(f"Case probability must be a float, got {type(case.p).__name__}.")
+                raise TypeError(
+                    f"Case probability must be a float, got {type(case.p).__name__}."
+                )
             if not isinstance(case.processes, list):
-                raise TypeError(f"Case processes must be a list, got {type(case.processes).__name__}.")
+                raise TypeError(
+                    f"Case processes must be a list, got {type(case.processes).__name__}."
+                )
             for process in case.processes:
                 if not isinstance(process, (GeoProcess, GeoWord)):
-                    raise TypeError(f"Processes must be instances of GeoProcess or GeoWord, got {type(process).__name__}.")
+                    raise TypeError(
+                        f"Processes must be instances of GeoProcess or GeoWord, got {type(process).__name__}."
+                    )
 
     def _validate_probabilities(self):
         """
@@ -79,15 +92,16 @@ class EventTemplateClass(GeoWord):
         """
         probabilities = np.array([case.p for case in self.cases])
         sum_prob = np.sum(probabilities)
-        
+
         if not np.isclose(sum_prob, 1.0):
             warnings.warn(
                 f"Probabilities sum to {sum_prob:.4f}, but should sum to 1.0. Renormalizing.",
-                RuntimeWarning
+                RuntimeWarning,
             )
             probabilities = np.array(probabilities) / sum_prob
-        
-        self.probabilities 
+
+        self.probabilities
+
 
 class BaseStrata(EventTemplateClass):
     """
@@ -96,12 +110,23 @@ class BaseStrata(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Basement",                p=0.4, processes=[InfiniteBasement(), Sediment()]),
-            self.Event(name="Sediment: Markov",        p=0.2, processes=[InfiniteSedimentMarkov()]),
-            self.Event(name="Sediment: Uniform",       p=0.2, processes=[InfiniteSedimentUniform()]),
-            self.Event(name="Sediment: Tilted Markov", p=0.2, processes=[InfiniteSedimentTilted()])
+            self.Event(
+                name="Basement", p=0.4, processes=[InfiniteBasement(), Sediment()]
+            ),
+            self.Event(
+                name="Sediment: Markov", p=0.2, processes=[InfiniteSedimentMarkov()]
+            ),
+            self.Event(
+                name="Sediment: Uniform", p=0.2, processes=[InfiniteSedimentUniform()]
+            ),
+            self.Event(
+                name="Sediment: Tilted Markov",
+                p=0.2,
+                processes=[InfiniteSedimentTilted()],
+            ),
         ]
         super().__init__(cases=cases, rng=rng)
+
 
 class Sediment(EventTemplateClass):
     """
@@ -110,12 +135,13 @@ class Sediment(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Fine",   p=0.4, processes=[FineRepeatSediment()]),
+            self.Event(name="Fine", p=0.4, processes=[FineRepeatSediment()]),
             self.Event(name="Coarse", p=0.5, processes=[CoarseRepeatSediment()]),
-            self.Event(name="Single", p=0.1, processes=[SingleRandSediment()])
+            self.Event(name="Single", p=0.1, processes=[SingleRandSediment()]),
         ]
         super().__init__(cases=cases, rng=rng)
-        
+
+
 class Fold(EventTemplateClass):
     """
     A sampling regime for folding events.
@@ -123,11 +149,12 @@ class Fold(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Simple",  p=0.2, processes=[SimpleFold()]),
-            self.Event(name="Shaped",  p=0.3, processes=[ShapedFold()]),
+            self.Event(name="Simple", p=0.2, processes=[SimpleFold()]),
+            self.Event(name="Shaped", p=0.3, processes=[ShapedFold()]),
             self.Event(name="Fourier", p=0.5, processes=[FourierFold()]),
         ]
         super().__init__(cases=cases, rng=rng)
+
 
 class Erosion(EventTemplateClass):
     """
@@ -136,12 +163,13 @@ class Erosion(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Flat",   p=0.2, processes=[FlatUnconformity()]),
+            self.Event(name="Flat", p=0.2, processes=[FlatUnconformity()]),
             self.Event(name="Tilted", p=0.4, processes=[TiltedUnconformity()]),
-            self.Event(name="Wave",   p=0.4, processes=[WaveUnconformity()]),
+            self.Event(name="Wave", p=0.4, processes=[WaveUnconformity()]),
         ]
         super().__init__(cases=cases, rng=rng)
-        
+
+
 class Dike(EventTemplateClass):
     """
     A sampling regime for intrusion events.
@@ -149,12 +177,13 @@ class Dike(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Dike",       p=0.4, processes=[DikePlaneWord()]),
+            self.Event(name="Dike", p=0.4, processes=[DikePlaneWord()]),
             self.Event(name="WarpedDike", p=0.4, processes=[SingleDikeWarped()]),
-            self.Event(name="DikeGroup",  p=0.2, processes=[DikeGroup()]),
+            self.Event(name="DikeGroup", p=0.2, processes=[DikeGroup()]),
         ]
         super().__init__(cases=cases, rng=rng)
-        
+
+
 class Sills(EventTemplateClass):
     """
     A sampling regime for sill events.
@@ -167,7 +196,8 @@ class Sills(EventTemplateClass):
             self.Event(name="SillSystem", p=0.8, processes=[SillSystem()]),
         ]
         super().__init__(cases=cases, rng=rng)
-        
+
+
 class Pluton(EventTemplateClass):
     """
     A sampling regime for volcanic events.
@@ -176,6 +206,32 @@ class Pluton(EventTemplateClass):
     def __init__(self, rng=None):
         cases = [
             self.Event(name="Laccolith", p=0.4, processes=[Laccolith()]),
-            self.Event(name="Lopolith",  p=0.6, processes=[Lopolith()]),
+            self.Event(name="Lopolith", p=0.6, processes=[Lopolith()]),
+        ]
+        super().__init__(cases=cases, rng=rng)
+
+
+class OreDeposit(EventTemplateClass):
+    """
+    A sampling regime for ore deposit events.
+
+    Can be expanded to include more types in the future
+    """
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="BlobCluster", p=1.0, processes=[BlobCluster()]),
+        ]
+        super().__init__(cases=cases, rng=rng)
+
+
+class Fault(EventTemplateClass):
+    """A sampling regime for fault events."""
+
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="FaultNormal", p=0.1, processes=[FaultNormal()]),
+            self.Event(name="FaultReverse", p=0.1, processes=[FaultReverse()]),
+            self.Event(name="FaultHorstGraben", p=0.1, processes=[FaultHorstGraben()]),
         ]
         super().__init__(cases=cases, rng=rng)

@@ -1,8 +1,8 @@
+import copy
 import logging
 import traceback
 
 import numpy as np
-import copy
 
 from .geoprocess import *
 from .util import resample_mesh, rotate, slip_normal_vectors
@@ -27,7 +27,9 @@ class GeoModel:
     """
 
     EMPTY_VALUE = -1
-    EXT_FACTOR = 3  # Factor of z-range to extend above and below model for depth measurement
+    EXT_FACTOR = (
+        3  # Factor of z-range to extend above and below model for depth measurement
+    )
     RES = 128  # Resolution of the extension bars (number of points computed above and below model)
 
     def __init__(
@@ -43,7 +45,9 @@ class GeoModel:
         self.bounds = bounds
         self.resolution = resolution
         self.height_tracking = height_tracking
-        self.extra_points = 0  # Number of extra points currently added for height tracking
+        self.extra_points = (
+            0  # Number of extra points currently added for height tracking
+        )
         self.history = []
         # modified history with deferred parameters resolved (post-computation)
         self.processed_history = []
@@ -182,10 +186,12 @@ class GeoModel:
             return "No geological history to display."
 
         history_str = "Geological History:\n"
-        
+
         # Print from the processed history if available
-        ref_history = self.history if self.processed_history is None else self.processed_history
-        
+        ref_history = (
+            self.history if self.processed_history is None else self.processed_history
+        )
+
         for index, process in enumerate(ref_history):
             history_str += f"{index + 1}: {str(process)}\n"
 
@@ -205,8 +211,10 @@ class GeoModel:
         self.X = np.empty((0, 0, 0))
         self.Y = np.empty((0, 0, 0))
         self.Z = np.empty((0, 0, 0))
-        
-    def compute_model(self, normalize=False, low_res=(8, 8, 64), max_iter=10, keep_snapshots=True):
+
+    def compute_model(
+        self, normalize=False, low_res=(8, 8, 64), max_iter=10, keep_snapshots=True
+    ):
         """
         Compute the present day model based on the geological history with an option to normalize the height.
 
@@ -220,13 +228,14 @@ class GeoModel:
             - None
         """
         if normalize:
-            normed_history = self._get_lowres_normalized_history(low_res=low_res, max_iter=max_iter)
+            normed_history = self._get_lowres_normalized_history(
+                low_res=low_res, max_iter=max_iter
+            )
             self.clear_history()
             self.add_history(normed_history)
 
         # Run the actual model computation (whether normalized or not)
         self._apply_history_computation(keep_snapshots)
-                
 
     def _apply_history_computation(self, keep_snapshots=True):
         """Compute the present day model based on the geological history
@@ -244,15 +253,15 @@ class GeoModel:
         Forward pass:
         The deposition events are applied to the xyz mesh in its intermediate
         transformed state.
-        
+
         Conditional height tracking:
-        If height tracking is enabled, additional points are added to the model so that 
+        If height tracking is enabled, additional points are added to the model so that
         additional low resolution context is known to help with renormalization of model height.
-        
+
         Deferred Parameters:
         The GeoProcess are allowed to use DeferredParameters, they are process parameters that
         are resolved at the time of computation since they depend on the context of the history.
-        For example it could be tracking an origin point backwards through history to get its 
+        For example it could be tracking an origin point backwards through history to get its
         equivalent position in the past. History and index are passed for this purpose.
         """
         if len(self.history) == 0:
@@ -346,11 +355,11 @@ class GeoModel:
             # Apply transformation to the mesh (skipping depositon events that do not alter the mesh)
             if isinstance(event, Transformation):
                 current_xyz, _ = event.apply_process(
-                        xyz=current_xyz, 
-                        data=self.data, 
-                        history=history, # Pass a copy of history for context
-                        index = i        # Pass the index of the event in the history
-                    )
+                    xyz=current_xyz,
+                    data=self.data,
+                    history=history,  # Pass a copy of history for context
+                    index=i,  # Pass the index of the event in the history
+                )
             i -= 1
 
     def _forward_pass(self, history):
@@ -363,22 +372,22 @@ class GeoModel:
                 self.data_snapshots[snapshot_index] = self.data.copy()
             if isinstance(event, Deposition):
                 _, self.data = event.apply_process(
-                        xyz=current_xyz, 
-                        data=self.data, 
-                        history=history, # Pass a copy of history for context
-                        index = i        # Pass the index of the event in the history
-                    )
+                    xyz=current_xyz,
+                    data=self.data,
+                    history=history,  # Pass a copy of history for context
+                    index=i,  # Pass the index of the event in the history
+                )
 
     def _add_height_tracking_bars(self):
         """Add height tracking bars that extend from the center and corners of the bounds above and below the model.
         The class attributes EXT_FACTOR and RES control the number of points and the extension factor.
         """
-        
+
         z_bounds = self.bounds[-1]
         # Calculate x, y coords for center and corners
         x_center = (self.bounds[0][0] + self.bounds[0][1]) / 2
         y_center = (self.bounds[1][0] + self.bounds[1][1]) / 2
-        
+
         corners = [
             (self.bounds[0][0], self.bounds[1][0]),  # Bottom-left
             (self.bounds[0][0], self.bounds[1][1]),  # Top-left
@@ -412,7 +421,7 @@ class GeoModel:
         ]
 
         # Generate bars from corners, adds 8 bars
-        for (x, y) in corners:
+        for x, y in corners:
             lower_bar = np.column_stack(
                 (np.full(self.RES, x), np.full(self.RES, y), z_lower)
             )
@@ -424,27 +433,22 @@ class GeoModel:
         # Stack all bars together
         all_bars = np.vstack(bars)
         self.xyz = np.vstack((self.xyz, all_bars))
-        self.data = np.concatenate(
-            (
-                self.data,
-                np.full(all_bars.shape[0], np.nan)
-            )
-        )
+        self.data = np.concatenate((self.data, np.full(all_bars.shape[0], np.nan)))
         self.extra_points = all_bars.shape[0]
         return self.extra_points
-    
-        
+
     def _get_lowres_normalized_history(self, low_res=(8, 8, 64), max_iter=10):
-        """Normalize the model to a new maximum height through iterative correction.
-        """
+        """Normalize the model to a new maximum height through iterative correction."""
         # Step 1: Generate a low-resolution model to estimate renormalization
         temp_model = GeoModel(self.bounds, resolution=low_res)
         temp_model.add_history(self.history)
-        temp_model.compute_model(keep_snapshots=False)  # Run without snapshots for efficiency
+        temp_model._apply_history_computation(
+            keep_snapshots=False
+        )  # Run without snapshots for efficiency
 
         # Step 2: Normalize the temporary model's height to 10% filled height through iterative correction
         new_max = temp_model.get_target_normalization(target_max=0.1)
-        model_max = temp_model.bounds[2][1] # Get the maximum height of the model
+        model_max = temp_model.bounds[2][1]  # Get the maximum height of the model
 
         while True and max_iter > 0:
             observed_max = temp_model.renormalize_height(new_max=new_max)
@@ -455,12 +459,12 @@ class GeoModel:
         # Step 3: Rerun normalization to reach randomized height fill near auto value
         for _ in range(3):
             temp_model.renormalize_height(auto=True)
-            
-        # Step 4: Return the normalized history to be re-run at full resolution    
+
+        # Step 4: Return the normalized history to be re-run at full resolution
         normed_history = temp_model.history
-        
-        del(temp_model)  # Clean up the temporary model
-        
+
+        del temp_model  # Clean up the temporary model
+
         return normed_history
 
     def fill_nans(self, value=EMPTY_VALUE):
@@ -477,7 +481,7 @@ class GeoModel:
             - new_max (float): The new maximum height for the model.
             - auto (boolean): Automatically select a new maximum height based on the model's current height.
             - recompute: Recompute the model after renormalization.
-            
+
         Returns:
             - The current maximum height of the model.
         """
@@ -566,7 +570,7 @@ class GeoModel:
         self.data = data.flatten()
 
     @classmethod
-    def from_tensor(cls, data_tensor, bounds = None):
+    def from_tensor(cls, data_tensor, bounds=None):
         """
         Special initializer to create a GeoModel instance from a 1xXxYxZ or XxYxZ shaped data tensor.
         Initializes history to [NullProcess()] and sets up the mesh and data to allow GeoModel

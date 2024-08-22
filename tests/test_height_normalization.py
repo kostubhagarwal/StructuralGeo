@@ -22,7 +22,7 @@ sentence = [
 DEFAULT_BASE_DIR = "../saved_models"
 
 # Model resolution and bounds
-res = (128, 128, 64)
+res = (256, 256, 128)
 bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
 hist = gen.generate_history(sentence)
 

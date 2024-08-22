@@ -19,7 +19,7 @@ class FourierWaveGenerator:
     Amplitudes decrease with frequency and the total RMS is normalized
     to sqrt(2)/2 like a normal sine wave. This gives an overall appearance
     of amplitude of roughly 1 like a regular sine wave.
-    
+
     Parameters
     ----------
     num_harmonics : int
@@ -28,7 +28,7 @@ class FourierWaveGenerator:
         Frequency of the wave, by default 1.
     smoothness : float, optional
         Exponent of the amplitude decay with frequency, by default 1.0.
-        
+
     Methods
     -------
     generate()
@@ -49,7 +49,7 @@ class FourierWaveGenerator:
 
         where `n_cycles` is an array of the number of cycles to generate.
         """
-        
+
         amplitudes = []
         phases = []
         total_power = 0

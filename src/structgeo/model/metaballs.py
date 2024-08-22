@@ -11,11 +11,13 @@ class Ball:
     """A single metaball object with a given origin, radius, and goo factor. Base building class for Blob"""
 
     def __init__(self, origin, radius, goo_factor=1.0):
-        self.origin = np.array(origin).astype(np.float16) # Keep precision low for performance
+        self.origin = np.array(origin).astype(
+            np.float16
+        )  # Keep precision low for performance
         self.radius = radius
         self.goo_factor = goo_factor
 
-    def potential(self, points): # Pass a reference offset to the ball
+    def potential(self, points):  # Pass a reference offset to the ball
         # Calculate the distance from the points to the ball's origin
         distances = np.sum((points - self.origin) ** 2, axis=1)
         return (self.radius / distances) ** self.goo_factor
@@ -58,7 +60,7 @@ class BallListGenerator:
 
             # Generate the next point with a Gaussian bias towards the previous direction
             random_variation = np.random.normal(loc=0, scale=1, size=3)
-            direction = previous_direction + variance*random_variation
+            direction = previous_direction + variance * random_variation
             direction /= np.linalg.norm(direction)
             step = direction * np.random.uniform(*self.step_range)
             current_point += step
@@ -67,12 +69,12 @@ class BallListGenerator:
             previous_direction = direction
 
         return balls
-    
-    
+
+
 class MetaBall(Deposition):
     """
     A Blob geological process that modifies points within a specified potential range.
-    
+
     A fast filter option is provided for cases where all the balls are close to eachother.
     The filter will prune the mesh based on distance vs a factor of the average radius of the balls
     to speed up computation.
@@ -93,13 +95,23 @@ class MetaBall(Deposition):
         If True, apply a mesh filter to prune the points and speed up computation, by default False.
     """
 
-    def __init__(self, balls: List[Ball], threshold, value, reference_origin=(0,0,0), clip=True, fast_filter=False):
+    def __init__(
+        self,
+        balls: List[Ball],
+        threshold,
+        value,
+        reference_origin=(0, 0, 0),
+        clip=True,
+        fast_filter=False,
+    ):
         self.balls = balls
         self.threshold = threshold
         self.value = value
         self.reference_origin = reference_origin
         self.clip = clip
-        self.fast_filter = fast_filter # A flag to use pruning on the mesh to speed up computation
+        self.fast_filter = (
+            fast_filter  # A flag to use pruning on the mesh to speed up computation
+        )
 
     def __str__(self):
         return (
@@ -109,20 +121,22 @@ class MetaBall(Deposition):
 
     def run(self, xyz, data):
         # Change of coordinates to the reference origin
-        xyz_p = (xyz - self.reference_origin).astype(np.float32)  # Normalize points to the reference origin
-        
+        xyz_p = (xyz - self.reference_origin).astype(
+            np.float32
+        )  # Normalize points to the reference origin
+
         # Conditional filtering of the mesh, if enabled the mesh is crudely pruned to eliminate far away points
         if self.fast_filter:
             mask = self.mesh_filter(xyz_p)
         else:
             # No filtering-- mask is all true
             mask = np.ones(xyz_p.shape[0], dtype=bool)
-        
+
         if self.clip:
             mask = mask & (~np.isnan(data))
-        
-        # apply mask to reduce the computation size  
-        data_filtered = data[mask] 
+
+        # apply mask to reduce the computation size
+        data_filtered = data[mask]
         xyz_filtered = xyz_p[mask]
 
         # Compute the net potential for each point in mesh
@@ -133,25 +147,25 @@ class MetaBall(Deposition):
 
         # Filter which points will be included in the blob and clip if necessary
         pot_mask = potentials > self.threshold
-        
+
         # Apply the transformation to the filtered data
         data_filtered[pot_mask] = self.value
-        
+
         # Apply the changes to the original data
-        data[mask] = data_filtered        
+        data[mask] = data_filtered
 
         return xyz, data
-    
+
     def mesh_filter(self, xyz_p):
-        """ Perform a crude filter on the mesh to reduce number of points to compute potential"""
-        
+        """Perform a crude filter on the mesh to reduce number of points to compute potential"""
+
         ball_origins = np.array([b.origin for b in self.balls])
         avg_origin = np.mean(ball_origins, axis=0).astype(np.float32)
         ball_radii = np.array([b.radius for b in self.balls])
         avg_radius = np.mean(ball_radii).astype(np.float32)
         n_balls = len(self.balls)
-        
+
         # Calculate the distance from the points to the ball's origins
         dist = np.linalg.norm(xyz_p - avg_origin, axis=1)
-        mask = dist < np.sum(ball_radii)*.5
+        mask = dist < np.sum(ball_radii) * 0.5
         return mask

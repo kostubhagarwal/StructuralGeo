@@ -9,36 +9,41 @@ import structgeo.model as geo
 import structgeo.probability as rv
 from structgeo.probability import FourierWaveGenerator, MarkovSedimentHelper
 
+# Expected model bounds
 BOUNDS_X = (-3840, 3840)
 BOUNDS_Y = (-3840, 3840)
 BOUNDS_Z = (-1920, 1920)
-MAX_BOUNDS = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z) # Intended maximum bounds for the model
+MAX_BOUNDS = (BOUNDS_X, BOUNDS_Y, BOUNDS_Z)  # Intended maximum bounds for the model
 X_RANGE = BOUNDS_X[1] - BOUNDS_X[0]
 Z_RANGE = BOUNDS_Z[1] - BOUNDS_Z[0]
+
+# Rock category mapping
 BED_ROCK_VAL = 0
 SEDIMENT_VALS = [1, 2, 3, 4, 5]
 DIKE_VALS = [6, 7, 8]
 INTRUSION_VALS = [9, 10, 11]
 BLOB_VALS = [12, 13]
+
 # A target mean for random sedimentation depth
 MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 4
+
 
 class GeoWord:
     """
     Base class for generating geological events within a hierarchical structure.
 
-    The `GeoWord` class forms the foundation for constructing tree-like histories of geological processes. 
-    Each instance represents a node in this structure, which can either branch into further `GeoWord` events 
+    The `GeoWord` class forms the foundation for constructing tree-like histories of geological processes.
+    Each instance represents a node in this structure, which can either branch into further `GeoWord` events
     or terminate with one or more defined `GeoProcess` instances.
-    
-    
+
+
     Parameters
     ----------
     seed : Optional[int]
         An optional seed for the random number generator, ensuring reproducibility.
     """
 
-    def __init__(self, seed: int =None):
+    def __init__(self, seed: int = None):
         self.hist = []
         self.seed = seed
         self.rng = np.random.default_rng(seed)
@@ -73,7 +78,7 @@ class GeoWord:
         """
         Adds a process or event to the GeoWord history.
 
-        This method supports adding individual `GeoProcess` or `GeoWord` instances, as well as lists of them. 
+        This method supports adding individual `GeoProcess` or `GeoWord` instances, as well as lists of them.
         Items are added in chronological order from earliest to latest event.
 
         Parameters
@@ -86,7 +91,7 @@ class GeoWord:
         ValueError
             If the item is not a `GeoProcess`, `GeoWord`, or a list of these.
         """
-        if   isinstance(item, GeoWord):
+        if isinstance(item, GeoWord):
             self.hist.extend(item.generate().history)
         elif isinstance(item, geo.GeoProcess):
             self.hist.append(item)
@@ -97,6 +102,7 @@ class GeoWord:
             raise ValueError(
                 f"Expected GeoWord, GeoProcess, or list of these, got {type(item)}"
             )
+
 
 """ Identity word for generating a null event. """
 
@@ -127,8 +133,10 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
         depth = (Z_RANGE) * (
             3 * geo.GeoModel.EXT_FACTOR
         )  # Pseudo-infinite using a large depth
-        sediment_base = -depth # The sediment base is located so that it builds back up to z=0
-        
+        sediment_base = (
+            -depth
+        )  # The sediment base is located so that it builds back up to z=0
+
         # calculate layer thicknesses to fill the depth of sediment
         vals = []
         thicks = []
@@ -136,8 +144,8 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
             vals.append(self.rng.choice(SEDIMENT_VALS))
             thicks.append(self.rng.uniform(50, Z_RANGE / 4))
             depth -= thicks[-1]
-        
-        # Bedrock ensures full coverage underneath sediment in all cases    
+
+        # Bedrock ensures full coverage underneath sediment in all cases
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
@@ -161,10 +169,10 @@ class InfiniteSedimentMarkov(GeoWord):  # Validated
             dirichlet_alpha=self.rng.uniform(0.6, 1.2),
             anticorrelation_factor=0.05,
         )
-        
+
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
 
-        # Bedrock ensures full coverage underneath sediment in all cases  
+        # Bedrock ensures full coverage underneath sediment in all cases
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process(geo.Sedimentation(vals, thicks, base=sediment_base))
 
@@ -179,7 +187,9 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     def build_history(self):
         # Choose a large depth that runs beyond the model's height extension bars below and above
         depth = (Z_RANGE) * (6 * geo.GeoModel.EXT_FACTOR)
-        sediment_base = -.5*depth # In this case we overbuild up and down to allow for tilting and eroding after
+        sediment_base = (
+            -0.5 * depth
+        )  # In this case we overbuild up and down to allow for tilting and eroding after
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -192,9 +202,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
         # Sediment needs to go above and below model bounds for tilt, build from bottom up through extended model
-        sed = geo.Sedimentation(
-            vals, thicks, base=sediment_base
-        )
+        sed = geo.Sedimentation(vals, thicks, base=sediment_base)
 
         tilt = geo.Tilt(
             strike=self.rng.uniform(0, 360),
@@ -203,12 +211,14 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
         )
         # Shave off all excess sediment above the tilt operation
         unc = geo.UnconformityBase(1000)
-        
+
         # Bedrock ensures full coverage underneath sediment in all cases
         self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
         self.add_process([sed, tilt, unc])
 
+
 """ Sediment Acumulation Events"""
+
 
 class FineRepeatSediment(GeoWord):  # Validated
     """A series of thin sediment layers with repeating values."""
@@ -217,7 +227,9 @@ class FineRepeatSediment(GeoWord):  # Validated
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
             # This helper calculates the required parameters to hit target mean and std for distro
-            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
+            *rv.log_normal_params(
+                mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3
+            )
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -226,7 +238,9 @@ class FineRepeatSediment(GeoWord):  # Validated
             rng=self.rng,
             thickness_bounds=(100, Z_RANGE / 10),
             thickness_variance=self.rng.uniform(0.1, 0.3),
-            dirichlet_alpha=self.rng.uniform(0.6, 2.0),  # Low alpha for high repeatability
+            dirichlet_alpha=self.rng.uniform(
+                0.6, 2.0
+            ),  # Low alpha for high repeatability
             anticorrelation_factor=0.05,
         )
 
@@ -242,7 +256,9 @@ class CoarseRepeatSediment(GeoWord):  # Validated
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
             # This helper calculates the required parameters to hit target mean and std for distro
-            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH/3)
+            *rv.log_normal_params(
+                mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3
+            )
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -252,9 +268,9 @@ class CoarseRepeatSediment(GeoWord):  # Validated
             thickness_bounds=(Z_RANGE / 12, Z_RANGE / 6),
             thickness_variance=self.rng.uniform(0.1, 0.2),
             dirichlet_alpha=self.rng.uniform(
-                .8,1.2
+                0.8, 1.2
             ),  # Low alpha for high repeatability
-            anticorrelation_factor=.05, # Low factor gives low repeatability
+            anticorrelation_factor=0.05,  # Low factor gives low repeatability
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -268,20 +284,23 @@ class SingleRandSediment(GeoWord):
     def build_history(self):
         val = self.rng.integers(1, 5)
         sediment = geo.Sedimentation(
-            [val], [self.rng.normal(MEAN_SEDIMENTATION_DEPTH, MEAN_SEDIMENTATION_DEPTH/3)]
+            [val],
+            [self.rng.normal(MEAN_SEDIMENTATION_DEPTH, MEAN_SEDIMENTATION_DEPTH / 3)],
         )
         self.add_process(sediment)
 
 
 """ Erosion events"""
 
+
 class BaseErosionWord(GeoWord):  # Validated
     """Reusable generic class for calculating total depth of erosion events."""
+
     MEAN_DEPTH = Z_RANGE / 8
-    
+
     def __init__(self, seed=None):
         super().__init__(seed)
-        
+
     def calculate_depth(self):
         factor = self.rng.lognormal(
             *rv.log_normal_params(mean=1, std_dev=0.5)
@@ -289,7 +308,8 @@ class BaseErosionWord(GeoWord):  # Validated
         factor = np.clip(factor, 0.25, 3)
         return factor * self.MEAN_DEPTH
 
-class FlatUnconformity(BaseErosionWord): # Validated
+
+class FlatUnconformity(BaseErosionWord):  # Validated
     """Flat unconformity down to a random depth"""
 
     def build_history(self):
@@ -297,43 +317,44 @@ class FlatUnconformity(BaseErosionWord): # Validated
         unconformity = geo.UnconformityDepth(total_depth)
         self.add_process(unconformity)
 
-    
-class TiltedUnconformity(BaseErosionWord): # Validated
-    """ Slightly tilted unconformity down to a random depth"""
-    
+
+class TiltedUnconformity(BaseErosionWord):  # Validated
+    """Slightly tilted unconformity down to a random depth"""
+
     def build_history(self):
         num_tilts = self.rng.integers(1, 4)
         total_depth = self.calculate_depth()
-        depths = np.random.dirichlet(alpha=[1]*num_tilts) * total_depth
-        
+        depths = np.random.dirichlet(alpha=[1] * num_tilts) * total_depth
+
         for depth in depths:
             strike = self.rng.uniform(0, 360)
             tilt_angle = self.rng.normal(0, 3)
-            x,y,z = rv.random_point_in_ellipsoid(MAX_BOUNDS)
-            origin = geo.BacktrackedPoint((x,y,0))
+            x, y, z = rv.random_point_in_ellipsoid(MAX_BOUNDS)
+            origin = geo.BacktrackedPoint((x, y, 0))
             tilt_in = geo.Tilt(strike=strike, dip=tilt_angle, origin=origin)
             tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle, origin=origin)
-            
+
             unconformity = geo.UnconformityDepth(depth)
-            
+
             self.add_process([tilt_in, unconformity, tilt_out])
 
+
 class WaveUnconformity(BaseErosionWord):
-    """ Change of coordinates/basis with two orthogonal folds to create wavy unconformity"""
-    
+    """Change of coordinates/basis with two orthogonal folds to create wavy unconformity"""
+
     def build_history(self):
-        total_depth = self.calculate_depth()*.8
-        orientation = self.rng.uniform(0, 360) # Principal orientation of the waves
-        fold_in1, fold_out1 = self.get_fold_pair(strike = orientation, dip = 90)
-        fold_in2, fold_out2 = self.get_fold_pair(strike = orientation + 90, dip = 90)
+        total_depth = self.calculate_depth() * 0.8
+        orientation = self.rng.uniform(0, 360)  # Principal orientation of the waves
+        fold_in1, fold_out1 = self.get_fold_pair(strike=orientation, dip=90)
+        fold_in2, fold_out2 = self.get_fold_pair(strike=orientation + 90, dip=90)
         unconformity = geo.UnconformityDepth(total_depth)
         self.add_process([fold_in1, fold_in2, unconformity, fold_out2, fold_out1])
-        
+
     def get_fold_pair(self, strike, dip):
         wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3,5), smoothness=1  
+            num_harmonics=np.random.randint(3, 5), smoothness=1
         )
-        period = self.rng.uniform(.5,2) * X_RANGE
+        period = self.rng.uniform(0.5, 2) * X_RANGE
         min_amp = period * 0.001
         max_amp = period * 0.03
         amp = rv.beta_min_max(a=1.5, b=1.5, min_val=min_amp, max_val=max_amp)
@@ -347,8 +368,8 @@ class WaveUnconformity(BaseErosionWord):
         }
         fold_in = geo.Fold(**fold_params)
         fold_out = copy.deepcopy(fold_in)
-        springback_factor = np.clip(self.rng.normal(.8, .1), a_min=0, a_max=1)
-        fold_out.amplitude *= -1*springback_factor
+        springback_factor = np.clip(self.rng.normal(0.8, 0.1), a_min=0, a_max=1)
+        fold_out.amplitude *= -1 * springback_factor
         return fold_in, fold_out
 
 
@@ -368,7 +389,9 @@ class MicroNoise(GeoWord):  # Validated
             period = self.rng.uniform(100, 1000)
             amplitude = period * self.rng.uniform(0.002, 0.005) + 5
             fold_params = {
-                "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
+                "origin": geo.BacktrackedPoint(
+                    rv.random_point_in_ellipsoid(MAX_BOUNDS)
+                ),
                 "strike": self.rng.uniform(0, 360),
                 "dip": self.rng.uniform(0, 360),
                 "rake": self.rng.uniform(0, 360),
@@ -466,57 +489,69 @@ class FourierFold(GeoWord):  # Validated
 """ Dike Events"""
 
 
-class DikePlaneWord(GeoWord):  # Validated   
-    """ Base GeoWord for forming dikes with organic thickness variations. """
-    
-    def get_organic_thickness_func(self, length, wobble_factor=1.):
-        """ 
+class DikePlaneWord(GeoWord):  # Validated
+    """Base GeoWord for forming dikes with organic thickness variations."""
+
+    def get_organic_thickness_func(self, length, wobble_factor=1.0):
+        """
         Thickness provides a multiplier for the thickness of the dike using the
         local x-y coordinates of the dike plane itself. A zero multiplier closes the dike.
-        
+
         The x and y directions have thickness variations introduced using low pass fourier waves.
         The exponent controls the sharpness of the tapering at the ends of the dike.
-        
-        The taper factor is and elliptical cross section shape 1 = t^2 - (y/L)^exponent 
-        
+
+        The taper factor is and elliptical cross section shape 1 = t^2 - (y/L)^exponent
+
         The wobble and elliptical tapering are multiplicatively combined to shape the dike.
         """
         # Make a fourier based modifier for both x and y
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
         y_var = fourier.generate()
-        amp = self.rng.uniform(0.1, 0.2)*wobble_factor # unevenness of the dike thickness        
-        expo = self.rng.uniform(4,10) # Hyper ellipse exponent controls tapering sharpness
+        amp = (
+            self.rng.uniform(0.1, 0.2) * wobble_factor
+        )  # unevenness of the dike thickness
+        expo = self.rng.uniform(
+            4, 10
+        )  # Hyper ellipse exponent controls tapering sharpness
 
         def func(x, y):
             # Elliptical tapering thickness 0 at ends
-            taper_factor = np.sqrt(np.maximum(1 - np.abs((2*y/length))**expo, 0))
+            taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / length)) ** expo, 0))
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + amp * x_var(x/Z_RANGE)) * (1 + amp * y_var(y/X_RANGE)) * taper_factor
-        
+            return (
+                (1 + amp * x_var(x / Z_RANGE))
+                * (1 + amp * y_var(y / X_RANGE))
+                * taper_factor
+            )
+
         return func
-    
+
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 500)
         length = rv.beta_min_max(2, 2, 300, 16000)
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
-        back_origin = geo.BacktrackedPoint(origin) # Use a backtracked point to ensure origin is in view
+        back_origin = geo.BacktrackedPoint(
+            origin
+        )  # Use a backtracked point to ensure origin is in view
         dike_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
             "origin": back_origin,
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=self.rng.uniform(.5,1.5)),
+            "thickness_func": self.get_organic_thickness_func(
+                length, wobble_factor=self.rng.uniform(0.5, 1.5)
+            ),
         }
         dike = geo.DikePlane(**dike_params)
-        
+
         self.add_process(dike)
 
 
-class SingleDikeWarped(DikePlaneWord): #Validated
-    """ A single dike with organic thickness and a more serpentine length """
-    
+class SingleDikeWarped(DikePlaneWord):  # Validated
+    """A single dike with organic thickness and a more serpentine length"""
+
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip = self.rng.normal(90, 10)
@@ -528,7 +563,9 @@ class SingleDikeWarped(DikePlaneWord): #Validated
             "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
+            "thickness_func": self.get_organic_thickness_func(
+                length, wobble_factor=1.5
+            ),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -543,11 +580,11 @@ class SingleDikeWarped(DikePlaneWord): #Validated
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
-        period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(10,250)
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(10, 250)
         fold_params = {
             "strike": dike_strike + 90,
-            "dip": (2*90 + dike_dip) / 3,  # weighted average of dike dip and 90
+            "dip": (2 * 90 + dike_dip) / 3,  # weighted average of dike dip and 90
             "rake": self.rng.normal(90, 5),  # Bias to lateral folds
             "period": period,
             "amplitude": amp,
@@ -555,70 +592,77 @@ class SingleDikeWarped(DikePlaneWord): #Validated
         }
         fold = geo.Fold(**fold_params)
         return fold
-    
+
+
 class DikeGroup(DikePlaneWord):  # Validated
-    """ A correlated grouping of vertical dikes with varying thicknesses and lengths. """
-    
+    """A correlated grouping of vertical dikes with varying thicknesses and lengths."""
+
     def build_history(self):
-        num_dikes = self.rng.integers(2, 6)              
-        
+        num_dikes = self.rng.integers(2, 6)
+
         # Starting parameters, to be sequrntially modified
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
         strike = self.rng.uniform(0, 360)
-        width = rv.beta_min_max(1.5, 4, 40, 400)  
+        width = rv.beta_min_max(1.5, 4, 40, 400)
         dip = self.rng.normal(90, 8)
         value = self.rng.choice(INTRUSION_VALS)
         spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=1500, std_dev=400))
-        
+
         # Setup slight wave transform
         fold_in = self.get_fold(strike, dip)
         fold_out = copy.deepcopy(fold_in)
         fold_out.amplitude *= -1
-        
+
         self.add_process(fold_in)
-        
+
         for _ in range(num_dikes):
             length = rv.beta_min_max(2, 2, 600, 16000)
             dike_params = {
                 "strike": strike,
-                "dip": dip, 
-                "origin": geo.BacktrackedPoint(origin), # Backtracked point ensures dike is in view
+                "dip": dip,
+                "origin": geo.BacktrackedPoint(
+                    origin
+                ),  # Backtracked point ensures dike is in view
                 "width": width,
                 "value": value,
-                "thickness_func": self.get_organic_thickness_func(length, wobble_factor=.5)
+                "thickness_func": self.get_organic_thickness_func(
+                    length, wobble_factor=0.5
+                ),
             }
             dike = geo.DikePlane(**dike_params)
             self.add_process(dike)
-            
+
             # Modify parameters for next dike
             origin = self.get_next_origin(origin, strike, spacing_avg)
             strike += self.rng.normal(0, 2)
-            width *= np.maximum(self.rng.normal(1, 0.1), .8)
+            width *= np.maximum(self.rng.normal(1, 0.1), 0.8)
             dip += self.rng.normal(0, 1)
-            
+
         # Add final fold out
         self.add_process(fold_out)
-    
+
     def get_next_origin(self, origin, strike, spacing_avg):
         # Move orthogonally to strike direction (strike measured from y-axis)
-        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
-        orth_distance = spacing_avg * self.rng.uniform(0.9,1.3)
+        orth_vec = np.array(
+            [np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0]
+        )
+        orth_distance = spacing_avg * self.rng.uniform(0.9, 1.3)
         # Shift a bit parallel to strike as well
         par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
-        par_distance =  spacing_avg * self.rng.uniform(-0.2,0.2)
+        par_distance = spacing_avg * self.rng.uniform(-0.2, 0.2)
 
         new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
-        return new_origin   
+        return new_origin
 
     def get_fold(self, dike_strike, dike_dip):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
-        period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(30,60)
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(30, 60)
         fold_params = {
             "strike": dike_strike + 90,
-            "dip": (2*90 + dike_dip) / 3,  # weighted average of dike dip and 90
+            "dip": (2 * 90 + dike_dip) / 3,  # weighted average of dike dip and 90
             "rake": self.rng.normal(90, 5),  # Bias to lateral folds
             "period": period,
             "amplitude": amp,
@@ -626,23 +670,25 @@ class DikeGroup(DikePlaneWord):  # Validated
         }
         fold = geo.Fold(**fold_params)
         return fold
-    
+
+
 """ Intrusion Events: Sills"""
 
+
 class SillWord(GeoWord):
-    """ A sill construction mechanism using horizontal dike planes """
-    
-    def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.):
-        """ Organic Sheet Maker
-        
+    """A sill construction mechanism using horizontal dike planes"""
+
+    def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.0):
+        """Organic Sheet Maker
+
         variance is introduced through 3 different fourier waves. x_var and y_var add ripple to the sheet thickness,
         while the radial_var adds a ripple around the edges of the sheet in the distance that it extends.
-        
+
         The exponents (p) control the sharpness of the hyper ellipse:
         $$ 1 = (\frac{|z|}{d_z})^{p_z} + (\frac{|y|}{d_y})^{p_y} + (\frac{|x|}{d_x})^{p_x}$$
-        
-        This function has the z dimension normalized to 1, and the x and y dimensions are 
-        normalized to the x_length and y_length. A sharp taper off at the edges is controlled with a 
+
+        This function has the z dimension normalized to 1, and the x and y dimensions are
+        normalized to the x_length and y_length. A sharp taper off at the edges is controlled with a
         higher exp_z value.
         """
         # Make a fourier based modifier for both x and y
@@ -650,53 +696,72 @@ class SillWord(GeoWord):
         x_var = fourier.generate()
         y_var = fourier.generate()
         radial_var = fourier.generate()
-        amp = np.random.uniform(0.1, 0.2)*wobble_factor # unevenness of the dike thickness        
-        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_z = np.random.uniform(3,6)  # Hyper ellipse exponent controls tapering sharpness
-        
+        amp = (
+            np.random.uniform(0.1, 0.2) * wobble_factor
+        )  # unevenness of the dike thickness
+        exp_x = np.random.uniform(
+            1.5, 4
+        )  # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(
+            1.5, 4
+        )  # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(
+            3, 6
+        )  # Hyper ellipse exponent controls tapering sharpness
+
         def func(x, y):
             # 3d ellipse with thickness axis of 1 and hyper ellipse tapering in x and y
             theta = np.arctan2(y, x)
-            ellipse_factor = (1+ .6*radial_var(theta/(2*np.pi))) - np.abs(x/x_length)**exp_x - np.abs(y/y_length)**exp_y
-            ellipse_factor = (np.maximum(ellipse_factor, 0))**(1/exp_z) 
+            ellipse_factor = (
+                (1 + 0.6 * radial_var(theta / (2 * np.pi)))
+                - np.abs(x / x_length) ** exp_x
+                - np.abs(y / y_length) ** exp_y
+            )
+            ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / exp_z)
 
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + amp * x_var(x/X_RANGE)) * (1 + amp * y_var(y/X_RANGE)) * ellipse_factor
-        
+            return (
+                (1 + amp * x_var(x / X_RANGE))
+                * (1 + amp * y_var(y / X_RANGE))
+                * ellipse_factor
+            )
+
         return func
-    
-    def build_history(self):  
+
+    def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 250)
         x_length = rv.beta_min_max(2, 2, 600, 5000)
-        y_length = self.rng.normal(1,.2) * x_length
+        y_length = self.rng.normal(1, 0.2) * x_length
         origin = geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS))
-        
+
         dike_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(0, .1),  # Bias towards horizontal sills
-            "origin": origin, 
+            "dip": self.rng.normal(0, 0.1),  # Bias towards horizontal sills
+            "origin": origin,
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
+            "thickness_func": self.get_ellipsoid_shaping_function(
+                x_length, y_length, wobble_factor=0.0
+            ),
         }
         dike = geo.DikePlane(**dike_params)
-        
+
         self.add_process(dike)
-    
+
+
 class SillSystem(SillWord):
-    """ A sill construction mechanism using horizontal dike planes """
-    
+    """A sill construction mechanism using horizontal dike planes"""
+
     def __init__(self, seed=None):
         super().__init__(seed)
         self.rock_val = None
         self.origins = []
         self.sediment = None
-    
-    def build_history(self):  
+
+    def build_history(self):
         # Build a sediment substrate to sill into
-        self.build_sedimentation()   
-        self.add_process(self.sediment)         
+        self.build_sedimentation()
+        self.add_process(self.sediment)
         self.rock_val = self.rng.choice(INTRUSION_VALS)
         indices = self.get_layer_indices()
         origins = self.build_sills(indices)
@@ -705,52 +770,59 @@ class SillSystem(SillWord):
     def build_sills(self, indices):
         origins = []
         for i, boundary in enumerate(indices):
-            x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
-            y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])*.75
-            sill_origin = geo.SedimentConditionedOrigin(x=x_loc, y=y_loc, boundary_index=boundary)
-            origins.append(sill_origin)  
-            
+            x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1]) * 0.75
+            y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1]) * 0.75
+            sill_origin = geo.SedimentConditionedOrigin(
+                x=x_loc, y=y_loc, boundary_index=boundary
+            )
+            origins.append(sill_origin)
+
             width = rv.beta_min_max(2, 4, 40, 250)
             x_length = rv.beta_min_max(2, 2, 600, 4000)
-            y_length = self.rng.lognormal(*rv.log_normal_params(mean = 1, std_dev=.2)) * x_length
+            y_length = (
+                self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2))
+                * x_length
+            )
 
             dike_params = {
                 "strike": self.rng.uniform(0, 360),
                 "dip": self.rng.normal(0, 1),  # Bias towards horizontal sills
-                "origin": sill_origin, # WARNING: This requires sediment to compute first
+                "origin": sill_origin,  # WARNING: This requires sediment to compute first
                 "width": width,
                 "value": self.rock_val,
-                "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.),
+                "thickness_func": self.get_ellipsoid_shaping_function(
+                    x_length, y_length, wobble_factor=0.0
+                ),
             }
             sill = geo.DikePlane(**dike_params)
-            
+
             self.add_process([sill])
-            
+
         return origins
-        
+
     def link_sills(self, origins):
-        """ Link the sills with some connector between their origins """
-        # Pair up the sill origins with dike cols, add a final endpoint to the mantle           
+        """Link the sills with some connector between their origins"""
+        # Pair up the sill origins with dike cols, add a final endpoint to the mantle
         end_points = origins[1:]
-        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])*.75
-        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])*.75
+        x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1]) * 0.75
+        y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1]) * 0.75
         final_origin = (x_loc, y_loc, -10000)
         end_points.append(final_origin)
         channels = zip(origins, end_points)
-            
-        for i, (start,end) in enumerate(channels):
+
+        for i, (start, end) in enumerate(channels):
             col_params = {
                 "origin": start,
                 "end_point": end,
                 "diam": self.rng.uniform(300, 800),
-                "minor_axis_scale": self.rng.uniform(.1,.4),
+                "minor_axis_scale": self.rng.uniform(0.1, 0.4),
                 "rotation": self.rng.uniform(0, 360),
                 "value": self.rock_val,
                 "clip": True,
-            }            
+            }
             col = geo.DikeColumn(**col_params)
             self.add_process(col)
- 
+
     def build_sedimentation(self) -> geo.Sedimentation:
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -758,83 +830,89 @@ class SillSystem(SillWord):
             thickness_bounds=(Z_RANGE / 18, Z_RANGE / 6),
             thickness_variance=self.rng.uniform(0.1, 0.4),
             dirichlet_alpha=self.rng.uniform(
-                .8,1.2
+                0.8, 1.2
             ),  # Low alpha for high repeatability
-            anticorrelation_factor=.05, # Low factor gives low repeatability
+            anticorrelation_factor=0.05,  # Low factor gives low repeatability
         )
-        
+
         depth = Z_RANGE / 2
-        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth) 
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
         sed = geo.Sedimentation(vals, thicks)
         self.sediment = sed
-    
+
     def get_layer_indices(self):
         # Create a range from 1 to len(layers) - 2 (inclusive)
         valid_indices = np.arange(1, len(self.sediment.thickness_list) - 1)
-        
+
         # Randomly select n unique layers to place sills in
         n = self.rng.integers(1, 5)
         n = np.clip(n, 1, len(valid_indices))
-        
+
         selected_indices = self.rng.choice(valid_indices, size=n, replace=False)
-        print(f"Selecting {n} sills: {selected_indices}")
-        
+
         # Sort in ascending order, then reverse it to get descending order
         selected_indices = np.sort(selected_indices)[::-1]
-        
+
         return selected_indices
 
+
 """ Intrusion Events: Plutons"""
+
+
 class HemiPushedWord(GeoWord):
-    """ A generic pushed hemisphere word providing an organic warping function """
-        
+    """A generic pushed hemisphere word providing an organic warping function"""
+
     def __init__(self, seed=None):
         super().__init__(seed)
         self.rock_val = None
         self.origin = None
-                
-    def get_hemi_function(self, wobble_factor=.1):
-        """ Organic looking warping of hemispheres
-        
+
+    def get_hemi_function(self, wobble_factor=0.1):
+        """Organic looking warping of hemispheres
+
         The hemisphere coordinates xyz have been normalized to a simple hemisphere case where
         1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
         """
-        
+
         wf = wobble_factor
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
         y_var = fourier.generate()
-        exp_x = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_y = np.random.uniform(1.5,4) # Hyper ellipse exponent controls tapering sharpness
-        exp_z = np.random.uniform(1.5,3)
+        exp_x = np.random.uniform(
+            1.5, 4
+        )  # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(
+            1.5, 4
+        )  # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(1.5, 3)
         radial_var = fourier.generate()
-        
-        def func(x,y):
-            x = (1+ wf*x_var(x))*x
-            y = (1+ wf*y_var(y))*y
-            r = 1+ .1*radial_var(np.arctan2(y,x)/(2*np.pi))
-            inner = r**2 - np.abs(x)**exp_x - np.abs(y)**exp_y
-            z_surf = np.maximum(0, inner) ** (1/exp_z)       
+
+        def func(x, y):
+            x = (1 + wf * x_var(x)) * x
+            y = (1 + wf * y_var(y)) * y
+            r = 1 + 0.1 * radial_var(np.arctan2(y, x) / (2 * np.pi))
+            inner = r**2 - np.abs(x) ** exp_x - np.abs(y) ** exp_y
+            z_surf = np.maximum(0, inner) ** (1 / exp_z)
             return z_surf
-        
-        return func   
-    
+
+        return func
+
     def build_history(self):
         NotImplementedError()
-        
-        
-class Laccolith(HemiPushedWord): # Validated
-    """ A large laccolith intrusion with a pushed hemisphere shape above"""
-                
+
+
+class Laccolith(HemiPushedWord):  # Validated
+    """A large laccolith intrusion with a pushed hemisphere shape above"""
+
     def build_history(self):
         self.rock_val = self.rng.choice(INTRUSION_VALS)
-        
+
         diam = self.rng.uniform(1000, 15000)
-        height = (.5*self.rng.uniform(5e-2,2e-1) + .5*self.rng.uniform(500,2000))
-        self.origin = self.get_origin(height) # places the self.origin parameter
+        height = 0.5 * self.rng.uniform(5e-2, 2e-1) + 0.5 * self.rng.uniform(500, 2000)
+        self.origin = self.get_origin(height)  # places the self.origin parameter
         rotation = self.rng.uniform(0, 360)
-        min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
-        
+        min_axis_scale = rv.beta_min_max(2, 2, 0.5, 1.5)
+
         hemi_params = {
             "origin": self.origin,
             "diam": diam,
@@ -844,66 +922,69 @@ class Laccolith(HemiPushedWord): # Validated
             "value": self.rock_val,
             "upper": True,
             "clip": True,
-            "z_function": self.get_hemi_function(wobble_factor=.1),
+            "z_function": self.get_hemi_function(wobble_factor=0.1),
         }
         hemi = geo.DikeHemispherePushed(**hemi_params)
-        
+
         # Add a plug underneath as a feeder dike
         col_params = {
             "origin": self.origin,
-            "diam": diam/5 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)),
-            "minor_axis_scale": min_axis_scale/2 * self.rng.normal(1,.1),
-            "rotation": rotation + self.rng.normal(0,10),
+            "diam": diam
+            / 5
+            * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
+            "minor_axis_scale": min_axis_scale / 2 * self.rng.normal(1, 0.1),
+            "rotation": rotation + self.rng.normal(0, 10),
             "value": self.rock_val,
             "clip": True,
         }
         col = geo.DikeColumn(**col_params)
-        
+
         self.fold = self.get_fold()
         fold_out = copy.deepcopy(self.fold)
         fold_out.amplitude *= -1
-        
+
         self.add_process([self.fold, hemi, col, fold_out])
-     
+
     def get_origin(self, height):
-        #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
+        # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
-
 
     def get_fold(self):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
-        period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(100,300)
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(100, 300)
         fold_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90,5),  # weighted average of dike dip and 90
+            "dip": self.rng.normal(90, 5),  # weighted average of dike dip and 90
             "rake": self.rng.normal(90, 5),  # Bias to lateral folds
             "period": period,
             "amplitude": amp,
             "periodic_func": wave_generator.generate(),
         }
         fold = geo.Fold(**fold_params)
-        return fold   
-            
-            
+        return fold
+
+
 class Lopolith(HemiPushedWord):
-    """ Lopoliths are larger than laccoliths and have a pushed hemisphere downward """
-    
+    """Lopoliths are larger than laccoliths and have a pushed hemisphere downward"""
+
     def build_history(self):
         self.rock_val = self.rng.choice(INTRUSION_VALS)
-        
+
         diam = self.rng.uniform(5000, 30000)
-        height = (.3*self.rng.uniform(1e-2,1e-1) + .7*self.rng.uniform(200,800))
-        self.origin = self.get_origin(height) # places the self.origin parameter
+        height = 0.3 * self.rng.uniform(1e-2, 1e-1) + 0.7 * self.rng.uniform(200, 800)
+        self.origin = self.get_origin(height)  # places the self.origin parameter
         rotation = self.rng.uniform(0, 360)
-        min_axis_scale = rv.beta_min_max(2, 2, .5, 1.5)
-        
+        min_axis_scale = rv.beta_min_max(2, 2, 0.5, 1.5)
+
         hemi_params = {
             "origin": self.origin,
             "diam": diam,
@@ -913,65 +994,73 @@ class Lopolith(HemiPushedWord):
             "value": self.rock_val,
             "upper": False,
             "clip": True,
-            "z_function": self.get_hemi_function(wobble_factor=.1),
+            "z_function": self.get_hemi_function(wobble_factor=0.1),
         }
         hemi = geo.DikeHemispherePushed(**hemi_params)
-        
+
         # Add a plug underneath as a feeder dike
         col_params = {
             "origin": self.origin,
-            "diam": diam/10 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)),
-            "minor_axis_scale": min_axis_scale/2 * self.rng.normal(1,.1),
-            "rotation": rotation + self.rng.normal(0,10),
+            "diam": diam
+            / 10
+            * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
+            "minor_axis_scale": min_axis_scale / 2 * self.rng.normal(1, 0.1),
+            "rotation": rotation + self.rng.normal(0, 10),
             "value": self.rock_val,
             "clip": True,
         }
         col = geo.DikeColumn(**col_params)
-        
+
         self.fold = self.get_fold()
         fold_out = copy.deepcopy(self.fold)
         fold_out.amplitude *= -1
-        
-        self.add_process([ self.fold, hemi, col, fold_out])
-     
+
+        self.add_process([self.fold, hemi, col, fold_out])
+
     def get_origin(self, height):
-        #Use a deferred parameter to measure a height off the floor of the mesh in the past frame
+        # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE/2) # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
-
 
     def get_fold(self):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
         )
-        period = self.rng.uniform(.5, 2) * X_RANGE
-        amp = self.rng.uniform(100,300)
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(100, 300)
         fold_params = {
             "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90,10),  # weighted average of dike dip and 90
+            "dip": self.rng.normal(90, 10),  # weighted average of dike dip and 90
             "rake": self.rng.normal(90, 3),  # Bias to lateral folds
             "period": period,
             "amplitude": amp,
             "periodic_func": wave_generator.generate(),
         }
         fold = geo.Fold(**fold_params)
-        return fold   
+        return fold
 
-#TODO: The push factor is not working at this scale, for now using regular plug    
+
+# TODO: The push factor is not working at this scale, for now using regular plug
 class VolcanicPlug(GeoWord):
-    """ A volcanic plug that is resistant to erosion """
-    
+    """A volcanic plug that is resistant to erosion"""
+
     def build_history(self):
         rock_val = self.rng.choice(INTRUSION_VALS)
-        
-        diam = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=.2)) * 200
-        origin = geo.BacktrackedPoint(rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, (BOUNDS_Z[0], BOUNDS_Z[1]*.8))))
+
+        diam = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)) * 200
+        origin = geo.BacktrackedPoint(
+            rv.random_point_in_ellipsoid(
+                (BOUNDS_X, BOUNDS_Y, (BOUNDS_Z[0], BOUNDS_Z[1] * 0.8))
+            )
+        )
         rotation = self.rng.uniform(0, 360)
-        min_axis_scale = rv.beta_min_max(2, 2, .2, 1.8)
-        
+        min_axis_scale = rv.beta_min_max(2, 2, 0.2, 1.8)
+
         plug_params = {
             "origin": origin,
             "diam": diam,
@@ -983,12 +1072,16 @@ class VolcanicPlug(GeoWord):
             "clip": False,
         }
         hemi = geo.DikePlug(**plug_params)
-        
+
         self.add_process(hemi)
-        
+
+
+""" Intrusion Events: Blobs/Ore Bodies"""
+
+
 class BlobWord(GeoWord):
-    """ A single blob intrusion event
-    
+    """A single blob intrusion event
+
     Parameters
     ----------
     seed : int
@@ -998,76 +1091,79 @@ class BlobWord(GeoWord):
     value : float (optional)
         The rock value of the blob intrusion. Randomly selected if not provided.
     """
-    
+
     def __init__(self, seed=None, origin=None, value=None):
         super().__init__(seed)
         self.rock_val = value
         self.origin = origin
         self.blg = None
-    
+
     def build_history(self):
         # Pick a rock value from the blob types
         if self.rock_val is None:
-            self.rock_val = self.rng.choice(BLOB_VALS) 
+            self.rock_val = self.rng.choice(BLOB_VALS)
         if self.origin is None:
-            x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
-            y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-            z_loc = self.rng.uniform(BOUNDS_Z[0], BOUNDS_Z[1])
-            self.origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
-        
+            self.origin = geo.BacktrackedPoint(
+                tuple(rv.random_point_in_box(MAX_BOUNDS))
+            )
 
         # Ball list generator is a markov chain maker for point distribution
-        n_balls = int(rv.beta_min_max(2,2,8,60))
-        scale_factor = .5**((n_balls-30)/40) # Heuristically tuned to adjust radius             
+        n_balls = int(rv.beta_min_max(2, 2, 8, 60))
+        scale_factor = 0.5 ** (
+            (n_balls - 30) / 40
+        )  # Heuristically tuned to adjust radius
         blg = geo.BallListGenerator(
-                step_range=(10,25),
-                rad_range = (10*scale_factor,20*scale_factor), # Correlate the radius with the number of balls
-                goo_range = (.5,.7)
-            )   
-        
+            step_range=(10, 25),
+            rad_range=(
+                10 * scale_factor,
+                20 * scale_factor,
+            ),  # Correlate the radius with the number of balls
+            goo_range=(0.5, 0.7),
+        )
+
         # Blobs look better with multi-branched approach
-        itr = self.rng.integers(2,4)
+        itr = self.rng.integers(2, 4)
         for _ in range(itr):
 
-            
-            ball_list = blg.generate(n_balls = n_balls, origin =(0,0,0),variance=.8)
+            ball_list = blg.generate(n_balls=n_balls, origin=(0, 0, 0), variance=0.8)
             blob = geo.MetaBall(
-                    balls=ball_list, 
-                    threshold = 1, 
-                    value=self.rock_val,
-                    reference_origin= self.origin,
-                    clip=True,
-                    fast_filter=True
-                    )
+                balls=ball_list,
+                threshold=1,
+                value=self.rock_val,
+                reference_origin=self.origin,
+                clip=True,
+                fast_filter=True,
+            )
             self.add_process(blob)
 
+
 class BlobCluster(GeoWord):
-    """ A clustering of blob intrusions with correlated centers and rock values 
-    
+    """A clustering of blob intrusions with correlated centers and rock values
+
     This word generates a correlated set of blob clusters mimicking ore body deposits.
     """
-    
+
     def build_history(self):
-        n_blobs =  self.rng.integers(2, 7)    
-        blob_val = self.rng.choice(BLOB_VALS)    
+        n_blobs = self.rng.integers(2, 7)
+        blob_val = self.rng.choice(BLOB_VALS)
         starting_origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
-        
+
         # generate a set of origins for the blobs using a markov stepping algorithm
         origin_list = [starting_origin]
-        for _ in range(n_blobs-1):
+        for _ in range(n_blobs - 1):
             origin_list.append(self.get_next_origin(starting_origin))
-        
-        # Process each sampled point into a blob    
+
+        # Process each sampled point into a blob
         for origin in origin_list:
             origin = geo.BacktrackedPoint(origin)
             blob_word = BlobWord(seed=self.seed, origin=origin, value=blob_val)
             sub_hist = blob_word.generate()
             self.add_process(sub_hist)
-            
+
     def get_next_origin(self, origin):
         """
         Determine the next origin point for the next blob using a correlated random walk.
-        
+
         Parameters
         ----------
         origin : geo.BacktrackedPoint
@@ -1082,36 +1178,158 @@ class BlobCluster(GeoWord):
         # Define the step size distribution (mean step size can be adjusted)
         step_min = 100
         step_max = 1000
-        
+
         for _ in range(MAX_ATTEMPTS):
             step_size = rv.beta_min_max(1.3, 2, step_min, step_max)
             # Random direction on the unit sphere
             direction = self.rng.normal(size=3)
-            direction /= np.linalg.norm(direction) 
+            direction /= np.linalg.norm(direction)
             # Calculate the new origin
             new_origin = np.array(origin) + step_size * direction
-            
+
             # Check if the new origin is within the model bounds
-            x,y,z = new_origin
-            if BOUNDS_X[0] < x < BOUNDS_X[1] and BOUNDS_Y[0] < y < BOUNDS_Y[1] and BOUNDS_Z[0] < z < BOUNDS_Z[1]:
+            x, y, z = new_origin
+            if (
+                BOUNDS_X[0] < x < BOUNDS_X[1]
+                and BOUNDS_Y[0] < y < BOUNDS_Y[1]
+                and BOUNDS_Z[0] < z < BOUNDS_Z[1]
+            ):
                 break
             else:
                 continue
-        
+
         # Either max iterations reached or an in bounds was found, return the new origin
         return tuple(new_origin)
 
-    
-        
-            
-        
-         
-        
-        
-            
-        
 
-        
-        
-               
-    
+""" Fault Events"""
+
+
+class FaultWord(GeoWord):
+
+    def get_fold(self, strike, amp):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        fold_params = {
+            "strike": strike + 90,
+            "dip": self.rng.normal(90, 0),
+            "rake": self.rng.normal(90, 3),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold
+
+
+class FaultNormal(FaultWord):
+    """Normal faulting"""
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip = 90 - np.abs(self.rng.normal(0, 10))
+        rake = self.rng.normal(90, 5)
+
+        fault_params = {
+            "strike": strike,
+            "dip": dip,
+            "rake": rake,
+            "amplitude": self.rng.uniform(100, 500),
+            "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
+        }
+
+        fold_amp = self.rng.uniform(0, 200)
+        fold_in = self.get_fold(strike, fold_amp)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        fault = geo.Fault(**fault_params)
+        self.add_process([fold_in, fault, fold_out])
+
+
+class FaultReverse(FaultWord):
+    """Normal faulting"""
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip = 90 + np.abs(self.rng.normal(0, 10))
+        rake = self.rng.normal(90, 5)
+
+        fault_params = {
+            "strike": strike,
+            "dip": dip,
+            "rake": rake,
+            "amplitude": self.rng.uniform(100, 500),
+            "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
+        }
+
+        fold_amp = self.rng.uniform(0, 200)
+        fold_in = self.get_fold(strike, fold_amp)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        fault = geo.Fault(**fault_params)
+        self.add_process([fold_in, fault, fold_out])
+
+
+class FaultHorstGraben(FaultWord):
+    """Horst and Graben faulting"""
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip_offset = np.abs(self.rng.normal(0, 5))
+        rake = self.rng.normal(90, 5)
+        amplitude = rv.beta_min_max(1.5, 4, 30, 800)
+        origin = rv.random_point_in_box(MAX_BOUNDS)
+
+        # Throw distance between faults, correlated with amplitude
+        distance = rv.beta_min_max(2, 2, 2, 8) * amplitude
+
+        fault1_params = {
+            "strike": strike,
+            "dip": 90 + dip_offset,
+            "rake": rake,
+            "amplitude": -amplitude,
+            "origin": geo.BacktrackedPoint(tuple(origin)),
+        }
+
+        origin = self.get_next_origin(origin, strike, distance)
+
+        fault2_params = {
+            "strike": strike + self.rng.normal(0, 3),
+            "dip": 90 - dip_offset + self.rng.normal(0, 2),
+            "rake": rake + self.rng.normal(0, 3),
+            "amplitude": amplitude * self.rng.uniform(0.8, 1.2),
+            "origin": geo.BacktrackedPoint(tuple(origin)),
+        }
+
+        fault1 = geo.Fault(**fault1_params)
+        fault2 = geo.Fault(**fault2_params)
+
+        # Handle folded warping
+        fold_amp = self.rng.uniform(0, 200)
+        fold_in = self.get_fold(strike, fold_amp)
+        fold_out1 = copy.deepcopy(fold_in)
+        fold_out2 = copy.deepcopy(fold_in)
+        rev_amplitude = -np.abs(self.rng.normal(1, 0.1))
+        residual_amplitude = 1 - rev_amplitude
+        fold_out1.amplitude *= rev_amplitude
+        fold_out2.amplitude *= residual_amplitude
+
+        self.add_process([fold_in, fault1, fold_out1, fault2, fold_out2])
+
+    def get_next_origin(self, origin, strike, orth_distance):
+        origin = np.array(origin)  # Cast to array
+        # Move orthogonally to strike direction (strike measured from y-axis)
+        orth_vec = np.array(
+            [np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0]
+        )
+
+        # Shift a bit parallel to strike as well
+        par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
+        par_distance = orth_distance * self.rng.uniform(-0.2, 0.2)
+
+        new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
+        return new_origin

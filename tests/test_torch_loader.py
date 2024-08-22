@@ -7,9 +7,7 @@ from tqdm import tqdm
 
 import structgeo.plot as geovis
 from structgeo.config import load_config
-from structgeo.dataset import (
-    GeoData3DStreamingDataset,
-)
+from structgeo.dataset import GeoData3DStreamingDataset
 from structgeo.model import GeoModel
 
 """ 
@@ -74,6 +72,7 @@ def loader_test():
     # view the models
     p.show()
     print("")
+
 
 if __name__ == "__main__":
     dataset_test()

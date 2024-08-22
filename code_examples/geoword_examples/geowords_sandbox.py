@@ -14,7 +14,7 @@ def main():
     # Set of demonstraition functions to run and/or follow
     direct_model_generation_demo()
     geo_sentence_batch_sampling()
-    sampling_summary()             # <-- Summary of using GeoWords
+    sampling_summary()  # <-- Summary of using GeoWords
     experimenting_with_geowords()  # <-- Editing GeoWords
     clocking_geoword_generation()  # <-- Performance Check
 
@@ -24,7 +24,7 @@ def direct_model_generation_demo():
 
     # All GeoWords have a generate() method that returns a packaged snippet of history
     sample = InfiniteSedimentMarkov().generate()
-    
+
     # Hint: The infinite base-strata use 'Infinite' in their name, they provide a base foundation for the model
     geosentence = [
         InfiniteSedimentMarkov(),
@@ -36,9 +36,11 @@ def direct_model_generation_demo():
     # We can inspect each one to get an idea of what they do
     for geoword in geosentence:
         print(f"Generating Sample from {geoword.__class__.__name__}")
-        print(geoword.generate()) # GeoProcess classes generated mostly have descriptive __str__ methods
+        print(
+            geoword.generate()
+        )  # GeoProcess classes generated mostly have descriptive __str__ methods
         print("\n")
-        
+
     # The most general classes are categorical events, which sample from a subset of GeoWords
     geosentence = [
         BaseStrata(),
@@ -63,7 +65,7 @@ def direct_model_generation_demo():
     visualize_model_demo(model)
 
     # There is an issue to be addressed, the model is not filled in well.
-    # An automatic normalization scheme has been implemented to address this.    
+    # An automatic normalization scheme has been implemented to address this.
     model.compute_model(normalize=True)
     visualize_model_demo(model)
 
