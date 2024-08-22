@@ -1236,7 +1236,7 @@ class FaultNormal(FaultWord):
             "strike": strike,
             "dip": dip,
             "rake": rake,
-            "amplitude": self.rng.uniform(100, 500),
+            "amplitude": rv.beta_min_max(1.5, 6, 30, 600),
             "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
         }
 
@@ -1261,7 +1261,7 @@ class FaultReverse(FaultWord):
             "strike": strike,
             "dip": dip,
             "rake": rake,
-            "amplitude": self.rng.uniform(100, 500),
+            "amplitude": rv.beta_min_max(1.5, 6, 30, 600),
             "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
         }
 
@@ -1279,13 +1279,13 @@ class FaultHorstGraben(FaultWord):
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
-        dip_offset = np.abs(self.rng.normal(0, 5))
-        rake = self.rng.normal(90, 5)
-        amplitude = rv.beta_min_max(1.5, 4, 30, 800)
+        dip_offset = np.abs(self.rng.normal(0, 10))
+        rake = self.rng.normal(90, 3)
+        amplitude = rv.beta_min_max(1.5, 6, 30, 600)
         origin = rv.random_point_in_box(MAX_BOUNDS)
 
         # Throw distance between faults, correlated with amplitude
-        distance = rv.beta_min_max(2, 2, 2, 8) * amplitude
+        distance = rv.beta_min_max(2, 2, 2, 8) * amplitude * (1+ dip_offset/5)
 
         fault1_params = {
             "strike": strike,
@@ -1301,7 +1301,7 @@ class FaultHorstGraben(FaultWord):
             "strike": strike + self.rng.normal(0, 3),
             "dip": 90 - dip_offset + self.rng.normal(0, 2),
             "rake": rake + self.rng.normal(0, 3),
-            "amplitude": amplitude * self.rng.uniform(0.8, 1.2),
+            "amplitude": amplitude * self.rng.uniform(0.9, 1.1),
             "origin": geo.BacktrackedPoint(tuple(origin)),
         }
 
@@ -1333,3 +1333,34 @@ class FaultHorstGraben(FaultWord):
 
         new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
         return new_origin
+    
+class FaultStrikeSlip(FaultWord):
+    """A classic strike-slip faulting event"""
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip_offset = np.abs(self.rng.normal(0, 5))
+        rake = self.rng.normal(0, 5)
+        direction = self.rng.choice([-1, 1])
+        # Similar to lognormal distribution in shape, 
+        # most values within 30-200m, but outliers up to 2km
+        amplitude = rv.beta_min_max(1.5, 17, 30, 2000)*direction
+        origin = rv.random_point_in_box(MAX_BOUNDS)
+
+        fault_params = {
+            "strike": strike,
+            "dip": 90 + dip_offset,
+            "rake": rake,
+            "amplitude": amplitude,
+            "origin": geo.BacktrackedPoint(tuple(origin)),
+        }
+
+        fault = geo.Fault(**fault_params)
+        
+        # Handle folded warping
+        fold_amp = self.rng.uniform(0, 30)
+        fold_in = self.get_fold(strike, fold_amp)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        self.add_process([fold_in, fault ,fold_out])

@@ -231,8 +231,9 @@ class Fault(EventTemplateClass):
 
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="FaultNormal", p=0.1, processes=[FaultNormal()]),
-            self.Event(name="FaultReverse", p=0.1, processes=[FaultReverse()]),
-            self.Event(name="FaultHorstGraben", p=0.1, processes=[FaultHorstGraben()]),
+            self.Event(name="Normal", p=0.1, processes=[FaultNormal()]),
+            self.Event(name="Reverse", p=0.1, processes=[FaultReverse()]),
+            self.Event(name="StrikeSlip", p=0.1, processes=[FaultStrikeSlip()]),
+            self.Event(name="HorstGraben", p=0.1, processes=[FaultHorstGraben()]),
         ]
         super().__init__(cases=cases, rng=rng)
