@@ -11,15 +11,15 @@ from structgeo.generation import *
 
 def single_plotter():
     # List of geological words to generate
-    sentence = [BaseStrata(), DikeGroup(), BlobCluster(), Erosion(), Pluton()]
+    sentence = [BaseStrata(), DikeGroup(), TiltCutFill()]
     # Model resolution and boundse
-    z = 128
+    z = 64
     res = (2 * z, 2 * z, z)
     bounds = (
         BOUNDS_X,
         BOUNDS_Y,
         BOUNDS_Z,
-    )  # Bounds imported from generation (geowords file)e
+    )  # Bounds imported from generation (geowords file)ee
 
     hist = generate_history(sentence)
     start = clock.time()

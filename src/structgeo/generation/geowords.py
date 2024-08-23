@@ -370,120 +370,8 @@ class WaveUnconformity(BaseErosionWord):
         fold_out = copy.deepcopy(fold_in)
         springback_factor = np.clip(self.rng.normal(0.75, 0.1), a_min=0, a_max=1)
         fold_out.amplitude *= -1 * springback_factor
-        return fold_in, fold_out
+        return fold_in, fold_out  
 
-
-""" Folding Events"""
-
-
-class MicroNoise(GeoWord):  # Validated
-    """A thin layer of noise to simulate small-scale sedimentary features."""
-
-    def build_history(self):
-        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
-        wave_generator = FourierWaveGenerator(
-            num_harmonics=self.rng.integers(4, 6), smoothness=0.8
-        )
-
-        for _ in range(self.rng.integers(3, 7)):
-            period = self.rng.uniform(100, 1000)
-            amplitude = period * self.rng.uniform(0.002, 0.005) + 5
-            fold_params = {
-                "origin": geo.BacktrackedPoint(
-                    rv.random_point_in_ellipsoid(MAX_BOUNDS)
-                ),
-                "strike": self.rng.uniform(0, 360),
-                "dip": self.rng.uniform(0, 360),
-                "rake": self.rng.uniform(0, 360),
-                "period": period,
-                "amplitude": amplitude,
-                "periodic_func": wave_generator.generate(),
-            }
-            fold = geo.Fold(**fold_params)
-            self.add_process(fold)
-
-
-class SimpleFold(GeoWord):  # validated
-    """A simple fold structure with random orientation and amplitude."""
-
-    def build_history(self):
-        period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
-        min_amp = period * 0.04
-        max_amp = period * (
-            0.18 - 0.07 * period / 10000
-        )  # Linear interp, 1000 -> .17 , 11000 -> .10
-        amp = self.rng.beta(a=2.1, b=1.4) * (max_amp - min_amp) + min_amp
-
-        fold_params = {
-            "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 45),  # Preference towards vertical fold planes
-            "rake": self.rng.uniform(0, 360),
-            "period": period,
-            "amplitude": amp,
-            "periodic_func": None,
-            "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
-        }
-        fold = geo.Fold(**fold_params)
-        self.add_process(fold)
-
-
-class ShapedFold(GeoWord):  # Validated
-    """A fold structure with a random shape factor."""
-
-    def build_history(self):
-        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=1000, max_val=11000)
-        shape = self.rng.normal(0.3, 0.1)
-        harmonic_weight = shape / np.sqrt(1 + shape**2)
-        period = (
-            1 - (2 / 3) * harmonic_weight
-        ) * true_period  # Effective period due to shape
-        min_amp = period * 0.04
-        max_amp = period * (
-            0.18 - 0.07 * period / 10000
-        )  # Linear interp, 1000 -> .17 , 11000 -> .10
-        amp = self.rng.beta(a=1.2, b=2.1) * (max_amp - min_amp) + min_amp
-
-        fold_params = {
-            "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 45),  # Preference towards vertical fold planes
-            "rake": self.rng.uniform(0, 360),
-            "period": true_period,
-            "amplitude": amp,
-            "shape": shape,
-            "periodic_func": None,
-            "phase": self.rng.uniform(0, 2 * np.pi),
-            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
-        }
-        fold = geo.Fold(**fold_params)
-        self.add_process(fold)
-
-
-class FourierFold(GeoWord):  # Validated
-    """A fold structure with a random number of harmonics."""
-
-    def build_history(self):
-
-        period = self.rng.uniform(3000, 15000)
-        mu_smoothness = 1.4 - 0.1 * period / 10000
-        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
-        wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3, 6),
-            smoothness=np.random.normal(mu_smoothness, 0.2),
-        )
-        min_amp = period * 0.04
-        max_amp = period * (0.18 - 0.09 * period / 10000)  # Linear interp
-        amp = self.rng.beta(a=1.4, b=2.1) * (max_amp - min_amp) + min_amp
-        fold_params = {
-            "strike": self.rng.uniform(0, 360),
-            "dip": self.rng.normal(90, 25),
-            "rake": self.rng.uniform(0, 360),
-            "period": period,
-            "amplitude": amp,
-            "periodic_func": wave_generator.generate(),
-        }
-        fold = geo.Fold(**fold_params)
-        self.add_process(fold)
 
 
 """ Dike Events"""
@@ -598,7 +486,9 @@ class DikeGroup(DikePlaneWord):  # Validated
     """A correlated grouping of vertical dikes with varying thicknesses and lengths."""
 
     def build_history(self):
-        num_dikes = self.rng.integers(2, 6)
+        num_dikes = 2
+        while self.rng.uniform() < 0.3:
+            num_dikes += 1
 
         # Starting parameters, to be sequrntially modified
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
@@ -606,7 +496,7 @@ class DikeGroup(DikePlaneWord):  # Validated
         width = rv.beta_min_max(1.5, 4, 40, 400)
         dip = self.rng.normal(90, 8)
         value = self.rng.choice(INTRUSION_VALS)
-        spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=1500, std_dev=400))
+        spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=1200, std_dev=400))
 
         # Setup slight wave transform
         fold_in = self.get_fold(strike, dip)
@@ -618,7 +508,7 @@ class DikeGroup(DikePlaneWord):  # Validated
         for _ in range(num_dikes):
             length = rv.beta_min_max(2, 2, 600, 16000)
             dike_params = {
-                "strike": strike,
+                "strike": strike + self.rng.normal(0, 2),
                 "dip": dip,
                 "origin": geo.BacktrackedPoint(
                     origin
@@ -1200,6 +1090,206 @@ class BlobCluster(GeoWord):
 
         # Either max iterations reached or an in bounds was found, return the new origin
         return tuple(new_origin)
+
+
+""" Tilting Events"""
+
+
+class TiltCutFill(GeoWord):
+    """ 
+    A combined cluster of tilt, erosion, fill, with weathering 
+    
+    An initial tilt of strata is constructed, followed by an estimate of the depth needed
+    to create an erosion-fill scheme to prevent unnatural looking models. Erosion-fill is
+    done through a 2d fourier surface transform to introduce variety
+    """
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip = self.rng.normal(0, 10)
+        # The origin does not change the transform for an auto-height normed model, 
+        # most efficient is center of mesh        
+        origin = geo.BacktrackedPoint((0,0,0))        
+        
+        tilt = geo.Tilt(strike=strike, dip=dip, origin=origin)
+        self.add_process(tilt)
+        self.fill_tilt(dip)
+        
+    def fill_tilt(self, dip):
+        """Large scale tilt creates unnatural effect without a following erosion/sediment """
+        # Change of basis to get 2d rippled erosion surface
+        fold_strike = self.rng.uniform(0, 360)
+        fold_in, fold_out = self.get_fold_pair(fold_strike)
+        orth_fold_in, orth_fold_out = self.get_fold_pair(fold_strike + 90)
+        
+        # estimate the depth based on the height differnce caused by the dip.
+        edge_displacement = X_RANGE/2 * np.abs(np.sin(np.radians(dip)))
+        
+        # Erosion step to cut top of tilted model
+        erosion_depth = edge_displacement*self.rng.uniform(1,.05)
+        erosion = geo.UnconformityDepth(depth=erosion_depth)
+        
+        # Fill in lower areas with sediment
+        fill_depth = erosion_depth * self.rng.uniform(1,.05)
+        fill = self.get_fill(fill_depth )
+        self.add_process([fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out])
+    
+    def get_fill(self, depth):
+        """ Generalized sediment fill"""
+        
+        # Get a markov process for selecting next layer type, gaussian differencing for thickness
+        markov_helper = MarkovSedimentHelper(
+            categories=SEDIMENT_VALS,
+            rng=self.rng,
+            thickness_bounds=(100, Z_RANGE / 4),
+            thickness_variance=self.rng.uniform(0.1, 0.5),
+            dirichlet_alpha=self.rng.uniform(
+                0.6, 1.6
+            ),  # Low alpha for high repeatability
+            anticorrelation_factor=0.05,
+        )
+
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
+        return geo.Sedimentation(vals, thicks)
+
+        
+    def get_fold_pair(self, strike):
+        dip = self.rng.normal(90, 10)
+        
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 5), smoothness=1
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        min_amp = period * 0.003
+        max_amp = period * 0.02
+        amp = rv.beta_min_max(a=1.5, b=1.5, min_val=min_amp, max_val=max_amp)
+        fold_params = {
+            "strike": strike,
+            "dip": dip,  # average of dike dip and 90
+            "rake": self.rng.normal(0, 10),  # Bias to vertical folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold_in = geo.Fold(**fold_params)
+        fold_out = copy.deepcopy(fold_in)
+        springback_factor = rv.beta_min_max(a=1.5, b=1.5, min_val=0.98, max_val=1)
+        fold_out.amplitude *= -1 * springback_factor
+        return fold_in, fold_out
+
+
+""" Folding Events"""
+
+
+class MicroNoise(GeoWord):  # Validated
+    """A thin layer of noise to simulate small-scale sedimentary features."""
+
+    def build_history(self):
+        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=self.rng.integers(4, 6), smoothness=0.8
+        )
+
+        for _ in range(self.rng.integers(3, 7)):
+            period = self.rng.uniform(100, 1000)
+            amplitude = period * self.rng.uniform(0.002, 0.005) + 5
+            fold_params = {
+                "origin": geo.BacktrackedPoint(
+                    rv.random_point_in_ellipsoid(MAX_BOUNDS)
+                ),
+                "strike": self.rng.uniform(0, 360),
+                "dip": self.rng.uniform(0, 360),
+                "rake": self.rng.uniform(0, 360),
+                "period": period,
+                "amplitude": amplitude,
+                "periodic_func": wave_generator.generate(),
+            }
+            fold = geo.Fold(**fold_params)
+            self.add_process(fold)
+
+
+class SimpleFold(GeoWord):  # validated
+    """A simple fold structure with random orientation and amplitude."""
+
+    def build_history(self):
+        period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
+        min_amp = period * 0.04
+        max_amp = period * (
+            0.18 - 0.07 * period / 10000
+        )  # Linear interp, 1000 -> .17 , 11000 -> .10
+        amp = self.rng.beta(a=2.1, b=1.4) * (max_amp - min_amp) + min_amp
+
+        fold_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(90, 45),  # Preference towards vertical fold planes
+            "rake": self.rng.uniform(0, 360),
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": None,
+            "phase": self.rng.uniform(0, 2 * np.pi),
+            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
+        }
+        fold = geo.Fold(**fold_params)
+        self.add_process(fold)
+
+
+class ShapedFold(GeoWord):  # Validated
+    """A fold structure with a random shape factor."""
+
+    def build_history(self):
+        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=1000, max_val=11000)
+        shape = self.rng.normal(0.3, 0.1)
+        harmonic_weight = shape / np.sqrt(1 + shape**2)
+        period = (
+            1 - (2 / 3) * harmonic_weight
+        ) * true_period  # Effective period due to shape
+        min_amp = period * 0.04
+        max_amp = period * (
+            0.18 - 0.07 * period / 10000
+        )  # Linear interp, 1000 -> .17 , 11000 -> .10
+        amp = self.rng.beta(a=1.2, b=2.1) * (max_amp - min_amp) + min_amp
+
+        fold_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(90, 45),  # Preference towards vertical fold planes
+            "rake": self.rng.uniform(0, 360),
+            "period": true_period,
+            "amplitude": amp,
+            "shape": shape,
+            "periodic_func": None,
+            "phase": self.rng.uniform(0, 2 * np.pi),
+            "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
+        }
+        fold = geo.Fold(**fold_params)
+        self.add_process(fold)
+
+
+class FourierFold(GeoWord):  # Validated
+    """A fold structure with a random number of harmonics."""
+
+    def build_history(self):
+
+        period = self.rng.uniform(3000, 15000)
+        mu_smoothness = 1.4 - 0.1 * period / 10000
+        # Fourier wave generator creates randomized waves with a bias towards lower frequencies
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 6),
+            smoothness=np.random.normal(mu_smoothness, 0.2),
+        )
+        min_amp = period * 0.04
+        max_amp = period * (0.18 - 0.09 * period / 10000)  # Linear interp
+        amp = self.rng.beta(a=1.4, b=2.1) * (max_amp - min_amp) + min_amp
+        fold_params = {
+            "strike": self.rng.uniform(0, 360),
+            "dip": self.rng.normal(90, 25),
+            "rake": self.rng.uniform(0, 360),
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        self.add_process(fold)
+
 
 
 """ Fault Events"""
