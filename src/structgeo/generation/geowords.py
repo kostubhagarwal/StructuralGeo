@@ -493,7 +493,7 @@ class DikeGroup(DikePlaneWord):  # Validated
         # Starting parameters, to be sequrntially modified
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
         strike = self.rng.uniform(0, 360)
-        width = rv.beta_min_max(1.5, 4, 40, 400)
+        width = rv.beta_min_max(1.5, 4, 40, 350)
         dip = self.rng.normal(90, 8)
         value = self.rng.choice(INTRUSION_VALS)
         spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=1200, std_dev=400))
@@ -1126,11 +1126,11 @@ class TiltCutFill(GeoWord):
         edge_displacement = X_RANGE/2 * np.abs(np.sin(np.radians(dip)))
         
         # Erosion step to cut top of tilted model
-        erosion_depth = edge_displacement*self.rng.uniform(1,.05)
+        erosion_depth = edge_displacement*self.rng.normal(1,.05)
         erosion = geo.UnconformityDepth(depth=erosion_depth)
         
         # Fill in lower areas with sediment
-        fill_depth = erosion_depth * self.rng.uniform(1,.05)
+        fill_depth = erosion_depth * self.rng.normal(1,.05)
         fill = self.get_fill(fill_depth )
         self.add_process([fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out])
     
@@ -1294,12 +1294,60 @@ class FourierFold(GeoWord):  # Validated
 
 """ Fault Events"""
 
+def _typical_fault_amplitude():
+    """Get a typical fault amplitude based on a beta distribution."""
+    min_amp = 60
+    max_amp = 800
+    return rv.beta_min_max(1.8, 5.5, min_amp, max_amp)
 
-class FaultWord(GeoWord):
+class FaultRandom(GeoWord):
+    """ A somewhat unconstrained fault event"""
+    
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip = self.rng.uniform(0, 90)
+        rake = self.rng.uniform(0, 360)
+        amplitude = _typical_fault_amplitude()
+        origin = rv.random_point_in_box(MAX_BOUNDS)
+    
+        fault_params = {
+            "strike": strike,
+            "dip": dip,
+            "rake": rake,
+            "amplitude": amplitude,
+            "origin": geo.BacktrackedPoint(tuple(origin)),
+        }
+        
+        fault = geo.Fault(**fault_params)
+        self.add_process(fault)
 
+class FaultNormal(GeoWord):
+    """Normal faulting"""
+
+    def build_history(self):
+        strike = self.rng.uniform(0, 360)
+        dip = 90 - np.abs(self.rng.normal(0, 20))
+        rake = self.rng.normal(90, 5)
+
+        fault_params = {
+            "strike": strike,
+            "dip": dip,
+            "rake": rake,
+            "amplitude": _typical_fault_amplitude(),
+            "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
+        }
+
+        fold_amp = self.rng.uniform(0, 200)
+        fold_in = self.get_fold(strike, fold_amp)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        fault = geo.Fault(**fault_params)
+        self.add_process([fold_in, fault, fold_out])
+        
     def get_fold(self, strike, amp):
         wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(4, 8), smoothness=np.random.normal(1.2, 0.2)
+            num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
         )
         period = self.rng.uniform(0.5, 2) * X_RANGE
         fold_params = {
@@ -1314,19 +1362,19 @@ class FaultWord(GeoWord):
         return fold
 
 
-class FaultNormal(FaultWord):
+class FaultReverse(GeoWord):
     """Normal faulting"""
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
-        dip = 90 - np.abs(self.rng.normal(0, 10))
+        dip = 90 + np.abs(self.rng.normal(0, 15))
         rake = self.rng.normal(90, 5)
 
         fault_params = {
             "strike": strike,
             "dip": dip,
             "rake": rake,
-            "amplitude": rv.beta_min_max(1.5, 6, 30, 600),
+            "amplitude": _typical_fault_amplitude(),
             "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
         }
 
@@ -1337,41 +1385,32 @@ class FaultNormal(FaultWord):
 
         fault = geo.Fault(**fault_params)
         self.add_process([fold_in, fault, fold_out])
-
-
-class FaultReverse(FaultWord):
-    """Normal faulting"""
-
-    def build_history(self):
-        strike = self.rng.uniform(0, 360)
-        dip = 90 + np.abs(self.rng.normal(0, 10))
-        rake = self.rng.normal(90, 5)
-
-        fault_params = {
-            "strike": strike,
-            "dip": dip,
-            "rake": rake,
-            "amplitude": rv.beta_min_max(1.5, 6, 30, 600),
-            "origin": geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS))),
+    
+    def get_fold(self, strike, amp):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        fold_params = {
+            "strike": strike + 90,
+            "dip": self.rng.normal(90, 0),
+            "rake": self.rng.normal(90, 3),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
         }
-
-        fold_amp = self.rng.uniform(0, 200)
-        fold_in = self.get_fold(strike, fold_amp)
-        fold_out = copy.deepcopy(fold_in)
-        fold_out.amplitude *= -1
-
-        fault = geo.Fault(**fault_params)
-        self.add_process([fold_in, fault, fold_out])
+        fold = geo.Fold(**fold_params)
+        return fold
 
 
-class FaultHorstGraben(FaultWord):
+class FaultHorstGraben(GeoWord):
     """Horst and Graben faulting"""
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip_offset = np.abs(self.rng.normal(0, 10))
         rake = self.rng.normal(90, 3)
-        amplitude = rv.beta_min_max(1.5, 6, 30, 600)
+        amplitude = _typical_fault_amplitude()
         origin = rv.random_point_in_box(MAX_BOUNDS)
 
         # Throw distance between faults, correlated with amplitude
@@ -1423,19 +1462,35 @@ class FaultHorstGraben(FaultWord):
 
         new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
         return new_origin
+    
+    def get_fold(self, strike, amp):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        fold_params = {
+            "strike": strike + 90,
+            "dip": self.rng.normal(90, 0),
+            "rake": self.rng.normal(90, 3),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold
 
 
-class FaultStrikeSlip(FaultWord):
+class FaultStrikeSlip(GeoWord):
     """A classic strike-slip faulting event"""
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
-        dip_offset = np.abs(self.rng.normal(0, 5))
+        dip_offset = np.abs(self.rng.normal(0, 20))
         rake = self.rng.normal(0, 5)
         direction = self.rng.choice([-1, 1])
         # Similar to lognormal distribution in shape,
-        # most values within 30-200m, but outliers up to 2km
-        amplitude = rv.beta_min_max(1.5, 17, 30, 2000) * direction
+        # most values within 30-250m, but outliers up to 2km
+        amplitude = rv.beta_min_max(1.4, 10, 45, 2000) * direction
         origin = rv.random_point_in_box(MAX_BOUNDS)
 
         fault_params = {
@@ -1448,10 +1503,5 @@ class FaultStrikeSlip(FaultWord):
 
         fault = geo.Fault(**fault_params)
 
-        # Handle folded warping
-        fold_amp = self.rng.uniform(0, 30)
-        fold_in = self.get_fold(strike, fold_amp)
-        fold_out = copy.deepcopy(fold_in)
-        fold_out.amplitude *= -1
+        self.add_process(fault)
 
-        self.add_process([fold_in, fault, fold_out])

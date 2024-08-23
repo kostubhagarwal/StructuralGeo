@@ -1549,7 +1549,7 @@ class Fault(Slip):
         self.rotation = 0
 
     def fault_displacement(self, distances):
-        return np.sign(distances)
+        return np.sign(distances)*.5  # Net peak to peak is 1
 
 
 class Shear(Slip):
@@ -1592,7 +1592,7 @@ class Shear(Slip):
 
     def shear_displacement(self, distances):
         # The sigmoid function will be centered around zero and will scale with amplitude
-        return 1 / (1 + np.exp(-self.steepness * distances))
+        return 1 / (1 + np.exp(-self.steepness * distances)) # Net peak to peak is 1
 
     def run(self, xyz, array):
         # Apply the shear transformation
