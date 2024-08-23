@@ -1,17 +1,17 @@
 """ Categorical definitions for sampling of broad categories of GeoWords."""
 
 __all__ = [
-    'BaseStrata',
-    'Sediment',
-    'Erosion',
-    'Dike',
-    'Sills',
-    'Pluton',
-    'OreDeposit',
-    'Fold',
-    'Fault',
-    'Slip',
-    'End'
+    "BaseStrata",
+    "Sediment",
+    "Erosion",
+    "Dike",
+    "Sills",
+    "Pluton",
+    "OreDeposit",
+    "Fold",
+    "Fault",
+    "Slip",
+    "End",
 ]
 
 import warnings
@@ -23,6 +23,7 @@ import numpy as np
 from structgeo.model import GeoProcess
 
 from .geowords import *
+
 
 class _EventTemplateClass(GeoWord):
     """
@@ -224,6 +225,7 @@ class OreDeposit(_EventTemplateClass):
         ]
         super().__init__(cases=cases, rng=rng)
 
+
 class Fold(_EventTemplateClass):
     """
     A sampling regime for folding events.
@@ -236,8 +238,8 @@ class Fold(_EventTemplateClass):
             self.Event(name="Fourier", p=0.5, processes=[FourierFold()]),
         ]
         super().__init__(cases=cases, rng=rng)
-        
-        
+
+
 class Fault(_EventTemplateClass):
     """A sampling regime for fault events."""
 
@@ -250,22 +252,21 @@ class Fault(_EventTemplateClass):
         ]
         super().__init__(cases=cases, rng=rng)
 
+
 class Slip(_EventTemplateClass):
     """A sampling regime for slip events."""
-    
+
     def __init__(self, rng=None):
-        cases = [
-            self.Event(name="Null", p=1., processes=[NullWord()])
-        ]
+        cases = [self.Event(name="Null", p=1.0, processes=[NullWord()])]
         super().__init__(cases=cases, rng=rng)
         NotImplementedError()
-        
+
+
 class End(_EventTemplateClass):
-    """ An ending flag for the geostory. """
-    
+    """An ending flag for the geostory."""
+
     def __init__(self, rng=None):
         cases = [
-            self.Event(name="Null (End of Sequence)", p=1., processes=[NullWord()])
+            self.Event(name="Null (End of Sequence)", p=1.0, processes=[NullWord()])
         ]
         super().__init__(cases=cases, rng=rng)
-    

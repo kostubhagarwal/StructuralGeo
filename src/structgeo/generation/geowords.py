@@ -25,7 +25,7 @@ INTRUSION_VALS = [9, 10, 11]
 BLOB_VALS = [12, 13]
 
 # A target mean for random sedimentation depth
-MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 4
+MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 8
 
 
 class GeoWord:

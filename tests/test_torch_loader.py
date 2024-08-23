@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import structgeo.plot as geovis
-from structgeo.config import load_config
 from structgeo.dataset import GeoData3DStreamingDataset
 from structgeo.model import GeoModel
 
@@ -20,12 +19,10 @@ def dataset_test():
     Check that the dataset can be loaded and a sample can be drawn from it.
     Check the conversion of a tensor back into a model for display.
     """
-    config = load_config()
-    yaml_loc = config["yaml_file"]
     bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
     resolution = (128, 128, 64)
     dataset = GeoData3DStreamingDataset(
-        config_yaml=yaml_loc, model_bounds=bounds, model_resolution=resolution
+        model_bounds=bounds, model_resolution=resolution
     )
 
     # Draw a sample from the torch dataser
@@ -45,13 +42,10 @@ def loader_test():
     Verify that the loader can be used to stream models from the generator.
     Display a sample of the models in a multiplotter window.
     """
-    config = load_config()
-    yaml_loc = config["yaml_file"]
     # Load the generator and model dimensions/bounds with computed stats
     bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
     resolution = (128, 128, 64)
     dataset = GeoData3DStreamingDataset(
-        config_yaml=yaml_loc,
         dataset_size=1_000_000,  # 1 million models in loader, just for fun
         model_bounds=bounds,
         model_resolution=resolution,

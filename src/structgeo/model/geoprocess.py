@@ -770,12 +770,12 @@ class DikeHemispherePushed(CompoundProcess):
 
     def __str__(self):
         if isinstance(self.deposition.origin, DeferredParameter):
-            origin_str = str(self.deposition.origin)  # Use DeferredParameter's __str__ method
+            origin_str = str(
+                self.deposition.origin
+            )  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
-            )
+            origin_str = f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
         return (
             f"DikeHemispherePushed: origin ({origin_str})), diam {self.deposition.diam:.1f}, height {self.deposition.height:.1f}, "
             f"minor_axis_scale {self.deposition.minor_scale:.1f}, rotation {self.deposition.rotation:.1f}, value {self.deposition.value:.1f}."
