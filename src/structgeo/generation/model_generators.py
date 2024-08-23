@@ -17,22 +17,23 @@ from structgeo.model.geomodel import GeoModel, GeoProcess
 
 
 class _GeostoryGenerator(_abc.ABC):
+    """
+    An interface for generating geological models, with common parameters and methods.
+
+    Parameters
+    ----------
+    model_bounds : tuple, optional
+        The bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax)), by default ((-3840, 3840), (-3840, 3840), (-1920, 1920))
+    model_resolution : tuple, optional
+        The resolution of the model in the form (nx, ny, nz), by default (256, 256, 128)
+    config : str, optional
+        The path to a configuration file or object, if any.
+    **kwargs : dict, optional
+        Additional keyword arguments specific to the generator.
+    """
 
     def __init__(self, model_bounds=None, model_resolution=None, config=None, **kwargs):
-        """
-        An interface for generating geological models, with common parameters and methods.
 
-        Parameters
-        ----------
-        model_bounds : tuple, optional
-            The bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax)), by default ((-3840, 3840), (-3840, 3840), (-1920, 1920))
-        model_resolution : tuple, optional
-            The resolution of the model in the form (nx, ny, nz), by default (256, 256, 128)
-        config : str, optional
-            The path to a configuration file or object, if any.
-        **kwargs : dict, optional
-            Additional keyword arguments specific to the generator.
-        """
         self.model_bounds = model_bounds or (
             (-3840, 3840),
             (-3840, 3840),
@@ -61,12 +62,27 @@ class _GeostoryGenerator(_abc.ABC):
 
 
 class MarkovGeostoryGenerator(_GeostoryGenerator):
-    """A class that generates geological models from a Markov process and general geoword.
+    """
+    A class that generates geological models from a Markov process and general geoword.
+
+    Inherits from:
+    --------------
+    _GeostoryGenerator
 
     Notes
     ----------
     This class has a strong dependency on the categorical_events module and the geowords module.
     Any changes to categorical_events object names may require changes to this class.
+
+    Parameters
+    ----------
+    model_bounds : tuple, optional
+        The bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax)), by default ((-3840, 3840), (-3840, 3840), (-1920, 1920))
+    model_resolution : tuple, optional
+        The resolution of the model in the form (nx, ny, nz), by default (256, 256, 128)
+    config : str, optional
+        The path to a CSV file containing a labeled Markov transition matrix, a default matrix is provided.
+        See the MarkovMatrixParser class for more information on format and requirements.
     """
 
     _START_STATE = "BaseStrata"
@@ -78,7 +94,7 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         self.markov_matrix_parser = MarkovMatrixParser(self.config)
         self.mc: MarkovChain = self.markov_matrix_parser.get_markov_chain()
         self.event_dictionary = self.markov_matrix_parser.get_event_dictionary()
-
+        
     def _build_geostory(self):
         """Build a geological history from a Markov chain."""
         sequence = self._build_markov_sequence()
@@ -210,10 +226,12 @@ class MarkovMatrixParser:
 
         Example:
 
-        ----| BaseStrata | Fold | End |
-        BaseStrata | 0.1 | 0.2 | 0.7 |
+        ----| BaseStrata | Fold | End |----|----| This cell is ignored
+        BaseStrata | 0.1 | 0.2 | 0.7  |----|----| It is not contigous with the upper left
         Fold       | 0.3 | 0.4 | 0.3 |
         End        | 0.1 | 0.1 | 0.8 |
+        |          |     |     |     |
+        These cells also ignored, as they are not part of the matrix
 
         """
         with open(path, mode="r") as file:

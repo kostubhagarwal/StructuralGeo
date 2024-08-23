@@ -8,10 +8,11 @@ from torch.utils.data import Dataset
 # Two types of geological model generators provided
 from structgeo.generation import MarkovGeostoryGenerator, YAMLGeostoryGenerator
 
+_DEFAULT_GENERATOR_CLASS = MarkovGeostoryGenerator
 
 class GeoData3DStreamingDataset(Dataset):
     """
-    A Dataset wrapper for streaming geological data from a GeostoryGenerator object.
+    A PyTorch Dataset wrapper for streaming geological data from a GeostoryGenerator object.
 
     Parameters
     ----------
@@ -19,23 +20,23 @@ class GeoData3DStreamingDataset(Dataset):
         Bounds of the model as ((xmin, xmax), (ymin, ymax), (zmin, zmax)).
     model_resolution : tuple
         Resolution of the model as (x_res, y_res, z_res).
+    generator_config : str
+        A path to a configuration file for the particular generator class.
     dataset_size : int
         The total number of samples in one epoch.
     device : str
         Torch device where data is loaded.
     """
 
-    _GENERATOR_CLASS = MarkovGeostoryGenerator
-
     def __init__(
         self,
         model_bounds=((-3840, 3840), (-3840, 3840), (-1920, 1920)),
         model_resolution=(256, 256, 128),
         generator_config=None,
-        dataset_size=1e6,
+        dataset_size=int(1e6),
         device="cpu",
     ):
-        self.model_generator = self._GENERATOR_CLASS(
+        self.model_generator = _DEFAULT_GENERATOR_CLASS(
             model_bounds=model_bounds,
             model_resolution=model_resolution,
             config=generator_config,
