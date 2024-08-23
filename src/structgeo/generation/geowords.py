@@ -356,7 +356,7 @@ class WaveUnconformity(BaseErosionWord):
         )
         period = self.rng.uniform(0.5, 2) * X_RANGE
         min_amp = period * 0.001
-        max_amp = period * 0.03
+        max_amp = period * 0.04
         amp = rv.beta_min_max(a=1.5, b=1.5, min_val=min_amp, max_val=max_amp)
         fold_params = {
             "strike": strike,
@@ -368,7 +368,7 @@ class WaveUnconformity(BaseErosionWord):
         }
         fold_in = geo.Fold(**fold_params)
         fold_out = copy.deepcopy(fold_in)
-        springback_factor = np.clip(self.rng.normal(0.8, 0.1), a_min=0, a_max=1)
+        springback_factor = np.clip(self.rng.normal(0.75, 0.1), a_min=0, a_max=1)
         fold_out.amplitude *= -1 * springback_factor
         return fold_in, fold_out
 

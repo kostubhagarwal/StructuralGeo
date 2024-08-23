@@ -3,7 +3,7 @@ PyTorch DataLoader for streaming GeoWord geological histories.
 """
 
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
 # Two types of geological model generators provided
 from structgeo.generation import MarkovGeostoryGenerator, YAMLGeostoryGenerator
@@ -11,7 +11,7 @@ from structgeo.generation import MarkovGeostoryGenerator, YAMLGeostoryGenerator
 
 class GeoData3DStreamingDataset(Dataset):
     """
-    A Dataset wrapper for streaming geological data from a generating YAML file and geowords.
+    A Dataset wrapper for streaming geological data from a GeostoryGenerator object.
 
     Parameters
     ----------

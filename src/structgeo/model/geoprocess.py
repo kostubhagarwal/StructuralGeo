@@ -1,4 +1,5 @@
-import itertools
+""" Base classes for implementing parametric geological processes."""
+
 import warnings
 from typing import List
 
@@ -116,8 +117,14 @@ class DeferredParameter:
 
         Parameters
         ----------
-        *args, **kwargs :
-            Arguments passed to the compute_func during resolution.
+        xyz : np.ndarray
+            The coordinates of the model points.
+        data : np.ndarray
+            The geological data.
+        history : list
+            The history of geological processes applied to the model.
+        index : int
+            The index of this process in the history list.
 
         Returns
         -------
@@ -157,6 +164,13 @@ class CompoundProcess(GeoProcess):
 
     Can include deposition, transformation, or other compound processes. Used to group
     together multiple processes into a single entity.
+    
+    Parameters
+    ----------
+    processes : List[GeoProcess]
+        A list of sub-processes to apply sequentially.
+    name : str
+        An optional name for the compound process, will display in the model history.
     """
 
     def __init__(self, processes: List[GeoProcess] = None, name: str = None):
@@ -200,7 +214,18 @@ class NullProcess(GeoProcess):
 
 
 class Layer(Deposition):
-    """Fill the model with a layer of rock."""
+    """
+    Fill the model with a layer of rock.
+    
+    Parameters
+    ----------
+    base : float
+        The z-coordinate of the bottom of the layer.
+    width : float
+        The thickness of the layer in the z-direction.
+    value : int
+        The rock type value to assign to the layer.
+    """
 
     def __init__(self, base, width, value):
         self.base = base
@@ -241,7 +266,16 @@ class Shift(Transformation):
 
 
 class Rotate(Transformation):
-    """Rotate the model by a given angle about an axis."""
+    """
+    Rotate the model by a given angle about an axis.
+    
+    Parameters
+    ----------
+    axis : tuple
+        The axis of rotation in x, y, z coordinates.
+    angle : float
+        The angle of rotation in degrees, using left-hand rule or clockwise rotation.
+    """
 
     def __init__(self, axis, angle):
         self.angle = np.radians(angle)
@@ -258,11 +292,15 @@ class Rotate(Transformation):
 
 
 class Bedrock(Deposition):
-    """Fill the model with a base level of bedrock.
+    """
+    Fill the model with a base level of bedrock.
 
-    Parameters:
-    - base: The z-coordinate of the base level (top of the rock layer)
-    - value: The rock type value to assign to the bedrock layer
+    Parameters
+    ----------
+    base : float
+        The z-coordinate of the top of the limitless bedrock.
+    value : int
+        The rock type value to assign to the bedrock.        
     """
 
     def __init__(self, base, value):
@@ -290,14 +328,30 @@ class Bedrock(Deposition):
 
 
 class Sedimentation(Deposition):
-    """Fill with layers of sediment, with rock values and thickness of layers given as lists.
+    """
+    Fill with layers of sediment, with rock values and thickness of layers given as lists.
     The base elevation from which to fill can either be specified or can be deduced at generation time from
     the lowest unfilled value in the mesh. Will not overwrite existing rock.
 
-    Parameters:
-          value_list (iterable float): a list of values to sample from for rock types
-          thickness_list (iterable float): a list of thicknesses for each layer
-          base (float): Optional floor value for sedimentation, otherwise starts at lowest NaN mesh point
+    Parameters
+    ----------
+    value_list : list
+        A list of rock type values for the layers.
+    thickness_list : list
+        A list of thicknesses for the layers.
+    base : float, optional
+        The base elevation from which to start filling. If not specified, the base will be calculated at runtime.
+        
+    Attributes
+    ----------
+    value_list : list
+        A list of rock type values for the layers.
+    thickness_list : list
+        A list of thicknesses for the layers.
+    base : float
+        The base elevation from which to start filling.
+    boundaries : np.ndarray
+        The calculated z boundary value for each layer. There are n+1 boundaries for n layers.
     """
 
     def __init__(self, value_list, thickness_list, base=np.nan):
@@ -466,17 +520,27 @@ Dike = DikePlane  # Backward compatibility for Dike class in earlier versions
 
 
 class DikeColumn(Deposition):
-    """Columnar dike intrusion
-
-    Parameters:
-        origin (tuple): Origin point of the dike in the model reference frame, column propogates downward in column
-        diam (float): Diameter of the dike
-        depth (float): Stopping depth of dike, -infinity by default goes down through entire model
-        minor_axis_scale (float): Scaling factor for the x-axis of the dike
-        rotation (float): Rotation of the dike in the xy plane
-        value (int): Value of rock-type to assign to the dike
-        clip (bool): Clip the dike to not protrude above the surface
-        end_point (tuple): Optional end point of the dike, if provided, the dike will extend to this point from origin
+    """
+    Columnar dike intrusion.
+    
+    Parameters
+    ----------
+    origin : tuple, optional
+        Origin point of the dike in the model reference frame; column propagates downward in a column.
+    diam : float, optional
+        Diameter of the dike.
+    depth : float, optional
+        Stopping depth of the dike; -infinity by default goes down through the entire model.
+    minor_axis_scale : float, optional
+        Scaling factor for the x-axis of the dike.
+    rotation : float, optional
+        Rotation of the dike in the xy plane.
+    value : int, optional
+        Value of rock-type to assign to the dike.
+    clip : bool, optional
+        Clip the dike to not protrude above the surface.
+    end_point : tuple, optional
+        Optional end point of the dike; if provided, the dike will extend to this point from origin.
     """
 
     def __init__(
@@ -560,7 +624,33 @@ class DikeColumn(Deposition):
 
 
 class DikeHemisphere(Deposition):
-    """A lenticular dike intrusion"""
+    """
+    A lenticular dike intrusion.
+
+    This class represents a dike intrusion with a hemispherical or lenticular shape. The dike can be rotated, scaled, and 
+    positioned within a 3D geological model.
+
+    Parameters
+    ----------
+    origin : tuple, optional
+        The origin point of the dike in the model reference frame; defaults to (0, 0, 0).
+    diam : float, optional
+        The diameter of the dike; defaults to 500.
+    height : float, optional
+        The height of the dike; defaults to 100.
+    minor_axis_scale : float, optional
+        Scaling factor for the x-axis of the dike; defaults to 1.0.
+    rotation : float, optional
+        Rotation of the dike in the xy plane, in degrees; defaults to 0.0.
+    value : float, optional
+        Value of rock-type to assign to the dike; defaults to 0.0.
+    upper : bool, optional
+        If True, the upper hemisphere of the dike is used; if False, the lower hemisphere is used; defaults to True.
+    clip : bool, optional
+        If True, clips the dike to not protrude above the surface; defaults to False.
+    z_function : callable, optional
+        A function defining the z-coordinate for the dike's shape; defaults to an elliptical hemisphere function if None is provided.
+    """
 
     def __init__(
         self,
@@ -634,7 +724,29 @@ class DikeHemisphere(Deposition):
 
 
 class PushHemisphere(Transformation):
-    """Push a hemisphere intrusion in the z-direction."""
+    """
+    Push a hemisphere intrusion in the z-direction.
+
+    This transformation models a hemispherical intrusion being pushed along the z-axis. The hemisphere can be rotated, 
+    scaled, and positioned within a 3D geological model.
+
+    Parameters
+    ----------
+    origin : tuple, optional
+        The origin point of the hemisphere in the model reference frame; defaults to (0, 0, 0).
+    diam : float, optional
+        The diameter of the hemisphere; defaults to 1.0.
+    height : float, optional
+        The height of the hemisphere; defaults to 1.0.
+    minor_axis_scale : float, optional
+        Scaling factor for the x-axis of the hemisphere; defaults to 1.0.
+    rotation : float, optional
+        Rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
+    upper : bool, optional
+        If True, the upper hemisphere is used; if False, the lower hemisphere is used; defaults to True.
+    z_function : callable, optional
+        A function defining the z-coordinate for the hemisphere's shape; defaults to an elliptical hemisphere function if None is provided.
+    """
 
     def __init__(
         self,
@@ -732,7 +844,32 @@ class PushHemisphere(Transformation):
 
 
 class DikeHemispherePushed(CompoundProcess):
-    """Creates a hemisphere with pushed curved boundary."""
+    """Creates a hemisphere with a pushed curved boundary.
+
+    This compound process combines a hemispherical dike intrusion with a deformation that pushes its boundary,
+    creating a unique geological feature with a curved and displaced boundary.
+
+    Parameters
+    ----------
+    diam : float
+        The diameter of the hemisphere.
+    height : float
+        The height of the hemisphere.
+    origin : tuple, optional
+        The origin point of the hemisphere in the model reference frame; defaults to (0, 0, 0).
+    minor_axis_scale : float, optional
+        Scaling factor for the x-axis of the hemisphere; defaults to 1.0.
+    rotation : float, optional
+        Rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
+    upper : bool, optional
+        If True, the upper hemisphere is used; if False, the lower hemisphere is used; defaults to True.
+    clip : bool, optional
+        If True, clips the hemisphere to not protrude above the surface; defaults to False.
+    value : float, optional
+        The value of rock-type to assign to the dike; defaults to 0.0.
+    z_function : callable, optional
+        A function defining the z-coordinate for the hemisphere's shape; defaults to an elliptical hemisphere function if None is provided.
+    """
 
     def __init__(
         self,
@@ -783,7 +920,34 @@ class DikeHemispherePushed(CompoundProcess):
 
 
 class Laccolith(CompoundProcess):
-    """Creates a Laccolith or a Lopolith"""
+    """Creates a Laccolith or a Lopolith.
+
+    This compound process models a laccolith or lopolith, which are dome-shaped intrusions with a flat base
+    that result from the injection of magma between sedimentary layers, forming a cap and stem structure.
+
+    Parameters
+    ----------
+    origin : tuple, optional
+        The origin point of the laccolith in the model reference frame; defaults to (0, 0, 0).
+    cap_diam : float, optional
+        The diameter of the laccolith's cap; defaults to 500.
+    stem_diam : float, optional
+        The diameter of the laccolith's stem; defaults to 80.
+    height : float, optional
+        The height of the laccolith cap; defaults to 100.
+    minor_axis_scale : float, optional
+        Scaling factor for the x-axis of the laccolith; defaults to 1.0.
+    rotation : float, optional
+        Rotation of the laccolith in the xy plane, in degrees; defaults to 0.0.
+    value : float, optional
+        The value of rock-type to assign to the laccolith; defaults to 0.0.
+    upper : bool, optional
+        If True, the upper hemisphere is used; if False, the lower hemisphere is used (Lopolith); defaults to True.
+    clip : bool, optional
+        If True, clips the laccolith to not protrude above the surface; defaults to False.
+    z_function : callable, optional
+        A function defining the z-coordinate for the laccolith's shape; defaults to an elliptical hemisphere function if None is provided.
+    """
 
     def __init__(
         self,
@@ -823,20 +987,32 @@ class Laccolith(CompoundProcess):
 
 
 class DikePlug(Deposition):
-    """An intrusion formed as a parabolic/elliptical plug.
+    """An intrusion formed as a parabolic or elliptical plug.
 
-    Parameters:
-        origin (tuple): Origin point of the plug tip in model reference frame
-        diam (float): Diameter of the plug's major axis
-        minor_axis_scale (float): Scaling factor for the minor axis of the plug
-        rotation (float): Rotation of the plug major axis cw from the y-axis
-        shape (float): Shape parameter for the plug, controls the exponent of the rotated polynomial
-        value (int): Value of rock-type to assign to the plug
-        clip (bool): Clip the plug to not protrude above the surface
+    This class models a dike intrusion that takes the shape of a parabolic or elliptical plug,
+    with customizable parameters such as diameter, rotation, and shape. The plug can be clipped
+    to ensure it does not protrude above the surface.
 
-    Shaping function:
+    Parameters
+    ----------
+    origin : tuple
+        Origin point of the plug tip in the model reference frame.
+    diam : float
+        Diameter of the plug's major axis.
+    minor_axis_scale : float
+        Scaling factor for the minor axis of the plug.
+    rotation : float
+        Rotation of the plug's major axis clockwise from the y-axis, in degrees.
+    shape : float
+        Shape parameter for the plug, controlling the exponent of the rotated polynomial.
+    value : int
+        Value of rock-type to assign to the plug.
+    clip : bool
+        If True, clips the plug to prevent it from protruding above the surface.
 
-
+    Shaping Function
+    ----------------
+    An elliptical cross-section has z <= -|d^shape|, where d is the distance from the plug axis in scaled ellipse space.
     """
 
     def __init__(
@@ -899,6 +1075,29 @@ class DikePlug(Deposition):
 
 
 class PushPlug(Transformation):
+    """
+    Applies a pushing transformation to a parabolic or elliptical plug.
+
+    This class models the pushing of a geological plug intrusion, adjusting its shape based
+    on a Gaussian displacement function. The transformation is applied by modifying the vertical 
+    displacement of the plug's surface points based on the distance from a reference surface.
+
+    Parameters
+    ----------
+    origin : tuple
+        The origin point of the plug in the model reference frame.
+    diam : float
+        The diameter of the plug's major axis.
+    minor_axis_scale : float
+        Scaling factor for the minor axis of the plug.
+    rotation : float
+        The rotation of the plug's major axis clockwise from the y-axis, in degrees.
+    shape : float
+        The shape parameter for the plug, controlling the exponent of the rotated polynomial.
+    push : float
+        The magnitude of the pushing displacement applied to the plug.
+
+    """
 
     def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
         self.origin = origin
@@ -936,7 +1135,30 @@ class PushPlug(Transformation):
 
 
 class DikePlugPushed(CompoundProcess):
-    """Experimental class for a dike intrusion with a push deformation."""
+    """
+    A compound process representing a dike intrusion with a push deformation.
+
+    This class models a geological dike plug that undergoes both deposition and 
+    a subsequent pushing deformation, resulting in a complex shape that combines 
+    the characteristics of both processes.
+
+    Parameters
+    ----------
+    origin : tuple
+        The origin point of the plug in the model reference frame.
+    diam : float
+        The diameter of the plug's major axis.
+    minor_axis_scale : float
+        Scaling factor for the minor axis of the plug.
+    rotation : float
+        The rotation of the plug's major axis clockwise from the y-axis, in degrees.
+    shape : float
+        The shape parameter for the plug, controlling the exponent of the rotated polynomial.
+    push : float
+        The magnitude of the pushing deformation applied to the plug.
+    value : float
+        The value of the rock type assigned to the plug.
+    """
 
     def __init__(
         self,
@@ -988,11 +1210,19 @@ class DikePlugPushed(CompoundProcess):
 
 
 class UnconformityBase(Deposition):
-    """Erode the model from a given base level upwards
+    """
+    Erode the model from a given base level upwards.
 
-    Parameters:
-        base (float): base level of erosion
-        value (int): Value to use for fill, np.nan by default to fill with air category
+    This class models an erosion process that removes material from the model 
+    above a specified base level. The areas above this base are filled with the 
+    specified value, typically an "air" value to signify rock removal
+
+    Parameters
+    ----------
+    base : float
+        The base level above which the erosion occurs.
+    value : int or float, optional
+        The value used to fill the eroded areas. Defaults to np.nan for air or voids.
     """
 
     def __init__(self, base, value=np.nan):
@@ -1013,10 +1243,22 @@ class UnconformityBase(Deposition):
 
 
 class UnconformityDepth(Deposition):
-    """Erode the model from the highest point downwards by a thickness.
+    """
+    Erode the model from the highest point downwards by a specified thickness.
 
-    Parameters:
-        depth (float): Thickness of the erosion layer, measured from the peak of the surface mesh
+    This class models an erosion process that removes material from the model 
+    starting at the highest elevation and continuing downward until a specified 
+    thickness is eroded. The areas affected by the erosion are filled with the 
+    specified value, typically used to simulate unconformities or other geological 
+    processes that remove material from the top of the surface.
+
+    Parameters
+    ----------
+    depth : float
+        The thickness of the erosion layer, measured from the highest point 
+        on the surface.
+    value : int or float, optional
+        The value used to fill the eroded areas. Defaults to np.nan for air or voids.
     """
 
     def __init__(self, depth, value=np.nan):
@@ -1086,21 +1328,22 @@ class Tilt(Transformation):
 
 
 class Fold(Transformation):
-    """Generalized fold transformation.
-    Convention is that 0 rake with 90 dip fold creates vertical folds.
+    """
+    Tilt the model by a given strike and dip about an origin point.
 
-    Parameters:
-        strike: Strike in degrees
-        dip: Dip in degrees
-        rake: Rake in degrees
-        period: Period of the fold in units of the mesh
-        amplitude: Amplitude of the fold (motion along slip_vector)
-        phase: Phase shift of the fold (in units of the period) [0,1)
-        shape: Shape parameter for the fold (enhances 3rd harmonic component in the fold)
-        origin: Origin point for the fold
-        periodic_func: Custom periodic function for the fold (replaces default cosine function)
-                        User provided function should be 1D and accept an array of n_cycles
-                        Does not require being periodic, but should be normalized to 1 amplitude
+    This transformation tilts the geological model by rotating it around a specified 
+    origin point, using given strike and dip angles. The strike determines the direction 
+    of the tilt's axis relative to the north (y-axis), and the dip defines the angle 
+    of the tilt along this axis.
+
+    Parameters
+    ----------
+    strike : float
+        The strike angle in degrees clockwise (CW) from the north (y-axis).
+    dip : float
+        The dip angle in degrees CW from the strike axis.
+    origin : tuple
+        The origin point for the tilt, given as a tuple (x, y, z).
     """
 
     def __init__(
@@ -1179,16 +1422,31 @@ class Fold(Transformation):
 
 
 class Slip(Transformation):
-    """Gereralized slip transformation.
+    """
+    Generalized slip transformation for modeling displacement along a fault plane.
 
-    Parameters:
-        displacement_func (callable): Custom displacement function for the slip. Function should map
-        a distance from the slip plane to a displacement value.
-        strike (float): Strike in degrees
-        dip (float): Dip in degrees
-        rake (float): Rake in degrees
-        amplitude (float): Amplitude of the slip (motion along slip_vector)
-        origin (tuple): Origin point for the slip (local coordinate frame), (x,y,z)
+    This class provides a customizable slip transformation where displacement is 
+    applied according to a user-defined function. The transformation allows for 
+    complex slip behaviors, including those involving variable displacement 
+    magnitudes depending on the distance from the slip plane.
+
+    Parameters
+    ----------
+    displacement_func : callable
+        A custom displacement function that maps a distance from the slip plane to 
+        a displacement value.
+    strike : float
+        The strike angle in degrees, representing the orientation of the fault line 
+        relative to the north (y-axis).
+    dip : float
+        The dip angle in degrees, representing the angle of the fault plane relative 
+        to the horizontal plane.
+    rake : float
+        The rake angle in degrees, representing the direction of slip along the fault plane.
+    amplitude : float
+        The amplitude of the slip, representing the maximum displacement along the slip vector.
+    origin : tuple
+        The origin point for the slip in the local coordinate frame, specified as (x, y, z).
     """
 
     def __init__(
@@ -1251,21 +1509,32 @@ class Slip(Transformation):
 
 class Fault(Slip):
     """
-    Brittle fault transformations where displacement occurs as a sharp step function across the fault plane.
+    Brittle fault transformation with a sharp step function across the fault plane.
 
-    Parameters:
-        strike (float): Strike angle in degrees
-        dip (float): Dip angle in degrees
-        rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-        amplitude (float): The maximum displacement magnitude along the slip_vector.
-        origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    This class models a fault where displacement occurs abruptly across the fault plane, 
+    causing a sharp discontinuity in the geological strata. It is ideal for simulating 
+    brittle faults where a distinct separation between displaced and stationary sections is required.
 
-    This implementation causes a displacement strictly on one side of the fault, making it suitable for
-    simulating scenarios where a clear delineation between displaced and stationary geological strata is necessary.
+    Parameters
+    ----------
+    strike : float
+        The strike angle in degrees, representing the orientation of the fault line 
+        relative to the north (y-axis).
+    dip : float
+        The dip angle in degrees, representing the angle of the fault plane relative 
+        to the horizontal plane.
+    rake : float
+        The rake angle in degrees, representing the direction of slip along the fault plane.
+    amplitude : float
+        The maximum displacement magnitude along the slip vector.
+    origin : tuple of float
+        The x, y, z coordinates from which the fault originates within the local coordinate frame.
 
-    Example:
-        Creating a Fault instance with specific geological parameters
-        fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
+    Example
+    -------
+    Creating a Fault instance with specific geological parameters:
+    
+    fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
     """
 
     def __init__(
@@ -1284,16 +1553,29 @@ class Fault(Slip):
 
 
 class Shear(Slip):
-    """A subclass of Slip for modeling shear transformations, a plastic deformation process.
-    Displacement is modeled as a sigmoid function that increases with distance from the slip plane.
+    """
+    Shear transformation for modeling plastic deformation processes.
 
-    Parameters:
-        strike (float): Strike angle in degrees
-        dip (float): Dip angle in degrees
-        rake (float): Rake angle in degrees, convention is 0 for side-to-side motion
-        amplitude (float): The maximum displacement magnitude along the slip_vector.
-        origin (tuple of float): The x, y, z coordinates from which the fault originates within the local coordinate frame.
-        steepness (float): The steepness of the sigmoid function, controlling the rate of change of displacement.
+    This class models shear deformation, where displacement increases gradually 
+    with distance from the slip plane, following a sigmoid function. It is used 
+    to simulate more ductile behavior compared to brittle faults.
+
+    Parameters
+    ----------
+    strike : float
+        The strike angle in degrees, representing the orientation of the fault line 
+        relative to the north (y-axis).
+    dip : float
+        The dip angle in degrees, representing the angle of the fault plane relative 
+        to the horizontal plane.
+    rake : float
+        The rake angle in degrees, representing the direction of slip along the fault plane.
+    amplitude : float
+        The maximum displacement magnitude along the slip vector.
+    origin : tuple of float
+        The x, y, z coordinates from which the fault originates within the local coordinate frame.
+    steepness : float
+        The steepness of the sigmoid function, controlling the rate of change of displacement.
     """
 
     def __init__(

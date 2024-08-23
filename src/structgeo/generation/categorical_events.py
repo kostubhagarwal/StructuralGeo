@@ -30,13 +30,13 @@ class _EventTemplateClass(GeoWord):
     A special case of GeoWord that selects from a set of cases with associated probabilities.
     This class is used to form more general categories of events that can be sampled from.
 
-    The cases include a name, probability of selection, and a sequence of actions (GeoWords or GeoProcesses)
+    The Events include a name, probability of selection, and a sequence of actions (GeoWords or GeoProcesses)
     that form the history of the event.
 
     Parameters
     ----------
-    cases : List[Case]
-        A list of Cases to sample from. Each case should have a name, probability, and a sequence of GeoWords or GeoProcesses.
+    cases : List[Event]
+        A list of Events to sample from. Each event should have a name, probability, and a sequence of GeoWords or GeoProcesses.
     rng : Optional[np.random.Generator]
         A random number generator for reproducibility.
     """

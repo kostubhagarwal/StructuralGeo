@@ -478,12 +478,12 @@ class GeoModel:
         Note this operation can be expensive since it requires recomputing the model.
 
         Parameters:
-            - new_max (float): The new maximum height for the model.
-            - auto (boolean): Automatically select a new maximum height based on the model's current height.
-            - recompute: Recompute the model after renormalization.
+            new_max (float): The new maximum height for the model.
+            auto (boolean): Automatically select a new maximum height based on the model's current height.
+            recompute: Recompute the model after renormalization.
 
         Returns:
-            - The current maximum height of the model.
+            The current maximum height of the model.
         """
         assert self.data is not None, "Data array is empty."
         # Find the highest point

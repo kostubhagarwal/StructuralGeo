@@ -1,5 +1,7 @@
 """ A multi-plotter PyVista window offering viewing of GeoWord stories in 3D.
 
+Allows for rapid sampling and viewing of histories generated from GeoWords.
+
 Shortcut keys:
 - 'r': Refresh the samples.
 - '1': View the samples in volume mode.
