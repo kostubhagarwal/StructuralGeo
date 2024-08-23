@@ -1,5 +1,5 @@
 from structgeo.generation.categorical_events import *
 
 from .geohistgen import *
-from .GeoModelGenerator import GeoModelGenerator
+from .model_generators import MarkovGeostoryGenerator, YAMLGeostoryGenerator
 from .geowords import *

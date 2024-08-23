@@ -8,7 +8,7 @@ Shortcut keys:
 - '4': View the samples in one-slice mode.  
 
 Plotter Parameters:
-- sentence (list): A list of GeoWords to generate histories from
+- sentence (list): A list of GeoWords (a sentence or Geostory) to generate histories from.
 - bounds (tuple): The bounds of the model in the form ((xmin, xmax), (ymin, ymax), (zmin, zmax))
 - res (tuple): The resolution of the model in the form (nx, ny, nz)
 - n_samples (int): The number of samples to generate and plot. Plotter defaults to square grid layout.

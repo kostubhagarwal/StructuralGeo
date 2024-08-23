@@ -769,7 +769,13 @@ class DikeHemispherePushed(CompoundProcess):
         self.history = [self.transformation, self.deposition]
 
     def __str__(self):
-        origin_str = ", ".join(f"{coord:.1f}" for coord in self.deposition.origin)
+        if isinstance(self.deposition.origin, DeferredParameter):
+            origin_str = str(self.deposition.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = (
+                f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
+            )
         return (
             f"DikeHemispherePushed: origin ({origin_str})), diam {self.deposition.diam:.1f}, height {self.deposition.height:.1f}, "
             f"minor_axis_scale {self.deposition.minor_scale:.1f}, rotation {self.deposition.rotation:.1f}, value {self.deposition.value:.1f}."
@@ -1205,7 +1211,13 @@ class Slip(Transformation):
         strike_deg = np.degrees(self.strike)
         dip_deg = np.degrees(self.dip)
         rake_deg = np.degrees(self.rake)
-        origin_str = ", ".join(map(str, self.origin))
+        if isinstance(self.origin, DeferredParameter):
+            origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
+        else:
+            # Format the tuple to limit decimal points
+            origin_str = (
+                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
+            )
         return (
             f"{self.__class__.__name__} with strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, "
             f"amplitude {self.amplitude:.1f}, origin ({origin_str})."

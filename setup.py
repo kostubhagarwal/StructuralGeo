@@ -6,8 +6,8 @@ setup(
     description="A package for structural geology visualization and analysis",
     packages=find_packages(
         where="src"
-    ),  # Search within 'structgeo' directory for packages
-    package_dir={"": "src"},  # Root package directory is 'structgeo'
+    ),  # Search within 'src' directory for packages
+    package_dir={"": "src"},  # Root package directory is 'src'
     install_requires=[
         "numpy",
         "scipy",
@@ -19,5 +19,6 @@ setup(
         "trame-vuetify",
         "trame-vtk",
         "tqdm",
+        "PyDTMC",  # Added PyDTMC to the list of required packages
     ],
 )

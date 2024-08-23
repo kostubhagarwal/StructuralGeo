@@ -1,16 +1,12 @@
 """
-PyTorch DataLoader for streaming GeoWord geological histories. This module includes a custom dataset class that 
-streams geological model data using a generative model and YAML configuration. I
-
-Requires:
-- A GeoModelGenerator object capable of generating unlimited geological models.
-- A YAML configuration file specifying generation parameters.
+PyTorch DataLoader for streaming GeoWord geological histories. 
 """
 
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from structgeo.generation import GeoModelGenerator
+# Two types of geological model generators provided
+from structgeo.generation import YAMLGeostoryGenerator, MarkovGeostoryGenerator
 
 
 class GeoData3DStreamingDataset(Dataset):
@@ -19,8 +15,6 @@ class GeoData3DStreamingDataset(Dataset):
 
     Parameters
     ----------
-    config_yaml : str
-        Path to the YAML configuration file for geological model generation.
     model_bounds : tuple
         Bounds of the model as ((xmin, xmax), (ymin, ymax), (zmin, zmax)).
     model_resolution : tuple
@@ -30,22 +24,19 @@ class GeoData3DStreamingDataset(Dataset):
     device : str
         Torch device where data is loaded.
     """
+    _GENERATOR_CLASS = MarkovGeostoryGenerator
 
     def __init__(
         self,
-        config_yaml: str,
         model_bounds=((-3840, 3840), (-3840, 3840), (-1920, 1920)),
-        model_resolution=(
-            256,
-            256,
-            128,
-        ),  # Default bounds and resolution are paired to have 30m resolution
+        model_resolution=(256, 256, 128),
+        generator_config=None,
         dataset_size=1e6,
         device="cpu",
     ):
-        self.model_generator = GeoModelGenerator(
-            config_yaml, model_bounds=model_bounds, model_resolution=model_resolution
-        )
+        self.model_generator = self._GENERATOR_CLASS(model_bounds=model_bounds, 
+                                                     model_resolution=model_resolution,
+                                                     config=generator_config)
         self.device = device
         self.size = dataset_size
 

@@ -1,5 +1,19 @@
 """ Categorical definitions for sampling of broad categories of GeoWords."""
 
+__all__ = [
+    'BaseStrata',
+    'Sediment',
+    'Erosion',
+    'Dike',
+    'Sills',
+    'Pluton',
+    'OreDeposit',
+    'Fold',
+    'Fault',
+    'Slip',
+    'End'
+]
+
 import warnings
 from collections import namedtuple
 from typing import List
@@ -10,8 +24,7 @@ from structgeo.model import GeoProcess
 
 from .geowords import *
 
-
-class EventTemplateClass(GeoWord):
+class _EventTemplateClass(GeoWord):
     """
     A special case of GeoWord that selects from a set of cases with associated probabilities.
     This class is used to form more general categories of events that can be sampled from.
@@ -104,7 +117,7 @@ class EventTemplateClass(GeoWord):
         self.probabilities = probabilities
 
 
-class BaseStrata(EventTemplateClass):
+class BaseStrata(_EventTemplateClass):
     """
     A sampling regime for base strata.
     """
@@ -129,7 +142,7 @@ class BaseStrata(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class Sediment(EventTemplateClass):
+class Sediment(_EventTemplateClass):
     """
     A sampling regime for sediment events.
     """
@@ -143,21 +156,7 @@ class Sediment(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class Fold(EventTemplateClass):
-    """
-    A sampling regime for folding events.
-    """
-
-    def __init__(self, rng=None):
-        cases = [
-            self.Event(name="Simple", p=0.2, processes=[SimpleFold()]),
-            self.Event(name="Shaped", p=0.3, processes=[ShapedFold()]),
-            self.Event(name="Fourier", p=0.5, processes=[FourierFold()]),
-        ]
-        super().__init__(cases=cases, rng=rng)
-
-
-class Erosion(EventTemplateClass):
+class Erosion(_EventTemplateClass):
     """
     A sampling regime for erosion events.
     """
@@ -171,7 +170,7 @@ class Erosion(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class Dike(EventTemplateClass):
+class Dike(_EventTemplateClass):
     """
     A sampling regime for intrusion events.
     """
@@ -185,7 +184,7 @@ class Dike(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class Sills(EventTemplateClass):
+class Sills(_EventTemplateClass):
     """
     A sampling regime for sill events.
     """
@@ -199,7 +198,7 @@ class Sills(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class Pluton(EventTemplateClass):
+class Pluton(_EventTemplateClass):
     """
     A sampling regime for volcanic events.
     """
@@ -212,7 +211,7 @@ class Pluton(EventTemplateClass):
         super().__init__(cases=cases, rng=rng)
 
 
-class OreDeposit(EventTemplateClass):
+class OreDeposit(_EventTemplateClass):
     """
     A sampling regime for ore deposit events.
 
@@ -225,8 +224,21 @@ class OreDeposit(EventTemplateClass):
         ]
         super().__init__(cases=cases, rng=rng)
 
+class Fold(_EventTemplateClass):
+    """
+    A sampling regime for folding events.
+    """
 
-class Fault(EventTemplateClass):
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Simple", p=0.2, processes=[SimpleFold()]),
+            self.Event(name="Shaped", p=0.3, processes=[ShapedFold()]),
+            self.Event(name="Fourier", p=0.5, processes=[FourierFold()]),
+        ]
+        super().__init__(cases=cases, rng=rng)
+        
+        
+class Fault(_EventTemplateClass):
     """A sampling regime for fault events."""
 
     def __init__(self, rng=None):
@@ -237,3 +249,23 @@ class Fault(EventTemplateClass):
             self.Event(name="HorstGraben", p=0.1, processes=[FaultHorstGraben()]),
         ]
         super().__init__(cases=cases, rng=rng)
+
+class Slip(_EventTemplateClass):
+    """A sampling regime for slip events."""
+    
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Null", p=1., processes=[NullWord()])
+        ]
+        super().__init__(cases=cases, rng=rng)
+        NotImplementedError()
+        
+class End(_EventTemplateClass):
+    """ An ending flag for the geostory. """
+    
+    def __init__(self, rng=None):
+        cases = [
+            self.Event(name="Null (End of Sequence)", p=1., processes=[NullWord()])
+        ]
+        super().__init__(cases=cases, rng=rng)
+    

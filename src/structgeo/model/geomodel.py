@@ -189,7 +189,7 @@ class GeoModel:
 
         # Print from the processed history if available
         ref_history = (
-            self.history if self.processed_history is None else self.processed_history
+            self.history if not self.processed_history else self.processed_history
         )
 
         for index, process in enumerate(ref_history):
