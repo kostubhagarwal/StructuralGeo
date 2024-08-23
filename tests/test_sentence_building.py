@@ -5,22 +5,8 @@ import pyvista as pv
 
 import structgeo.model as geo
 import structgeo.plot as geovis
-import structgeo.probability as rv
 from structgeo.config import load_config
 from structgeo.generation import *
-
-# # preallocate an array to store generated histories
-# histories = []
-
-# # Setup a test grammar structure
-# grammar_structure = ['Sediment', 'Noise', 'Sediment', 'Noise']
-
-# # Generate 10 sentence samples
-# for _ in range(10):
-#     sentence = generate_sentence(vocabulary, grammar_structure)
-#     # generate 10 samples of each sentence
-#     h = generate_history(sentence, 10)
-#     histories.extend(h)
 
 
 # ---- Single Sentence Testing ---- #
@@ -50,7 +36,7 @@ yaml_loc = config["yaml_file"]
 
 
 def model_loader_test():
-    loader = GeoModelGenerator(yaml_loc, model_resolution=(128, 128, 64))
+    loader = YAMLGeostoryGenerator(config=yaml_loc, model_resolution=(128, 128, 64))
     models = loader.generate_models(16)
     p = pv.Plotter(shape=(4, 4))
     for i, model in enumerate(models):
