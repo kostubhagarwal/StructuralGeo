@@ -10,6 +10,7 @@ from structgeo.generation import MarkovGeostoryGenerator, YAMLGeostoryGenerator
 
 _DEFAULT_GENERATOR_CLASS = MarkovGeostoryGenerator
 
+
 class GeoData3DStreamingDataset(Dataset):
     """
     A PyTorch Dataset wrapper for streaming geological data from a GeostoryGenerator object.

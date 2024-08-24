@@ -14,7 +14,7 @@ ball2 = geo.Ball(origin=[5, 0, 0], radius=3)
 ball3 = geo.Ball(origin=[0, 2, 0], radius=3)
 balls = [ball1, ball2, ball3]
 
-metaball = geo.MetaBall(balls=balls, threshold=1.5, value=1,clip=False)
+metaball = geo.MetaBall(balls=balls, threshold=1.5, value=1, clip=False)
 model = geo.GeoModel(bounds=(-10, 10), resolution=128)
 model.add_history(metaball)
 model.compute_model()

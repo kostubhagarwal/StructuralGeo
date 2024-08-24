@@ -164,7 +164,7 @@ class CompoundProcess(GeoProcess):
 
     Can include deposition, transformation, or other compound processes. Used to group
     together multiple processes into a single entity.
-    
+
     Parameters
     ----------
     processes : List[GeoProcess]
@@ -216,7 +216,7 @@ class NullProcess(GeoProcess):
 class Layer(Deposition):
     """
     Fill the model with a layer of rock.
-    
+
     Parameters
     ----------
     base : float
@@ -268,7 +268,7 @@ class Shift(Transformation):
 class Rotate(Transformation):
     """
     Rotate the model by a given angle about an axis.
-    
+
     Parameters
     ----------
     axis : tuple
@@ -300,7 +300,7 @@ class Bedrock(Deposition):
     base : float
         The z-coordinate of the top of the limitless bedrock.
     value : int
-        The rock type value to assign to the bedrock.        
+        The rock type value to assign to the bedrock.
     """
 
     def __init__(self, base, value):
@@ -341,7 +341,7 @@ class Sedimentation(Deposition):
         A list of thicknesses for the layers.
     base : float, optional
         The base elevation from which to start filling. If not specified, the base will be calculated at runtime.
-        
+
     Attributes
     ----------
     value_list : list
@@ -522,7 +522,7 @@ Dike = DikePlane  # Backward compatibility for Dike class in earlier versions
 class DikeColumn(Deposition):
     """
     Columnar dike intrusion.
-    
+
     Parameters
     ----------
     origin : tuple, optional
@@ -627,7 +627,7 @@ class DikeHemisphere(Deposition):
     """
     A lenticular dike intrusion.
 
-    This class represents a dike intrusion with a hemispherical or lenticular shape. The dike can be rotated, scaled, and 
+    This class represents a dike intrusion with a hemispherical or lenticular shape. The dike can be rotated, scaled, and
     positioned within a 3D geological model.
 
     Parameters
@@ -727,7 +727,7 @@ class PushHemisphere(Transformation):
     """
     Push a hemisphere intrusion in the z-direction.
 
-    This transformation models a hemispherical intrusion being pushed along the z-axis. The hemisphere can be rotated, 
+    This transformation models a hemispherical intrusion being pushed along the z-axis. The hemisphere can be rotated,
     scaled, and positioned within a 3D geological model.
 
     Parameters
@@ -1079,7 +1079,7 @@ class PushPlug(Transformation):
     Applies a pushing transformation to a parabolic or elliptical plug.
 
     This class models the pushing of a geological plug intrusion, adjusting its shape based
-    on a Gaussian displacement function. The transformation is applied by modifying the vertical 
+    on a Gaussian displacement function. The transformation is applied by modifying the vertical
     displacement of the plug's surface points based on the distance from a reference surface.
 
     Parameters
@@ -1138,8 +1138,8 @@ class DikePlugPushed(CompoundProcess):
     """
     A compound process representing a dike intrusion with a push deformation.
 
-    This class models a geological dike plug that undergoes both deposition and 
-    a subsequent pushing deformation, resulting in a complex shape that combines 
+    This class models a geological dike plug that undergoes both deposition and
+    a subsequent pushing deformation, resulting in a complex shape that combines
     the characteristics of both processes.
 
     Parameters
@@ -1213,8 +1213,8 @@ class UnconformityBase(Deposition):
     """
     Erode the model from a given base level upwards.
 
-    This class models an erosion process that removes material from the model 
-    above a specified base level. The areas above this base are filled with the 
+    This class models an erosion process that removes material from the model
+    above a specified base level. The areas above this base are filled with the
     specified value, typically an "air" value to signify rock removal
 
     Parameters
@@ -1246,16 +1246,16 @@ class UnconformityDepth(Deposition):
     """
     Erode the model from the highest point downwards by a specified thickness.
 
-    This class models an erosion process that removes material from the model 
-    starting at the highest elevation and continuing downward until a specified 
-    thickness is eroded. The areas affected by the erosion are filled with the 
-    specified value, typically used to simulate unconformities or other geological 
+    This class models an erosion process that removes material from the model
+    starting at the highest elevation and continuing downward until a specified
+    thickness is eroded. The areas affected by the erosion are filled with the
+    specified value, typically used to simulate unconformities or other geological
     processes that remove material from the top of the surface.
 
     Parameters
     ----------
     depth : float
-        The thickness of the erosion layer, measured from the highest point 
+        The thickness of the erosion layer, measured from the highest point
         on the surface.
     value : int or float, optional
         The value used to fill the eroded areas. Defaults to np.nan for air or voids.
@@ -1331,9 +1331,9 @@ class Fold(Transformation):
     """
     Tilt the model by a given strike and dip about an origin point.
 
-    This transformation tilts the geological model by rotating it around a specified 
-    origin point, using given strike and dip angles. The strike determines the direction 
-    of the tilt's axis relative to the north (y-axis), and the dip defines the angle 
+    This transformation tilts the geological model by rotating it around a specified
+    origin point, using given strike and dip angles. The strike determines the direction
+    of the tilt's axis relative to the north (y-axis), and the dip defines the angle
     of the tilt along this axis.
 
     Parameters
@@ -1425,21 +1425,21 @@ class Slip(Transformation):
     """
     Generalized slip transformation for modeling displacement along a fault plane.
 
-    This class provides a customizable slip transformation where displacement is 
-    applied according to a user-defined function. The transformation allows for 
-    complex slip behaviors, including those involving variable displacement 
+    This class provides a customizable slip transformation where displacement is
+    applied according to a user-defined function. The transformation allows for
+    complex slip behaviors, including those involving variable displacement
     magnitudes depending on the distance from the slip plane.
 
     Parameters
     ----------
     displacement_func : callable
-        A custom displacement function that maps a distance from the slip plane to 
+        A custom displacement function that maps a distance from the slip plane to
         a displacement value.
     strike : float
-        The strike angle in degrees, representing the orientation of the fault line 
+        The strike angle in degrees, representing the orientation of the fault line
         relative to the north (y-axis).
     dip : float
-        The dip angle in degrees, representing the angle of the fault plane relative 
+        The dip angle in degrees, representing the angle of the fault plane relative
         to the horizontal plane.
     rake : float
         The rake angle in degrees, representing the direction of slip along the fault plane.
@@ -1511,17 +1511,17 @@ class Fault(Slip):
     """
     Brittle fault transformation with a sharp step function across the fault plane.
 
-    This class models a fault where displacement occurs abruptly across the fault plane, 
-    causing a sharp discontinuity in the geological strata. It is ideal for simulating 
+    This class models a fault where displacement occurs abruptly across the fault plane,
+    causing a sharp discontinuity in the geological strata. It is ideal for simulating
     brittle faults where a distinct separation between displaced and stationary sections is required.
 
     Parameters
     ----------
     strike : float
-        The strike angle in degrees, representing the orientation of the fault line 
+        The strike angle in degrees, representing the orientation of the fault line
         relative to the north (y-axis).
     dip : float
-        The dip angle in degrees, representing the angle of the fault plane relative 
+        The dip angle in degrees, representing the angle of the fault plane relative
         to the horizontal plane.
     rake : float
         The rake angle in degrees, representing the direction of slip along the fault plane.
@@ -1533,7 +1533,7 @@ class Fault(Slip):
     Example
     -------
     Creating a Fault instance with specific geological parameters:
-    
+
     fault = Fault(strike=30, dip=60, rake=90, amplitude=5, origin=(0, 0, 0))
     """
 
@@ -1549,24 +1549,24 @@ class Fault(Slip):
         self.rotation = 0
 
     def fault_displacement(self, distances):
-        return np.sign(distances)*.5  # Net peak to peak is 1
+        return np.sign(distances) * 0.5  # Net peak to peak is 1
 
 
 class Shear(Slip):
     """
     Shear transformation for modeling plastic deformation processes.
 
-    This class models shear deformation, where displacement increases gradually 
-    with distance from the slip plane, following a sigmoid function. It is used 
+    This class models shear deformation, where displacement increases gradually
+    with distance from the slip plane, following a sigmoid function. It is used
     to simulate more ductile behavior compared to brittle faults.
 
     Parameters
     ----------
     strike : float
-        The strike angle in degrees, representing the orientation of the fault line 
+        The strike angle in degrees, representing the orientation of the fault line
         relative to the north (y-axis).
     dip : float
-        The dip angle in degrees, representing the angle of the fault plane relative 
+        The dip angle in degrees, representing the angle of the fault plane relative
         to the horizontal plane.
     rake : float
         The rake angle in degrees, representing the direction of slip along the fault plane.
@@ -1592,7 +1592,7 @@ class Shear(Slip):
 
     def shear_displacement(self, distances):
         # The sigmoid function will be centered around zero and will scale with amplitude
-        return 1 / (1 + np.exp(-self.steepness * distances)) # Net peak to peak is 1
+        return 1 / (1 + np.exp(-self.steepness * distances))  # Net peak to peak is 1
 
     def run(self, xyz, array):
         # Apply the shear transformation

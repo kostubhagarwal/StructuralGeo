@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 import structgeo.model as geo  # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
 import structgeo.plot as geovis  # Plot contains all the tools related to visualizing the geomodels
 import structgeo.probability as rv  # markov sediment builders, random variable helpers, etc.
-from structgeo.generation import *  # Generation module contains all of the GeoWords and history generating functions
 from structgeo.dataset import GeoData3DStreamingDataset
+from structgeo.generation import *  # Generation module contains all of the GeoWords and history generating functions
 
 
 def main():
@@ -278,27 +278,25 @@ def dataloader_test():
     # Decide on bounds and resolution for the model
     bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
     resolution = (128, 128, 64)
-    
+
     # Dataset, Loader and Batch
     dataset = GeoData3DStreamingDataset(
         model_bounds=bounds, model_resolution=resolution
     )
     loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
     batch = next(iter(loader))
-    
+
     batch_shape = batch.shape
     print(f"Datlaloader yields a sample of shape: {batch_shape}")
-    
+
     # The torch tensors can be converted back into a geomodel to gain access to all
     # of the geovis visualization tools
-    
+
     # If bounds are provded then measurement units are applied to plotting.
     # Else, the measurement units are in voxel units by default
-    
+
     model = geo.GeoModel.from_tensor(bounds=bounds, data_tensor=batch[0])
     geovis.volview(model, show_bounds=True).show()
-    
-    
 
 
 if __name__ == "__main__":

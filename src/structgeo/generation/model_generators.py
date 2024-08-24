@@ -94,7 +94,7 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         self.markov_matrix_parser = MarkovMatrixParser(self.config)
         self.mc: MarkovChain = self.markov_matrix_parser.get_markov_chain()
         self.event_dictionary = self.markov_matrix_parser.get_event_dictionary()
-        
+
     def _build_geostory(self):
         """Build a geological history from a Markov chain."""
         sequence = self._build_markov_sequence()
@@ -138,7 +138,7 @@ class MarkovMatrixParser:
     - The matrix should occupy the upper left portion of the CSV, with any additional columns or rows ignored.
     - The row and column labels should match in order, forming a square matrix. All the labels should
         correspond to valid event dictionary keys/ categorical event classes.
-        
+
     - Sample spreadsheet to generate csv from:
     https://docs.google.com/spreadsheets/d/1OzP1ewVcsB4IKpeLPMQyVwLWbeFcTm4OtPxi-n7J5Ng/edit?gid=0#gid=0
 

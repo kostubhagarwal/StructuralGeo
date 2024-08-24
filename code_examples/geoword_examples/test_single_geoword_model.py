@@ -14,7 +14,7 @@ def single_plotter():
     sentence = [BaseStrata(), DikeGroup(), FaultStrikeSlip()]
     # Model resolution and boundse
     z = 128
-    
+
     res = (2 * z, 2 * z, z)
     bounds = (
         BOUNDS_X,

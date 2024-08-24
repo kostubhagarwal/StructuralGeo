@@ -370,8 +370,7 @@ class WaveUnconformity(BaseErosionWord):
         fold_out = copy.deepcopy(fold_in)
         springback_factor = np.clip(self.rng.normal(0.75, 0.1), a_min=0, a_max=1)
         fold_out.amplitude *= -1 * springback_factor
-        return fold_in, fold_out  
-
+        return fold_in, fold_out
 
 
 """ Dike Events"""
@@ -1096,9 +1095,9 @@ class BlobCluster(GeoWord):
 
 
 class TiltCutFill(GeoWord):
-    """ 
-    A combined cluster of tilt, erosion, fill, with weathering 
-    
+    """
+    A combined cluster of tilt, erosion, fill, with weathering
+
     An initial tilt of strata is constructed, followed by an estimate of the depth needed
     to create an erosion-fill scheme to prevent unnatural looking models. Erosion-fill is
     done through a 2d fourier surface transform to introduce variety
@@ -1107,36 +1106,38 @@ class TiltCutFill(GeoWord):
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip = self.rng.normal(0, 10)
-        # The origin does not change the transform for an auto-height normed model, 
-        # most efficient is center of mesh        
-        origin = geo.BacktrackedPoint((0,0,0))        
-        
+        # The origin does not change the transform for an auto-height normed model,
+        # most efficient is center of mesh
+        origin = geo.BacktrackedPoint((0, 0, 0))
+
         tilt = geo.Tilt(strike=strike, dip=dip, origin=origin)
         self.add_process(tilt)
         self.fill_tilt(dip)
-        
+
     def fill_tilt(self, dip):
-        """Large scale tilt creates unnatural effect without a following erosion/sediment """
+        """Large scale tilt creates unnatural effect without a following erosion/sediment"""
         # Change of basis to get 2d rippled erosion surface
         fold_strike = self.rng.uniform(0, 360)
         fold_in, fold_out = self.get_fold_pair(fold_strike)
         orth_fold_in, orth_fold_out = self.get_fold_pair(fold_strike + 90)
-        
+
         # estimate the depth based on the height differnce caused by the dip.
-        edge_displacement = X_RANGE/2 * np.abs(np.sin(np.radians(dip)))
-        
+        edge_displacement = X_RANGE / 2 * np.abs(np.sin(np.radians(dip)))
+
         # Erosion step to cut top of tilted model
-        erosion_depth = edge_displacement*self.rng.normal(1,.05)
+        erosion_depth = edge_displacement * self.rng.normal(1, 0.05)
         erosion = geo.UnconformityDepth(depth=erosion_depth)
-        
+
         # Fill in lower areas with sediment
-        fill_depth = erosion_depth * self.rng.normal(1,.05)
-        fill = self.get_fill(fill_depth )
-        self.add_process([fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out])
-    
+        fill_depth = erosion_depth * self.rng.normal(1, 0.05)
+        fill = self.get_fill(fill_depth)
+        self.add_process(
+            [fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out]
+        )
+
     def get_fill(self, depth):
-        """ Generalized sediment fill"""
-        
+        """Generalized sediment fill"""
+
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -1152,10 +1153,9 @@ class TiltCutFill(GeoWord):
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
         return geo.Sedimentation(vals, thicks)
 
-        
     def get_fold_pair(self, strike):
         dip = self.rng.normal(90, 10)
-        
+
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 5), smoothness=1
         )
@@ -1291,8 +1291,8 @@ class FourierFold(GeoWord):  # Validated
         self.add_process(fold)
 
 
-
 """ Fault Events"""
+
 
 def _typical_fault_amplitude():
     """Get a typical fault amplitude based on a beta distribution."""
@@ -1300,16 +1300,17 @@ def _typical_fault_amplitude():
     max_amp = 800
     return rv.beta_min_max(1.8, 5.5, min_amp, max_amp)
 
+
 class FaultRandom(GeoWord):
-    """ A somewhat unconstrained fault event"""
-    
+    """A somewhat unconstrained fault event"""
+
     def build_history(self):
         strike = self.rng.uniform(0, 360)
         dip = self.rng.uniform(0, 90)
         rake = self.rng.uniform(0, 360)
         amplitude = _typical_fault_amplitude()
         origin = rv.random_point_in_box(MAX_BOUNDS)
-    
+
         fault_params = {
             "strike": strike,
             "dip": dip,
@@ -1317,9 +1318,10 @@ class FaultRandom(GeoWord):
             "amplitude": amplitude,
             "origin": geo.BacktrackedPoint(tuple(origin)),
         }
-        
+
         fault = geo.Fault(**fault_params)
         self.add_process(fault)
+
 
 class FaultNormal(GeoWord):
     """Normal faulting"""
@@ -1344,7 +1346,7 @@ class FaultNormal(GeoWord):
 
         fault = geo.Fault(**fault_params)
         self.add_process([fold_in, fault, fold_out])
-        
+
     def get_fold(self, strike, amp):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
@@ -1385,7 +1387,7 @@ class FaultReverse(GeoWord):
 
         fault = geo.Fault(**fault_params)
         self.add_process([fold_in, fault, fold_out])
-    
+
     def get_fold(self, strike, amp):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
@@ -1462,7 +1464,7 @@ class FaultHorstGraben(GeoWord):
 
         new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
         return new_origin
-    
+
     def get_fold(self, strike, amp):
         wave_generator = FourierWaveGenerator(
             num_harmonics=np.random.randint(3, 5), smoothness=np.random.normal(1.2, 0.2)
@@ -1504,4 +1506,3 @@ class FaultStrikeSlip(GeoWord):
         fault = geo.Fault(**fault_params)
 
         self.add_process(fault)
-

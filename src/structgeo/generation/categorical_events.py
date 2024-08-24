@@ -249,7 +249,7 @@ class Fault(_EventTemplateClass):
             self.Event(name="Reverse", p=0.1, processes=[FaultReverse()]),
             self.Event(name="StrikeSlip", p=0.1, processes=[FaultStrikeSlip()]),
             self.Event(name="HorstGraben", p=0.1, processes=[FaultHorstGraben()]),
-            self.Event(name="StrikeSlip", p=.2, processes=[FaultStrikeSlip()]),
+            self.Event(name="StrikeSlip", p=0.2, processes=[FaultStrikeSlip()]),
             self.Event(name="FullyRandom", p=0.2, processes=[FaultRandom()]),
         ]
         super().__init__(cases=cases, rng=rng)
