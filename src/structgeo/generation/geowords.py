@@ -378,6 +378,24 @@ class WaveUnconformity(BaseErosionWord):
 
 class DikePlaneWord(GeoWord):  # Validated
     """Base GeoWord for forming dikes with organic thickness variations."""
+    
+    class OrganicDikeThicknessFunc:
+        def __init__(self, length, expo, amp, x_var, y_var):
+            self.length = length
+            self.expo = expo
+            self.amp = amp
+            self.x_var = x_var
+            self.y_var = y_var
+
+        def __call__(self, x, y):
+            # Elliptical tapering thickness 0 at ends
+            taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / self.length)) ** self.expo, 0))
+            # The thickness modifier combines 2d fourier with tapering at ends
+            return (
+                (1 + self.amp * self.x_var(x / Z_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * taper_factor
+            )
 
     def get_organic_thickness_func(self, length, wobble_factor=1.0):
         """
@@ -402,17 +420,7 @@ class DikePlaneWord(GeoWord):  # Validated
             4, 10
         )  # Hyper ellipse exponent controls tapering sharpness
 
-        def func(x, y):
-            # Elliptical tapering thickness 0 at ends
-            taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / length)) ** expo, 0))
-            # The thickness modifier combines 2d fourier with tapering at ends
-            return (
-                (1 + amp * x_var(x / Z_RANGE))
-                * (1 + amp * y_var(y / X_RANGE))
-                * taper_factor
-            )
-
-        return func
+        return self.OrganicDikeThicknessFunc(length, expo, amp, x_var, y_var)
 
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 500)
@@ -566,10 +574,40 @@ class DikeGroup(DikePlaneWord):  # Validated
 
 class SillWord(GeoWord):
     """A sill construction mechanism using horizontal dike planes"""
+    
+    class EllipsoidShapingFunction:
+        def __init__(self, x_length, y_length, wobble_factor, x_var, y_var, radial_var, amp, exp_x, exp_y, exp_z):
+            self.x_length = x_length
+            self.y_length = y_length
+            self.wobble_factor = wobble_factor
+            self.x_var = x_var
+            self.y_var = y_var
+            self.radial_var = radial_var
+            self.amp = amp
+            self.exp_x = exp_x
+            self.exp_y = exp_y
+            self.exp_z = exp_z
+
+        def __call__(self, x, y):
+            # 3d ellipse with thickness axis of 1 and hyper ellipse tapering in x and y
+            theta = np.arctan2(y, x)
+            ellipse_factor = (
+                (1 + 0.6 * self.radial_var(theta / (2 * np.pi)))
+                - np.abs(x / self.x_length) ** self.exp_x
+                - np.abs(y / self.y_length) ** self.exp_y
+            )
+            ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / self.exp_z)
+
+            # The thickness modifier combines 2d fourier with tapering at ends
+            return (
+                (1 + self.amp * self.x_var(x / X_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * ellipse_factor
+            )
 
     def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.0):
         """Organic Sheet Maker
-
+        
         variance is introduced through 3 different fourier waves. x_var and y_var add ripple to the sheet thickness,
         while the radial_var adds a ripple around the edges of the sheet in the distance that it extends.
 
@@ -585,37 +623,13 @@ class SillWord(GeoWord):
         x_var = fourier.generate()
         y_var = fourier.generate()
         radial_var = fourier.generate()
-        amp = (
-            np.random.uniform(0.1, 0.2) * wobble_factor
-        )  # unevenness of the dike thickness
-        exp_x = np.random.uniform(
-            1.5, 4
-        )  # Hyper ellipse exponent controls tapering sharpness
-        exp_y = np.random.uniform(
-            1.5, 4
-        )  # Hyper ellipse exponent controls tapering sharpness
-        exp_z = np.random.uniform(
-            3, 6
-        )  # Hyper ellipse exponent controls tapering sharpness
+        amp = np.random.uniform(0.1, 0.2) * wobble_factor  # unevenness of the dike thickness
+        exp_x = np.random.uniform(1.5, 4)  # Hyper ellipse exponent controls tapering sharpness
+        exp_y = np.random.uniform(1.5, 4)  # Hyper ellipse exponent controls tapering sharpness
+        exp_z = np.random.uniform(3, 6)  # Hyper ellipse exponent controls tapering sharpness
 
-        def func(x, y):
-            # 3d ellipse with thickness axis of 1 and hyper ellipse tapering in x and y
-            theta = np.arctan2(y, x)
-            ellipse_factor = (
-                (1 + 0.6 * radial_var(theta / (2 * np.pi)))
-                - np.abs(x / x_length) ** exp_x
-                - np.abs(y / y_length) ** exp_y
-            )
-            ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / exp_z)
-
-            # The thickness modifier combines 2d fourier with tapering at ends
-            return (
-                (1 + amp * x_var(x / X_RANGE))
-                * (1 + amp * y_var(y / X_RANGE))
-                * ellipse_factor
-            )
-
-        return func
+        # Return an instance of the EllipsoidShapingFunction class
+        return self.EllipsoidShapingFunction(x_length, y_length, wobble_factor, x_var, y_var, radial_var, amp, exp_x, exp_y, exp_z)
 
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 250)
@@ -636,6 +650,7 @@ class SillWord(GeoWord):
         dike = geo.DikePlane(**dike_params)
 
         self.add_process(dike)
+
 
 
 class SillSystem(SillWord):
@@ -748,8 +763,26 @@ class SillSystem(SillWord):
 """ Intrusion Events: Plutons"""
 
 
-class HemiPushedWord(GeoWord):
+class _HemiPushedWord(GeoWord):
     """A generic pushed hemisphere word providing an organic warping function"""
+    
+    class HemiFunction:
+        def __init__(self, wobble_factor, x_var, y_var, exp_x, exp_y, exp_z, radial_var):
+            self.wobble_factor = wobble_factor
+            self.x_var = x_var
+            self.y_var = y_var
+            self.exp_x = exp_x
+            self.exp_y = exp_y
+            self.exp_z = exp_z
+            self.radial_var = radial_var
+
+        def __call__(self, x, y):
+            x = (1 + self.wobble_factor * self.x_var(x)) * x
+            y = (1 + self.wobble_factor * self.y_var(y)) * y
+            r = 1 + 0.1 * self.radial_var(np.arctan2(y, x) / (2 * np.pi))
+            inner = r**2 - np.abs(x) ** self.exp_x - np.abs(y) ** self.exp_y
+            z_surf = np.maximum(0, inner) ** (1 / self.exp_z)
+            return z_surf    
 
     def __init__(self, seed=None):
         super().__init__(seed)
@@ -763,34 +796,22 @@ class HemiPushedWord(GeoWord):
         1=z^2+x^2+y^2 will give a default hemisphere, the purpose is to distort the default z surface
         """
 
-        wf = wobble_factor
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
         y_var = fourier.generate()
-        exp_x = np.random.uniform(
-            1.5, 4
-        )  # Hyper ellipse exponent controls tapering sharpness
-        exp_y = np.random.uniform(
-            1.5, 4
-        )  # Hyper ellipse exponent controls tapering sharpness
+        exp_x = np.random.uniform(1.5, 4)
+        exp_y = np.random.uniform(1.5, 4)
         exp_z = np.random.uniform(1.5, 3)
         radial_var = fourier.generate()
 
-        def func(x, y):
-            x = (1 + wf * x_var(x)) * x
-            y = (1 + wf * y_var(y)) * y
-            r = 1 + 0.1 * radial_var(np.arctan2(y, x) / (2 * np.pi))
-            inner = r**2 - np.abs(x) ** exp_x - np.abs(y) ** exp_y
-            z_surf = np.maximum(0, inner) ** (1 / exp_z)
-            return z_surf
-
-        return func
+        # Return an instance of the HemiFunction class
+        return self.HemiFunction(wobble_factor, x_var, y_var, exp_x, exp_y, exp_z, radial_var)
 
     def build_history(self):
-        NotImplementedError()
+        raise NotImplementedError()
 
 
-class Laccolith(HemiPushedWord):  # Validated
+class Laccolith(_HemiPushedWord):  # Validated
     """A large laccolith intrusion with a pushed hemisphere shape above"""
 
     def build_history(self):
@@ -862,7 +883,7 @@ class Laccolith(HemiPushedWord):  # Validated
         return fold
 
 
-class Lopolith(HemiPushedWord):
+class Lopolith(_HemiPushedWord):
     """Lopoliths are larger than laccoliths and have a pushed hemisphere downward"""
 
     def build_history(self):
@@ -1212,7 +1233,7 @@ class SimpleFold(GeoWord):  # validated
     """A simple fold structure with random orientation and amplitude."""
 
     def build_history(self):
-        period = rv.beta_min_max(a=1.4, b=1.4, min_val=100, max_val=14000)
+        period = rv.beta_min_max(a=1.4, b=2.1, min_val=100, max_val=14000)
         min_amp = period * 0.04
         max_amp = period * (
             0.18 - 0.07 * period / 10000
@@ -1237,7 +1258,7 @@ class ShapedFold(GeoWord):  # Validated
     """A fold structure with a random shape factor."""
 
     def build_history(self):
-        true_period = rv.beta_min_max(a=2.1, b=1.4, min_val=1000, max_val=11000)
+        true_period = rv.beta_min_max(a=2.1, b=2.1, min_val=1000, max_val=11000)
         shape = self.rng.normal(0.3, 0.1)
         harmonic_weight = shape / np.sqrt(1 + shape**2)
         period = (

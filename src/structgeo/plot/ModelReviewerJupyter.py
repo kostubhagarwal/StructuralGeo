@@ -86,7 +86,6 @@ class ModelReviewer:
                 self.plotter.show(window_size=[600, 400], jupyter_backend="static")
                 clear_output(wait=True)
                 self.plotter.show(window_size=[600, 400], jupyter_backend="static")
-
             else:
                 screenshots = []
                 for i in range(4):
