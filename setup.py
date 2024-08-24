@@ -1,9 +1,10 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="StructuralGeo",
-    version="0.0.2",
-    description="A package for structural geology visualization and analysis",
+    name="GeoGen",
+    version="0.0.3",
+    description="A package for creating, visualizing, and exporting 3D structural geology models. \
+    Allows either user specified, or randomized generation of models.",
     packages=find_packages(where="src"),  # Search within 'src' directory for packages
     package_dir={"": "src"},  # Root package directory is 'src'
     install_requires=[

@@ -446,17 +446,21 @@ class GeoModel:
             keep_snapshots=False
         )  # Run without snapshots for efficiency
 
-        # Step 2: Normalize the temporary model's height to 10% filled height through iterative correction
-        new_max = temp_model.get_target_normalization(target_max=0.1)
-        model_max = temp_model.bounds[2][1]  # Get the maximum height of the model
+        # Step 2: Normalize the temporary model's height to 50% filled height through iterative correction
+        # The goal is to get the model rock/air boundary to be within the model bounds where it can be renormalized
+        new_max = temp_model.get_target_normalization(target_max=0.50, std_dev=0.)
+        model_max_zbound = temp_model.bounds[2][1]  # Get the maximum z height of the model
 
         while True and max_iter > 0:
+            # Shift the model so that all the points are shifted up or down aiming 
+            # for the model to fill only 10% of the sample window height
             observed_max = temp_model.renormalize_height(new_max=new_max)
+            if observed_max < model_max_zbound:
+                break # If the observed data is lowered enough to be within the model's bounds, break
             max_iter -= 1
-            if observed_max < model_max:
-                break
 
-        # Step 3: Rerun normalization to reach randomized height fill near auto value
+        # Assumes that the model rock/air boundary is in frame now
+        # Step 3: Rerun normalization to reach the ~85% filled target specified by auto
         for _ in range(3):
             temp_model.renormalize_height(auto=True)
 
@@ -509,7 +513,7 @@ class GeoModel:
         self.add_history(Shift([0, 0, shift_z]))
         if recompute:
             self.clear_data()
-            self.compute_model()
+            self._apply_history_computation()
 
         return current_max_z
 
