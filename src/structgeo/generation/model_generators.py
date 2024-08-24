@@ -3,11 +3,9 @@
 import abc as _abc
 import csv
 import os
-import random
 from typing import List
 
 import numpy as np
-import yaml
 from pydtmc import MarkovChain
 
 import structgeo.generation as genmodule
@@ -173,7 +171,7 @@ class MarkovMatrixParser:
         # Build a dictionary of string keys mapping to valid event classes
         self.event_dictionary = self._build_event_dictionary()
         # Load the transition matrix from the CSV file
-        self.states, self.transition_matrix = self._load_transition_matrix_from_csv(
+        self.markov_states, self.transition_matrix = self._load_transition_matrix_from_csv(
             self.path
         )
         # Run a check on the matrix that it is valid markov matrix
@@ -305,7 +303,7 @@ class MarkovMatrixParser:
         # Check each row sum and provide detailed error messages
         for i, row_sum in enumerate(row_sums):
             if not np.isclose(row_sum, 1.0):
-                state_name = self.states[i]
+                state_name = self.markov_states[i]
                 raise ValueError(
                     f"Row {i+1} ({state_name}) sum is {row_sum:.4f}, but it must sum to 1.0."
                 )
@@ -314,128 +312,12 @@ class MarkovMatrixParser:
         return self.event_dictionary
 
     def get_states(self):
-        return self.states
+        return self.markov_states
 
     def get_transition_matrix(self):
         return self.transition_matrix
 
     def get_markov_chain(self) -> MarkovChain:
-        # Create the MarkovChain object
-        mc = MarkovChain(self.transition_matrix, self.states)
+        # Create the MarkovChain library object
+        mc = MarkovChain(self.transition_matrix, self.markov_states)
         return mc
-
-
-""" AN OLDER AND POTENTIALLY DEPRECATED MDOEL GENERATOR CLASS"""
-
-
-class YAMLGeostoryGenerator(_GeostoryGenerator):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.data = self.load_yaml(self.config)
-        self._validate_yaml()
-        self.sentence_selector = SentenceSelector(self.data["grammar"])
-        self.word_selector = WordSelector(self.data["vocab"])
-
-    @staticmethod
-    def load_yaml(cfg_path):
-        """Load and return the YAML configuration file."""
-        try:
-            with open(cfg_path, "r") as file:
-                return yaml.safe_load(file)
-        except Exception as e:
-            raise ValueError(f"Failed to load YAML file: {e}")
-
-    def _validate_yaml(self):
-        """Validate the structure and data of the YAML file."""
-        if "vocab" not in self.data or "grammar" not in self.data:
-            raise ValueError("YAML file must include 'vocab' and 'grammar' sections")
-
-        for category, entries in self.data["vocab"].items():
-            for entry in entries:
-                class_name, weight = entry
-                if not isinstance(weight, (int, float)):
-                    raise ValueError(
-                        f"Weight for {class_name} in '{category}' must be a number"
-                    )
-                if not hasattr(geowords, class_name):
-                    raise ValueError(
-                        f"The class {class_name} does not exist in the geowords module"
-                    )
-
-    def _sample_sentences(self, n_samples: int = 1) -> List[List[geowords.GeoWord]]:
-        """Sample multiple grammar structures and fill them with corresponding vocab."""
-        sentence_structures = self.sentence_selector.select_grammar(n_samples)
-        filled_sentences = [
-            self.word_selector.fill_grammar_with_words(structure)
-            for structure in sentence_structures
-        ]
-        return filled_sentences
-
-    def _sentence_to_history(
-        self, sentence: List[geowords.GeoWord]
-    ) -> List[GeoProcess]:
-        """Generate a geological history from a sentence."""
-        return [word.generate() for word in sentence]
-
-    def generate_models(self, n_samples: int = 1) -> List[GeoModel]:
-        """Generate multiple geological models."""
-        filled_sentences = self._sample_sentences(n_samples)
-        model_histories = [
-            self._sentence_to_history(sentence) for sentence in filled_sentences
-        ]
-        models = [self._history_to_model(hist) for hist in model_histories]
-        return models
-
-
-class SentenceSelector:
-    """A class that selects grammar categories and structures based on defined weights."""
-
-    def __init__(self, grammar_data):
-        self.grammar_data = grammar_data
-        self.categories = list(grammar_data.keys())
-        self.weights = np.array(
-            [grammar_data[category]["weight"] for category in self.categories]
-        )
-        self.weights /= self.weights.sum()  # Normalize weights
-
-    def select_category(self, n_samples: int = 1):
-        """Select multiple grammar categories based on defined weights in a batch."""
-        return np.random.choice(self.categories, size=n_samples, p=self.weights)
-
-    def select_grammar(self, n_samples: int = 1):
-        """Select multiple grammar from chosen categories in a batch."""
-        categories = self.select_category(n_samples)
-        structures = []
-        for category in categories:
-            selected_structure = random.choice(
-                self.grammar_data[category]["structures"]
-            )
-            structures.append(selected_structure)
-        return structures
-
-
-class WordSelector:
-    def __init__(self, vocab_data):
-        """Initialize with vocabulary data where keys map to class names and their weights."""
-        self.processed_vocab = {}
-        for grammar_key, entries in vocab_data.items():
-            # Retrieve and store the class constructors along with their respective weights
-            words = [getattr(geowords, name) for name, _ in entries]
-            weights = np.array([weight for _, weight in entries])
-            probabilities = weights / weights.sum()  # Normalize weights
-            self.processed_vocab[grammar_key] = (words, probabilities)
-
-    def select_word(self, grammar_key) -> geowords.GeoWord:
-        """Select and instantiate GeoWord based on defined weights and grammar key."""
-        words, probabilities = self.processed_vocab[
-            grammar_key
-        ]  # Get word options and probabilities
-        selected_word = np.random.choice(
-            words, p=probabilities
-        )  # Choose a word based on probabilities
-        return selected_word()  # Instantiate the selected GeoWord
-
-    def fill_grammar_with_words(self, structure: List[str]) -> List[geowords.GeoWord]:
-        """Select and instantiate words for each category in the given structure."""
-        return [self.select_word(grammar_key) for grammar_key in structure]

@@ -17,7 +17,7 @@ def main():
 
 def test_csv_loader():
     parser = MarkovMatrixParser()  # Inits to a default csv file path
-    print(parser.states)
+    print(parser.markov_states)
     print(parser.transition_matrix)
 
     mc = parser.get_markov_chain()
