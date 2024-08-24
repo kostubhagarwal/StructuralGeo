@@ -20,10 +20,9 @@ from typing import List
 
 import numpy as np
 
-from structgeo.model import GeoProcess
+from structgeo.model import GeoProcess, CompoundProcess
 
-from .geowords import *
-
+from structgeo.generation.geowords import *
 
 class _EventTemplateClass(GeoWord):
     """
@@ -63,7 +62,7 @@ class _EventTemplateClass(GeoWord):
         self.hist.clear()
         self.build_history()
         name = f"{self.__class__.__name__}: {self.selected_case.name}"
-        geoprocess = geo.CompoundProcess(self.hist.copy(), name=name)
+        geoprocess = CompoundProcess(self.hist.copy(), name=name)
         return geoprocess
 
     def build_history(self):
@@ -126,13 +125,13 @@ class BaseStrata(_EventTemplateClass):
     def __init__(self, rng=None):
         cases = [
             self.Event(
-                name="Basement", p=0.4, processes=[InfiniteBasement(), Sediment()]
+                name="Basement", p=0.3, processes=[InfiniteBasement(), Sediment()]
             ),
             self.Event(
-                name="Sediment: Markov", p=0.2, processes=[InfiniteSedimentMarkov()]
+                name="Sediment: Markov", p=0.25, processes=[InfiniteSedimentMarkov()]
             ),
             self.Event(
-                name="Sediment: Uniform", p=0.2, processes=[InfiniteSedimentUniform()]
+                name="Sediment: Uniform", p=0.25, processes=[InfiniteSedimentUniform()]
             ),
             self.Event(
                 name="Sediment: Tilted Markov",

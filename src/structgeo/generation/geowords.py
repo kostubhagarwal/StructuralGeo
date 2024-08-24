@@ -2,6 +2,7 @@
 
 import copy
 from typing import List, Union
+from abc import ABC as _ABC, abstractmethod
 
 import numpy as np
 
@@ -27,8 +28,7 @@ BLOB_VALS = [12, 13]
 # A target mean for random sedimentation depth
 MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 8
 
-
-class GeoWord:
+class GeoWord(_ABC):
     """
     Base class for generating geological events within a hierarchical structure.
 
@@ -48,6 +48,7 @@ class GeoWord:
         self.seed = seed
         self.rng = np.random.default_rng(seed)
 
+    @abstractmethod
     def build_history(self):
         """
         Constructs the geological history for the GeoWord.
@@ -55,7 +56,7 @@ class GeoWord:
         This method should be overridden by subclasses to define the geological history for the event.
         History is built by adding GeoProcess, GeoWords, or lists of these using the `add_process` method.
         """
-        raise NotImplementedError()
+        pass
 
     def generate(self):
         """
@@ -293,7 +294,7 @@ class SingleRandSediment(GeoWord):
 """ Erosion events"""
 
 
-class BaseErosionWord(GeoWord):  # Validated
+class _BaseErosionWord(GeoWord):  # Validated
     """Reusable generic class for calculating total depth of erosion events."""
 
     MEAN_DEPTH = Z_RANGE / 8
@@ -309,7 +310,7 @@ class BaseErosionWord(GeoWord):  # Validated
         return factor * self.MEAN_DEPTH
 
 
-class FlatUnconformity(BaseErosionWord):  # Validated
+class FlatUnconformity(_BaseErosionWord):  # Validated
     """Flat unconformity down to a random depth"""
 
     def build_history(self):
@@ -318,7 +319,7 @@ class FlatUnconformity(BaseErosionWord):  # Validated
         self.add_process(unconformity)
 
 
-class TiltedUnconformity(BaseErosionWord):  # Validated
+class TiltedUnconformity(_BaseErosionWord):  # Validated
     """Slightly tilted unconformity down to a random depth"""
 
     def build_history(self):
@@ -339,7 +340,7 @@ class TiltedUnconformity(BaseErosionWord):  # Validated
             self.add_process([tilt_in, unconformity, tilt_out])
 
 
-class WaveUnconformity(BaseErosionWord):
+class WaveUnconformity(_BaseErosionWord):
     """Change of coordinates/basis with two orthogonal folds to create wavy unconformity"""
 
     def build_history(self):
