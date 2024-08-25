@@ -2,10 +2,8 @@ import matplotlib.pyplot as plt
 import pydtmc as dtmc
 
 import structgeo.plot as geovis
-from structgeo.generation.model_generators import (
-    MarkovGeostoryGenerator,
-    MarkovMatrixParser,
-)
+from structgeo.generation.model_generators import (MarkovGeostoryGenerator,
+                                                   MarkovMatrixParser)
 from structgeo.model import GeoModel
 
 

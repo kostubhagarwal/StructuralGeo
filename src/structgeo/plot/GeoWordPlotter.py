@@ -1,6 +1,8 @@
-""" A multi-plotter PyVista window offering viewing of GeoWord stories in 3D.
+""" 
+A multi-plotter PyVista window offering viewing of GeoWord stories in 3D.
 
-Allows for rapid sampling and viewing of histories generated from GeoWords.
+Allows for rapid sampling and viewing of histories generated from GeoWords. 
+Simply pass in a sentence (list of GeoWords) and the plotter will generate and plot samples.
 
 Shortcut keys:
 - 'r': Refresh the samples.
@@ -16,11 +18,14 @@ Plotter Parameters:
 - n_samples (int): The number of samples to generate and plot. Plotter defaults to square grid layout.
 """
 
+import numpy as np
 from pyvista import Box
 from pyvistaqt import BackgroundPlotter
 
 import structgeo.plot as geovis
-from structgeo.generation import *
+from structgeo.generation import (InfiniteBasement, InfiniteSedimentUniform,
+                                  generate_history)
+from structgeo.model import GeoModel
 
 
 class GeoWordPlotter:
@@ -76,7 +81,7 @@ class GeoWordPlotter:
 
             for _ in range(self.n_samples):
                 hist = generate_history(self.sentence)
-                model = geo.GeoModel(bounds=self.bounds, resolution=self.res)
+                model = GeoModel(bounds=self.bounds, resolution=self.res)
                 model.add_history(hist)
                 model.compute_model(normalize=True, keep_snapshots=False)
                 self.models_cache.append(model)

@@ -1,11 +1,10 @@
 import copy
 import logging
-import traceback
 
 import numpy as np
 
 from .geoprocess import *
-from .util import resample_mesh, rotate, slip_normal_vectors
+from .util import resample_mesh
 
 # Set up a simple logger
 logging.basicConfig(level=logging.DEBUG)

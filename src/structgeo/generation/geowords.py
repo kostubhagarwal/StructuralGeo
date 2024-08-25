@@ -1,8 +1,9 @@
 """ A collection of curated geological words that combine random variables and geoprocesses into a single generator class. """
 
 import copy
+from abc import ABC as _ABC
+from abc import abstractmethod
 from typing import List, Union
-from abc import ABC as _ABC, abstractmethod
 
 import numpy as np
 

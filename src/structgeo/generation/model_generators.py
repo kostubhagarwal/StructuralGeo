@@ -10,7 +10,6 @@ from pydtmc import MarkovChain
 
 import structgeo.generation as genmodule
 import structgeo.generation.categorical_events as events
-import structgeo.generation.geowords as geowords
 from structgeo.model.geomodel import GeoModel, GeoProcess
 
 

@@ -1,7 +1,7 @@
 import numpy as np
 
-from structgeo.model.geomodel import GeoModel
-from structgeo.model.geoprocess import DeferredParameter, Sedimentation, Transformation
+from structgeo.model.geoprocess import (DeferredParameter, Sedimentation,
+                                        Transformation)
 
 
 class BacktrackedPoint(DeferredParameter):

@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from .geoprocess import Deposition
+from structgeo.model.geoprocess import Deposition
 
 
 class Ball:

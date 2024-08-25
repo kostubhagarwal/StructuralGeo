@@ -20,9 +20,9 @@ from typing import List
 
 import numpy as np
 
-from structgeo.model import GeoProcess, CompoundProcess
-
 from structgeo.generation.geowords import *
+from structgeo.model import CompoundProcess, GeoProcess
+
 
 class _EventTemplateClass(GeoWord):
     """

@@ -2,8 +2,12 @@
 A module for plotting views and visualization of GeoModel objects.
 """
 
+from typing import Optional
+
 import numpy as np
 import pyvista as pv
+
+from structgeo.model import GeoModel
 
 
 def get_plot_config(n_colors=10):
@@ -26,7 +30,7 @@ def get_plot_config(n_colors=10):
     return settings
 
 
-def setup_plot(model, plotter=None, threshold=-0.5):
+def setup_plot(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5):
     """Common setup for all plot types"""
     if plotter is None:  # Make a plotter if one is not provided
         plotter = pv.Plotter()
@@ -45,7 +49,12 @@ def setup_plot(model, plotter=None, threshold=-0.5):
     return plotter, mesh, plot_config
 
 
-def volview(model, threshold=-0.5, show_bounds=False, plotter=None):
+def volview(
+    model: GeoModel,
+    plotter: Optional[pv.Plotter] = None,
+    threshold=-0.5,
+    show_bounds=False,
+) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -76,7 +85,9 @@ def volview(model, threshold=-0.5, show_bounds=False, plotter=None):
     return plotter
 
 
-def orthsliceview(model, threshold=-0.5, plotter=None):
+def orthsliceview(
+    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5
+) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -86,7 +97,9 @@ def orthsliceview(model, threshold=-0.5, plotter=None):
     return plotter
 
 
-def nsliceview(model, n=5, axis="x", threshold=-0.5, plotter=None):
+def nsliceview(
+    model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5
+) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -97,7 +110,9 @@ def nsliceview(model, n=5, axis="x", threshold=-0.5, plotter=None):
     return plotter
 
 
-def onesliceview(model, threshold=-0.5, plotter=None):
+def onesliceview(
+    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5
+) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -115,7 +130,9 @@ def onesliceview(model, threshold=-0.5, plotter=None):
     return plotter
 
 
-def transformationview(model, threshold=None, plotter=None):
+def transformationview(
+    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=None
+) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -128,7 +145,7 @@ def transformationview(model, threshold=None, plotter=None):
     return plotter
 
 
-def add_snapshots_to_plotter(plotter, model, cmap):
+def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
     resolution = model.resolution
     # Calculate the offset to separate each snapshot
     # The offset is chosen based on the overall size of the model
@@ -173,7 +190,9 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     return actors
 
 
-def categorical_grid_view(model, threshold=None, text_annot=True, off_screen=False):
+def categorical_grid_view(
+    model: GeoModel, threshold=None, text_annot=True, off_screen=False
+) -> pv.Plotter:
     cfg = get_plot_config()
 
     def calculate_grid_dims(n):
@@ -231,7 +250,7 @@ def categorical_grid_view(model, threshold=None, text_annot=True, off_screen=Fal
     return p
 
 
-def get_mesh_from_model(model, threshold=None):
+def get_mesh_from_model(model: GeoModel, threshold=None):
     """Convert GeoModel data to a mesh grid of nodes for visualization
     Total nodes is the same as data values, grid cells will be filled by interpolated rock type values
     """
