@@ -2,8 +2,10 @@
 
 import abc as _abc
 import csv
-import os
 from typing import List
+
+import importlib.resources as resources
+import os
 
 import numpy as np
 from pydtmc import MarkovChain
@@ -154,11 +156,6 @@ class MarkovMatrixParser:
         A square matrix representing the transition probabilities between states.
     """
 
-    # Set the expected path to the Markov matrix directory structgeo/generation/markov_matrix
-    MARKOV_DIRECTORY = os.path.join(
-        os.path.dirname(os.path.abspath(genmodule.__file__)), "markov_matrix"
-    )
-
     def __init__(self, path=None):
         # Get a path
         if path is None:
@@ -177,15 +174,13 @@ class MarkovMatrixParser:
         self._validate_transition_matrix()
 
     def _get_default_path(self):
-        return os.path.join(
-            MarkovMatrixParser.MARKOV_DIRECTORY, "default_markov_matrix.csv"
-        )
+        # Using importlib.resources to access the default Markov matrix file
+        return resources.files('structgeo.generation.markov_matrix').joinpath('default_markov_matrix.csv')
 
     def _validate_path(self, path):
-        try:
-            assert os.path.exists(path), f"File not found: {path}"
-        except Exception as e:
-            raise ValueError(f"Failed to validate path: {e}")
+        if not os.path.exists(path):
+            raise ValueError(f"File not found: {path}")
+        return path
 
     def _build_event_dictionary(self):
         """
