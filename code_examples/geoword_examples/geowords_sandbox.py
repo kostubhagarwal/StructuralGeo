@@ -5,11 +5,11 @@ import time as clock
 import pyvista as pv
 from torch.utils.data import DataLoader
 
-import structgeo.model as geo  # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
-import structgeo.plot as geovis  # Plot contains all the tools related to visualizing the geomodels
-import structgeo.probability as rv  # markov sediment builders, random variable helpers, etc.
-from structgeo.dataset import GeoData3DStreamingDataset
-from structgeo.generation import *  # Generation module contains all of the GeoWords and history generating functions
+import geogen.model as geo  # Model contains the GeoModel and GeoProcess classes, the mechanics of the modeling
+import geogen.plot as geovis  # Plot contains all the tools related to visualizing the geomodels
+import geogen.probability as rv  # markov sediment builders, random variable helpers, etc.
+from geogen.dataset import GeoData3DStreamingDataset
+from geogen.generation import *  # Generation module contains all of the GeoWords and history generating functions
 
 
 def main():

@@ -3,8 +3,8 @@ import torch
 from pyvistaqt import QtInteractor
 from qtpy import QtWidgets
 
-import structgeo.model as geo
-import structgeo.plot as geovis
+import geogen.model as geo
+import geogen.plot as geovis
 
 
 class ModelPlotter:

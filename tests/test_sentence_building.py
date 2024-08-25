@@ -3,10 +3,9 @@ import random
 import numpy as np
 import pyvista as pv
 
-import structgeo.model as geo
-import structgeo.plot as geovis
-from structgeo.config import load_config
-from structgeo.generation import *
+import geogen.model as geo
+import geogen.plot as geovis
+from geogen.generation import *
 
 
 # ---- Single Sentence Testing ---- #
@@ -30,22 +29,5 @@ def single_sentence_test():
         geovis.volview(model, plotter=p)
     p.show()
 
+single_sentence_test()
 
-config = load_config(name="config_default.json")
-yaml_loc = config["yaml_file"]
-
-
-def model_loader_test():
-    loader = YAMLGeostoryGenerator(config=yaml_loc, model_resolution=(128, 128, 64))
-    models = loader.generate_models(16)
-    p = pv.Plotter(shape=(4, 4))
-    for i, model in enumerate(models):
-        p.subplot(i // 4, i % 4)
-        geovis.volview(model, plotter=p)
-    p.show()
-
-    print("")
-
-
-# single_sentence_test()
-model_loader_test()

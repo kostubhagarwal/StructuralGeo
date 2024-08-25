@@ -2,7 +2,7 @@
 
 from typing import List
 
-import structgeo.model as geo
+import geogen.model as geo
 
 from .geowords import GeoWord
 

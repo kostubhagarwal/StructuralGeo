@@ -3,9 +3,9 @@ import time as clock
 import numpy as np
 import pyvista as pv
 
-import structgeo.generation as gen
-import structgeo.model as geo
-import structgeo.plot as geovis
+import geogen.generation as gen
+import geogen.model as geo
+import geogen.plot as geovis
 
 
 def main():

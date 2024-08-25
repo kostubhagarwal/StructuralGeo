@@ -1,7 +1,7 @@
 import numpy as np
 import pyvista as pv
 
-from structgeo.model import rotate
+from geogen.model import rotate
 
 # Setup plotter
 p = pv.Plotter(off_screen=True)

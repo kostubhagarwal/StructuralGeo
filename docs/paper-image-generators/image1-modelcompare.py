@@ -4,9 +4,9 @@ import pyvista as pv
 from matplotlib.colors import to_rgb
 from pyvistaqt import BackgroundPlotter
 
-import structgeo.model as geo
-import structgeo.plot as geovis
-import structgeo.probability as rv
+import geogen.model as geo
+import geogen.plot as geovis
+import geogen.probability as rv
 
 pv.set_plot_theme("document")
 

@@ -4,9 +4,9 @@ import time as clock
 import numpy as np
 import pyvista as pv
 
-import structgeo.model as geo
-import structgeo.plot as geovis
-from structgeo.generation import *
+import geogen.model as geo
+import geogen.plot as geovis
+from geogen.generation import *
 
 
 def single_plotter():

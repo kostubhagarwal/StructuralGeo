@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 
-from structgeo.model.util import rotate, slip_normal_vectors
+from geogen.model.util import rotate, slip_normal_vectors
 
 
 class GeoProcess:

@@ -7,9 +7,9 @@ from typing import List, Union
 
 import numpy as np
 
-import structgeo.model as geo
-import structgeo.probability as rv
-from structgeo.probability import FourierWaveGenerator, MarkovSedimentHelper
+import geogen.model as geo
+import geogen.probability as rv
+from geogen.probability import FourierWaveGenerator, MarkovSedimentHelper
 
 # Expected model bounds
 BOUNDS_X = (-3840, 3840)

@@ -2,7 +2,7 @@ import os
 
 from qtpy import QtCore, QtWidgets
 
-from structgeo.filemanagement import FileManager
+from geogen.filemanagement import FileManager
 
 
 class FileManagerGUI:

@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 import pyvista as pv
 
-from structgeo.model import GeoModel
+from geogen.model import GeoModel
 
 
 def get_plot_config(n_colors=10):

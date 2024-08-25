@@ -1,7 +1,7 @@
 import numpy as np
 import pyvista as pv
 
-import structgeo.model as geo
+import geogen.model as geo
 
 
 def add_snapshots_to_plotter(plotter, model, cmap):

@@ -10,9 +10,9 @@ import os
 import numpy as np
 from pydtmc import MarkovChain
 
-import structgeo.generation as genmodule
-import structgeo.generation.categorical_events as events
-from structgeo.model.geomodel import GeoModel, GeoProcess
+import geogen.generation as genmodule
+import geogen.generation.categorical_events as events
+from geogen.model.geomodel import GeoModel, GeoProcess
 
 
 class _GeostoryGenerator(_abc.ABC):
@@ -175,7 +175,7 @@ class MarkovMatrixParser:
 
     def _get_default_path(self):
         # Using importlib.resources to access the default Markov matrix file
-        return resources.files('structgeo.generation.markov_matrix').joinpath('default_markov_matrix.csv')
+        return resources.files('geogen.generation.markov_matrix').joinpath('default_markov_matrix.csv')
 
     def _validate_path(self, path):
         if not os.path.exists(path):

@@ -1,0 +1,12 @@
+numpy
+scipy
+matplotlib
+pyvista[all]
+pyvistaqt
+ipywidgets
+ipykernel
+trame
+trame-vuetify
+trame-vtk
+tqdm
+PyDTMC

@@ -1,7 +1,7 @@
 import os
 import pickle as pickle
 
-from structgeo.model import GeoModel
+from geogen.model import GeoModel
 
 
 class FileManager:

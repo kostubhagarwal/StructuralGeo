@@ -1,8 +1,8 @@
 import numpy as np
 import pyvista as pv
 
-import structgeo.model as geo
-import structgeo.plot as geovis
+import geogen.model as geo
+import geogen.plot as geovis
 
 p = pv.Plotter(shape=(2, 2))
 

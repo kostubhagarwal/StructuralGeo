@@ -11,7 +11,7 @@ from qtpy import QtCore, QtGui, QtWidgets
 from toolbar import \
     ToolBarWidget  # Ensure this import matches the file location
 
-from structgeo.filemanagement import FileManager
+from geogen.filemanagement import FileManager
 
 
 class MyMainWindow(QtWidgets.QMainWindow):

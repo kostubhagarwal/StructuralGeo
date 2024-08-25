@@ -3,9 +3,9 @@ import os
 import numpy as np
 import pyvista as pv
 
-import structgeo.model as geo
-import structgeo.plot as geovis
-import structgeo.probability as rv
+import geogen.model as geo
+import geogen.plot as geovis
+import geogen.probability as rv
 
 # Generators
 # Create a list of numbers from 4 to 6

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 
-from structgeo.filemanagement import FileManager
+from geogen.filemanagement import FileManager
 
 
 def generate_slices(model, n, axis):

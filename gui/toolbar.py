@@ -6,7 +6,7 @@ import torch
 from plotter import ModelPlotter
 from qtpy import QtGui, QtWidgets
 
-from structgeo.filemanagement import FileManager
+from geogen.filemanagement import FileManager
 
 
 class ToolBarWidget(QtWidgets.QWidget):

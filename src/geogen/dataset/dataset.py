@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 
 # Two types of geological model generators provided
-from structgeo.generation import MarkovGeostoryGenerator
+from geogen.generation import MarkovGeostoryGenerator
 
 _DEFAULT_GENERATOR_CLASS = MarkovGeostoryGenerator
 

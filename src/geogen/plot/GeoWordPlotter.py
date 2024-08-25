@@ -22,10 +22,10 @@ import numpy as np
 from pyvista import Box
 from pyvistaqt import BackgroundPlotter
 
-import structgeo.plot as geovis
-from structgeo.generation import (InfiniteBasement, InfiniteSedimentUniform,
+import geogen.plot as geovis
+from geogen.generation import (InfiniteBasement, InfiniteSedimentUniform,
                                   generate_history)
-from structgeo.model import GeoModel
+from geogen.model import GeoModel
 
 
 class GeoWordPlotter:

@@ -5,9 +5,9 @@ import pyvista as pv
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import structgeo.plot as geovis
-from structgeo.dataset import GeoData3DStreamingDataset
-from structgeo.model import GeoModel
+import geogen.plot as geovis
+from geogen.dataset import GeoData3DStreamingDataset
+from geogen.model import GeoModel
 
 """ 
 Load a default config pointing to a default dataset directory with yaml file.

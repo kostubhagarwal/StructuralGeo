@@ -1,4 +1,4 @@
-from structgeo.generation.categorical_events import *
+from geogen.generation.categorical_events import *
 
 from .geohistgen import *
 from .geowords import *

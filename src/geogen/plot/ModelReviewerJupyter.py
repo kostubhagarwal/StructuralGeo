@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 import pyvista as pv
 from IPython.display import clear_output, display
 
-import structgeo.plot as geovis
-from structgeo.filemanagement import FileManager
-from structgeo.model.util import rotate
+import geogen.plot as geovis
+from geogen.filemanagement import FileManager
+from geogen.model.util import rotate
 
 
 class ModelReviewer:

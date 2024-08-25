@@ -24,7 +24,8 @@ You can visualize the model using PyVista or with some built-in visualization to
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-import structgeo.generation as gen
-import structgeo.model as geo
-import structgeo.plot as geovis
-import structgeo.probability as rv
+__title__ = "GeoGen"
+
+# Use structgeo for now, rename this all later
+
+
