@@ -61,7 +61,7 @@ class MarkovSedimentHelper:
         - categories (list): List of sediment categories.
         - rng (np.random.Generator): Random number generator.
         - thickness_bounds (tuple): Bounds for min/max allowable layer thicknesses.
-        - thickness_variance (float): Variance for variation in differrence between layer thicknesses.
+        - thickness_variance (float): Variance for variation in differrence between layer thicknesses, as a percentage of previous thickness.
         - dirichlet_alpha (float): Alpha value for Dirichlet distribution in transition matrix. (low values -> more bias)
         - anticorrelation_factor (float): Factor for anticorrelation between categories in transition matrix. 0 -> never reselect, 1-> no bias
     """
@@ -123,14 +123,20 @@ class MarkovSedimentHelper:
             return next_thick
 
     def generate_sediment_layers(self, total_depth):
-        """Generate sediment layers until the total depth is filled.
+        """
+        Generate sediment layers until the total depth is filled.
 
-        Parameters:
-            - total_depth (float): The depth to fill with sediment layers.
+        Parameters
+        ----------
+        total_depth : float
+            The depth to fill with sediment layers.
 
-        Returns:
-            - vals (list): List of sediment category values for each layer.
-            - thicks (list): List of thicknesses for each layer.
+        Returns
+        -------
+        vals : list of int
+            List of sediment category values for each layer.
+        thicks : list of float
+            List of thicknesses for each layer.
         """
         vals = []
         thicks = []
