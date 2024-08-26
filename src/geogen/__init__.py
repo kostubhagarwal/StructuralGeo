@@ -26,6 +26,13 @@ You can visualize the model using PyVista or with some built-in visualization to
 
 __title__ = "GeoGen"
 
-# Use structgeo for now, rename this all later
+# TODO: Update these imports into a cohesive API
+# Note, some very specific imports should be used to avoid importing the entire library
+from geogen.dataset import GeoData3DStreamingDataset as StreamingDataset
+
+import geogen.model as model
 
 
+
+# This controls the import behaviour when using `from geogen import *`
+__all__ = ["GeoData3DStreamingDataset", "model", "plot", "gen"]

@@ -8,9 +8,9 @@ from geogen.model import GeoModel
 
 
 def main():
-    # test_csv_loader()
-    # test_markov_geostory_init()
-    test_model_generator()
+    test_csv_loader()
+    test_markov_geostory_init()
+    # test_model_generator()
 
 
 def test_csv_loader():
@@ -22,7 +22,7 @@ def test_csv_loader():
     print(mc)
 
     # Visualize the Markov chain as a graph
-    dtmc.plot_graph(mc, dpi=100)
+    dtmc.plot_graph(mc, dpi=300, force_standard=False)
 
     plt.show()
 
@@ -41,6 +41,9 @@ def test_markov_geostory_init():
         gm = GeoModel()
         gm.add_history(history)
         print(gm.get_history_string())
+        
+    # Get the markov chain
+    mc = gen.mc
 
 
 def test_model_generator():

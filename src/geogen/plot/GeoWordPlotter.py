@@ -1,5 +1,5 @@
 """ 
-A multi-plotter PyVista window offering viewing of GeoWord stories in 3D.
+A multi-plotter PyVista window offering viewing of GeoWord sentences in 3D.
 
 Allows for rapid sampling and viewing of histories generated from GeoWords. 
 Simply pass in a sentence (list of GeoWords) and the plotter will generate and plot samples.

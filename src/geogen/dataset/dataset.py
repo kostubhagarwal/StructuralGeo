@@ -10,7 +10,6 @@ from geogen.generation import MarkovGeostoryGenerator
 
 _DEFAULT_GENERATOR_CLASS = MarkovGeostoryGenerator
 
-
 class GeoData3DStreamingDataset(Dataset):
     """
     A PyTorch Dataset wrapper for streaming geological data from a GeostoryGenerator object.
