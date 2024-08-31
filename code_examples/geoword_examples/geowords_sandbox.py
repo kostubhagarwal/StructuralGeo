@@ -83,7 +83,7 @@ def get_empty_model(z_axis_res=64):
         BOUNDS_X,
         BOUNDS_Y,
         BOUNDS_Z,
-    )  # The geowords import from structgeo.generation import * contains
+    )  # The geowords import from geogen.generation import * contains
     # the intended bounds for the geowords
     x = z_axis_res
     resolution = (

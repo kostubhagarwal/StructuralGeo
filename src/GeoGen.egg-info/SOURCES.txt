@@ -1,3 +1,4 @@
+LICENSE
 setup.py
 src/GeoGen.egg-info/PKG-INFO
 src/GeoGen.egg-info/SOURCES.txt
