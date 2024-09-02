@@ -10,7 +10,6 @@ import os
 import numpy as np
 from pydtmc import MarkovChain
 
-import geogen.generation as genmodule
 import geogen.generation.categorical_events as events
 from geogen.model.geomodel import GeoModel, GeoProcess
 
@@ -84,8 +83,8 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         See the MarkovMatrixParser class for more information on format and requirements.
     """
 
-    _START_STATE = "BaseStrata"
-    _END_STATE = "End"
+    _START_STATE = "BaseStrata" # Name of the Markov chain start state, must reference valid events class
+    _END_STATE = "End" # Name of the Markov chain termination event, must reference valid events class
     _MAX_STEPS = 20
 
     def __init__(self, **kwargs):
@@ -94,7 +93,7 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         self.mc: MarkovChain = self.markov_matrix_parser.get_markov_chain()
         self.event_dictionary = self.markov_matrix_parser.get_event_dictionary()
 
-    def _build_geostory(self):
+    def build_geostory(self):
         """Build a geological history from a Markov chain."""
         sequence = self._build_markov_sequence()
         # Instantiate the event classes from the sequence
@@ -116,7 +115,7 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         """Generate multiple geological models."""
         models = []
         for _ in range(n_samples):
-            history = self._build_geostory()
+            history = self.build_geostory()
             model = self._history_to_model(history)
             models.append(model)
         return models
