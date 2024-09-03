@@ -39,9 +39,7 @@ def main():
 
     model_deferred = geo.GeoModel(bounds=(-10, 10), resolution=128)
     defer_origin = geo.BacktrackedPoint(point=(0, 0, 0))
-    metaball = geo.MetaBall(
-        balls=[ball], threshold=0.5, value=5, reference_origin=defer_origin, clip=False
-    )
+    metaball = geo.MetaBall(balls=[ball], threshold=0.5, value=5, reference_origin=defer_origin, clip=False)
     model_deferred.add_history([bed, sed, metaball, fold])
     print(model_deferred.history[-2].reference_origin)
     start = clock.time()
@@ -57,9 +55,7 @@ def main():
 
     p.show()
 
-    dike = geo.DikePlane(
-        strike=0, dip=45, width=2, origin=geo.BacktrackedPoint((0, 0, 0)), value=5
-    )
+    dike = geo.DikePlane(strike=0, dip=45, width=2, origin=geo.BacktrackedPoint((0, 0, 0)), value=5)
 
     model.clear_history()
     model.add_history(

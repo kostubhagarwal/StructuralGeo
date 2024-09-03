@@ -33,6 +33,5 @@ from geogen.dataset import GeoData3DStreamingDataset as StreamingDataset
 import geogen.model as model
 
 
-
 # This controls the import behaviour when using `from geogen import *`
 __all__ = ["GeoData3DStreamingDataset", "model", "plot", "gen"]

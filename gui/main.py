@@ -3,13 +3,10 @@ import sys
 
 os.environ["QT_API"] = "pyqt5"
 
-from file_manager_gui import \
-    FileManagerGUI  # Import the file manager GUI class
-from plotter import \
-    ModelPlotter  # Ensure this import matches the file location
+from file_manager_gui import FileManagerGUI  # Import the file manager GUI class
+from plotter import ModelPlotter  # Ensure this import matches the file location
 from qtpy import QtCore, QtGui, QtWidgets
-from toolbar import \
-    ToolBarWidget  # Ensure this import matches the file location
+from toolbar import ToolBarWidget  # Ensure this import matches the file location
 
 from geogen.filemanagement import FileManager
 
@@ -29,12 +26,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         # Create a plotter, toolbar
         self.plotter = ModelPlotter(self)
         self.filemanager = FileManager(base_dir=base_dir)
-        self.file_manager_gui = FileManagerGUI(
-            self, self.filemanager
-        )  # Pass the file manager to the GUI
-        self.toolbar = ToolBarWidget(
-            self, plotter=self.plotter, file_manager=self.filemanager
-        )
+        self.file_manager_gui = FileManagerGUI(self, self.filemanager)  # Pass the file manager to the GUI
+        self.toolbar = ToolBarWidget(self, plotter=self.plotter, file_manager=self.filemanager)
 
         self._init_layout()
         self._init_filemenu()
@@ -59,9 +52,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.splitter.addWidget(self.plotter.frame)
 
         # Set the splitter to have an adjustable handle
-        self.splitter.setSizes(
-            [250, 750]
-        )  # Initial sizes for the file tree and plotter
+        self.splitter.setSizes([250, 750])  # Initial sizes for the file tree and plotter
         self.splitter.setStretchFactor(1, 1)  # Allow the plotter to expand
 
         # Add the splitter to the main layout
@@ -78,9 +69,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.toolbar_layout.addWidget(self.toolbar)
 
         # Set toolbar size policy to fixed height
-        self.toolbar.setSizePolicy(
-            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed
-        )
+        self.toolbar.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
 
         # Add the toolbar layout to the main layout
         self.main_layout.addLayout(self.toolbar_layout)
@@ -120,7 +109,5 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    win = MyMainWindow(
-        base_dir=os.getcwd()
-    )  # Pass the base directory to the main window')
+    win = MyMainWindow(base_dir=os.getcwd())  # Pass the base directory to the main window')
     sys.exit(app.exec_())

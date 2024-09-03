@@ -78,12 +78,8 @@ class GeoModel:
         self.X = np.empty((0, 0, 0))  # 3D meshgrid for X coordinates
         self.Y = np.empty((0, 0, 0))  # 3D meshgrid for Y coordinates
         self.Z = np.empty((0, 0, 0))  # 3D meshgrid for Z coordinates
-        self.mesh_snapshots = np.empty(
-            (0, 0, 0, 0)
-        )  # 4D array to store intermediate mesh states
-        self.data_snapshots = np.empty(
-            (0, 0)
-        )  # 2D array to store intermediate data states
+        self.mesh_snapshots = np.empty((0, 0, 0, 0))  # 4D array to store intermediate mesh states
+        self.data_snapshots = np.empty((0, 0))  # 2D array to store intermediate data states
 
         self._validate_model_params()
 
@@ -100,28 +96,18 @@ class GeoModel:
         if isinstance(self.resolution, int):
             self.resolution = (self.resolution, self.resolution, self.resolution)
         elif isinstance(self.resolution, tuple):
-            assert (
-                len(self.resolution) == 3
-            ), "Resolution must be a single value or a tuple of 3 values."
+            assert len(self.resolution) == 3, "Resolution must be a single value or a tuple of 3 values."
         else:
-            raise ValueError(
-                "Resolution must be a single value or a tuple of 3 values."
-            )
+            raise ValueError("Resolution must be a single value or a tuple of 3 values.")
 
         # Check and accept bounds as a single tuple of 2 values or a tuple of 3 tuples
         if isinstance(self.bounds[0], tuple):
-            assert (
-                len(self.bounds) == 3
-            ), "Bounds must be a tuple of 3 tuples for x, y, and z dimensions."
+            assert len(self.bounds) == 3, "Bounds must be a tuple of 3 tuples for x, y, and z dimensions."
         elif isinstance(self.bounds, tuple):
-            assert (
-                len(self.bounds) == 2
-            ), "Bounds must be a tuple of 2 values for a single dimension."
+            assert len(self.bounds) == 2, "Bounds must be a tuple of 2 values for a single dimension."
             self.bounds = (self.bounds, self.bounds, self.bounds)
         else:
-            raise ValueError(
-                "Bounds must be a tuple of 2 values or a tuple of 3 tuples."
-            )
+            raise ValueError("Bounds must be a tuple of 2 values or a tuple of 3 tuples.")
 
     def __repr__(self):
         """
@@ -203,9 +189,7 @@ class GeoModel:
         self.X, self.Y, self.Z = np.meshgrid(x, y, z, indexing="ij")
 
         # Combine flattened arrays into a 2D numpy array where each row is an (x, y, z) coordinate
-        self.xyz = np.column_stack(
-            (self.X.flatten(), self.Y.flatten(), self.Z.flatten())
-        )
+        self.xyz = np.column_stack((self.X.flatten(), self.Y.flatten(), self.Z.flatten()))
 
         # Initialize data array with NaNs
         self.data = np.full(self.xyz.shape[0], np.nan, dtype=self.dtype)
@@ -506,9 +490,7 @@ class GeoModel:
         # Always include the oldest time state of mesh
         snapshot_indices = [0]
         for i in range(1, len(history)):
-            if isinstance(history[i], Deposition) and isinstance(
-                history[i - 1], Transformation
-            ):
+            if isinstance(history[i], Deposition) and isinstance(history[i - 1], Transformation):
                 snapshot_indices.append(i)
 
         self.snapshot_indices = snapshot_indices
@@ -516,9 +498,7 @@ class GeoModel:
         self.mesh_snapshots = np.empty((len(self.snapshot_indices), *self.xyz.shape))
         self.data_snapshots = np.empty((len(self.snapshot_indices), *self.data.shape))
         log.debug(f"Intermediate mesh states will be saved at {self.snapshot_indices}")
-        log.debug(
-            f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}"
-        )
+        log.debug(f"Total gigabytes of memory required: {self.mesh_snapshots.nbytes * 1e-9:.2f}")
 
         return snapshot_indices
 
@@ -544,9 +524,7 @@ class GeoModel:
                 # The final state (index 0) uses the actual xyz since no further modifications are made,
                 # avoiding unnecessary copying for efficiency.
                 if i != 0:
-                    self.mesh_snapshots[self.snapshot_indices.index(i)] = np.copy(
-                        current_xyz
-                    )
+                    self.mesh_snapshots[self.snapshot_indices.index(i)] = np.copy(current_xyz)
                 else:
                     self.mesh_snapshots[0] = current_xyz
 
@@ -609,9 +587,7 @@ class GeoModel:
         total_z_shift = 0  # Accumulated total shift required to renormalize the model
 
         # Step 1: Generate a low-resolution model to estimate renormalization
-        temp_model = self.__class__(
-            self.bounds, resolution=low_res, dtype=self.dtype, height_tracking=True
-        )
+        temp_model = self.__class__(self.bounds, resolution=low_res, dtype=self.dtype, height_tracking=True)
         temp_model.add_history(self.history)
         temp_model._apply_history_computation(keep_snapshots=False, remove_bars=False)
 
@@ -632,9 +608,7 @@ class GeoModel:
             # Add a shift transformation to the history and recompute
             temp_model.add_history(Shift([0, 0, shift_z]))
             temp_model.clear_data()
-            temp_model._apply_history_computation(
-                keep_snapshots=False, remove_bars=False
-            )
+            temp_model._apply_history_computation(keep_snapshots=False, remove_bars=False)
             model_max_filled_z = temp_model._get_max_filled_height()
             itr += 1
 
@@ -745,9 +719,7 @@ class GeoModel:
         bounds = self.get_z_bounds()
         zmin, zmax = bounds
         z_range = zmax - zmin
-        target_height = zmin + z_range * (
-            target_max + np.abs(np.random.normal(0, std_dev))
-        )
+        target_height = zmin + z_range * (target_max + np.abs(np.random.normal(0, std_dev)))
         log.debug(f"Normalization Target Height: {target_height}")
         return target_height
 
@@ -831,9 +803,7 @@ class GeoModel:
         resampled_mesh = resample_mesh(mesh, self.resolution[:2])
 
         # Expand the 2D topography mesh to match the 3D volume
-        expanded_mesh = np.repeat(
-            resampled_mesh[:, :, np.newaxis], self.resolution[2], axis=2
-        )
+        expanded_mesh = np.repeat(resampled_mesh[:, :, np.newaxis], self.resolution[2], axis=2)
 
         # Set all z-values higher than the corresponding topo point at the xy column to np.nan
         above_topo_mask = self.Z > expanded_mesh
@@ -877,9 +847,7 @@ class GeoModel:
             data_tensor = data_tensor.squeeze(0)  # Remove the singleton dimension
 
         # Ensure now the tensor is 3D
-        assert (
-            data_tensor.dim() == 3
-        ), "Data tensor must be either 1xXxYxZ or XxYxZ after squeezing."
+        assert data_tensor.dim() == 3, "Data tensor must be either 1xXxYxZ or XxYxZ after squeezing."
 
         # Extract resolution from tensor shape
         resolution = data_tensor.shape  # Already a tuple of three dimensions
@@ -890,9 +858,7 @@ class GeoModel:
         # Setup mesh for X, Y, Z coordinates and flattened xyz array
         instance._setup_mesh()
         # Insert torch tensor data into model
-        instance.data = (
-            data_tensor.detach().numpy().flatten()
-        )  # Convert tensor to numpy array and flatten it
+        instance.data = data_tensor.detach().numpy().flatten()  # Convert tensor to numpy array and flatten it
         # Set history to [NullProcess()] signifying no known geological history
         instance.history = [NullProcess()]
 

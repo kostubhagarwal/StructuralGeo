@@ -23,8 +23,11 @@ from pyvista import Box
 from pyvistaqt import BackgroundPlotter
 
 import geogen.plot as geovis
-from geogen.generation import (InfiniteBasement, InfiniteSedimentUniform,
-                                  generate_history)
+from geogen.generation import (
+    InfiniteBasement,
+    InfiniteSedimentUniform,
+    generate_history,
+)
 from geogen.model import GeoModel
 
 
@@ -96,9 +99,7 @@ class GeoWordPlotter:
             self.add_bounding_box(model, plotter=self.plotter)
 
         self.plotter.link_views()
-        self.plotter.add_scalar_bar(
-            title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f"
-        )
+        self.plotter.add_scalar_bar(title="Scalar Bar", n_labels=4, vertical=True, fmt="%.0f")
 
         self.plotter.render()
 
@@ -114,27 +115,19 @@ class GeoWordPlotter:
 
     def orthsliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
-        plotter.add_mesh_slice_orthogonal(
-            mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap
-        )
+        plotter.add_mesh_slice_orthogonal(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
 
     def nsliceview(self, model, n=5, axis="x", plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         slices = mesh.slice_along_axis(n=n, axis=axis)
-        plotter.add_mesh(
-            slices, scalars="values", show_scalar_bar=False, cmap=self.cmap
-        )
+        plotter.add_mesh(slices, scalars="values", show_scalar_bar=False, cmap=self.cmap)
         plotter.add_axes(line_width=5)
 
     def onesliceview(self, model, plotter=None):
         mesh = geovis.get_voxel_grid_from_model(model)
         skin = mesh.extract_surface()
-        plotter.add_mesh_slice(
-            mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap
-        )
-        plotter.add_mesh(
-            skin, scalars="values", show_scalar_bar=False, cmap=self.cmap, opacity=0.1
-        )
+        plotter.add_mesh_slice(mesh, scalars="values", show_scalar_bar=False, cmap=self.cmap)
+        plotter.add_mesh(skin, scalars="values", show_scalar_bar=False, cmap=self.cmap, opacity=0.1)
 
     def add_bounding_box(self, model, plotter=None):
         flat_bounds = [item for sublist in model.bounds for item in sublist]

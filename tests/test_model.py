@@ -35,7 +35,7 @@ class TestGeoModel(unittest.TestCase):
         """Test the mesh grid setup based on provided bounds and resolution."""
         resolution = (3, 5, 7)
         model = geo.GeoModel(bounds=((0, 1), (0, 1), (0, 1)), resolution=resolution)
-        model.setup_mesh()
+        model._setup_mesh()
         self.assertEqual(model.X.shape, resolution)
         self.assertEqual(model.Y.shape, resolution)
         self.assertEqual(model.Z.shape, resolution)

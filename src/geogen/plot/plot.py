@@ -59,9 +59,7 @@ def volview(
     if mesh is None:
         return plotter
 
-    plotter.add_mesh(
-        mesh, scalars="values", **plot_config, interpolate_before_map=False
-    )
+    plotter.add_mesh(mesh, scalars="values", **plot_config, interpolate_before_map=False)
     plotter.add_axes(line_width=5)
 
     if show_bounds:
@@ -85,9 +83,7 @@ def volview(
     return plotter
 
 
-def orthsliceview(
-    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5
-) -> pv.Plotter:
+def orthsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -97,9 +93,7 @@ def orthsliceview(
     return plotter
 
 
-def nsliceview(
-    model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5
-) -> pv.Plotter:
+def nsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -110,9 +104,7 @@ def nsliceview(
     return plotter
 
 
-def onesliceview(
-    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5
-) -> pv.Plotter:
+def onesliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -130,9 +122,7 @@ def onesliceview(
     return plotter
 
 
-def transformationview(
-    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=None
-) -> pv.Plotter:
+def transformationview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=None) -> pv.Plotter:
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -152,18 +142,14 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
     x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
 
     # Remove first data time entry which is empty, add the final data time entry
-    data_snapshots = np.concatenate(
-        (model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0
-    )
+    data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
 
     # Reverse the snapshots
     mesh_snapshots = model.mesh_snapshots[::-1]
     data_snapshots = data_snapshots[::-1]
 
     actors = []
-    for i, (mesh_snapshot, data_snapshot) in enumerate(
-        zip(mesh_snapshots, data_snapshots)
-    ):
+    for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snapshots)):
         # Assuming snapshots are stored as Nx3 arrays
         # Reshape to 3D grid of points-- i.e. 4x4x4 grid of (x,y,z) points
         deformed_points = mesh_snapshot.reshape(resolution + (3,))
@@ -173,9 +159,7 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
             deformed_points[..., 2],
         )
         # Set the same values to the new grid
-        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
-            order="F"
-        )  # Assigning scalar values to the grid
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
         # Add grid to plotter with a unique color and using the same scalar values
         a = plotter.add_mesh(
             grid,
@@ -190,9 +174,7 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
     return actors
 
 
-def categorical_grid_view(
-    model: GeoModel, threshold=None, text_annot=True, off_screen=False
-) -> pv.Plotter:
+def categorical_grid_view(model: GeoModel, threshold=None, text_annot=True, off_screen=False) -> pv.Plotter:
     cfg = get_plot_config()
 
     def calculate_grid_dims(n):
@@ -208,9 +190,7 @@ def categorical_grid_view(
     num_cats = len(cats)
     rows, cols = calculate_grid_dims(num_cats)
 
-    p = pv.Plotter(
-        shape=(rows, cols), border=False, off_screen=off_screen
-    )  # subplot square layout
+    p = pv.Plotter(shape=(rows, cols), border=False, off_screen=off_screen)  # subplot square layout
 
     clim = [cats.min(), cats.max()]  # Preset color limits for all subplots
     skin = grid.extract_surface()  # Extract surface mesh for translucent skin
@@ -220,9 +200,7 @@ def categorical_grid_view(
         p.subplot(row, col)
 
         cat_mask = grid["values"] == cat  # mask for a category
-        category_grid = grid.extract_cells(
-            cat_mask
-        )  # Pull only those cells from voxel grid
+        category_grid = grid.extract_cells(cat_mask)  # Pull only those cells from voxel grid
 
         # Plot the category cluster and a translucent skin for context
         p.add_mesh(
@@ -256,9 +234,7 @@ def get_mesh_from_model(model: GeoModel, threshold=None):
     """
 
     if model.data is None or model.data.size == 0:
-        raise ValueError(
-            "Model data is empty or not computed, no data to show. Use compute model first."
-        )
+        raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
 
     grid = pv.StructuredGrid(model.X, model.Y, model.Z)
 
@@ -275,19 +251,13 @@ def get_voxel_grid_from_model(model, threshold=None):
     Total cells is the same as data values, each cell given a discrete rock type value
     """
     if model.data is None or model.data.size == 0:
-        raise ValueError(
-            "Model data is empty or not computed, no data to show. Use compute model first."
-        )
+        raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
     if not all(res > 1 for res in model.resolution):
-        raise ValueError(
-            "Voxel grid requires a model resolution greater than 1 in each dimension."
-        )
+        raise ValueError("Voxel grid requires a model resolution greater than 1 in each dimension.")
 
     # Create a padded grid with n+1 nodes and node spacing equal to model sample spacing
     dimensions = tuple(x + 1 for x in model.resolution)
-    spacing = tuple(
-        (x[1] - x[0]) / (r - 1) for x, r in zip(model.bounds, model.resolution)
-    )
+    spacing = tuple((x[1] - x[0]) / (r - 1) for x, r in zip(model.bounds, model.resolution))
     # pad origin with a half cell size to center the grid
     origin = tuple(x[0] - cs / 2 for x, cs in zip(model.bounds, spacing))
 

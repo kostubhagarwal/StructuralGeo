@@ -58,9 +58,7 @@ x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
 x_offset = x_offset * 1.15
 
 # Remove first data time entry which is empty, add the final data time entry
-data_snapshots = np.concatenate(
-    (model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0
-)
+data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
 
 # Reverse the snapshots
 mesh_snapshots = model.mesh_snapshots[::-1]
@@ -77,9 +75,7 @@ for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snap
         deformed_points[..., 2],
     )
     # Set the same values to the new grid
-    grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
-        order="F"
-    )  # Assigning scalar values to the grid
+    grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
     # Add grid to plotter with a unique color and using the same scalar values
     a = p.add_mesh(
         grid,

@@ -74,9 +74,7 @@ class FileManager:
             self.file_index += 1
         else:
             if filename is None:
-                raise ValueError(
-                    "Filename must be provided if auto_index saving is disabled."
-                )
+                raise ValueError("Filename must be provided if auto_index saving is disabled.")
             else:
                 file_path = os.path.join(save_dir, filename + ".pkl")
 
@@ -127,9 +125,7 @@ class FileManager:
         """
         print(f"Processing models in {self.base_dir}")
         for root, dirs, files in os.walk(self.base_dir):
-            file_list = [
-                os.path.join(root, file) for file in files if file.endswith(".pkl")
-            ]
+            file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
             if self.auto_index:
                 file_list.sort(
                     key=lambda x: (
@@ -150,9 +146,7 @@ class FileManager:
             A list of loaded GeoModel instances.
         """
         models = []
-        self.walk_and_process_models(
-            lambda file_path: models.append(self.load_geo_model(file_path))
-        )
+        self.walk_and_process_models(lambda file_path: models.append(self.load_geo_model(file_path)))
         return models
 
     """ Model renewal functions for updating or pickled models with changes in the model class."""
@@ -162,9 +156,7 @@ class FileManager:
 
         Used for updating models with new features or changes in the model class."""
         for root, dirs, files in os.walk(self.base_dir):
-            file_list = [
-                os.path.join(root, file) for file in files if file.endswith(".pkl")
-            ]
+            file_list = [os.path.join(root, file) for file in files if file.endswith(".pkl")]
             file_list.sort(
                 key=lambda x: (
                     os.path.dirname(x),
@@ -179,9 +171,7 @@ class FileManager:
                 folder_name = os.path.basename(os.path.dirname(file_path))
                 model.name = folder_name
                 # Create a new file path by replacing the base directory with the save directory
-                new_file_path = os.path.join(
-                    new_save_dir, os.path.relpath(file_path, self.base_dir)
-                )
+                new_file_path = os.path.join(new_save_dir, os.path.relpath(file_path, self.base_dir))
 
                 # Ensure the directory exists
                 os.makedirs(os.path.dirname(new_file_path), exist_ok=True)

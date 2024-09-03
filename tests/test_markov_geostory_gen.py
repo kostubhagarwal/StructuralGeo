@@ -2,8 +2,10 @@ import matplotlib.pyplot as plt
 import pydtmc as dtmc
 
 import geogen.plot as geovis
-from geogen.generation.model_generators import (MarkovGeostoryGenerator,
-                                                   MarkovMatrixParser)
+from geogen.generation.model_generators import (
+    MarkovGeostoryGenerator,
+    MarkovMatrixParser,
+)
 from geogen.model import GeoModel
 
 
@@ -41,7 +43,7 @@ def test_markov_geostory_init():
         gm = GeoModel()
         gm.add_history(history)
         print(gm.get_history_string())
-        
+
     # Get the markov chain
     mc = gen.mc
 

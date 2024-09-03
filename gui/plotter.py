@@ -112,9 +112,7 @@ class ModelPlotter:
         if unique_values.size > 0:
             min_value, max_value = int(unique_values.min()), int(unique_values.max())
             self.parent.toolbar.category_spin_box.setRange(min_value, max_value)
-            self.parent.toolbar.category_spin_box.setValue(
-                min_value
-            )  # Set to the first category by default
+            self.parent.toolbar.category_spin_box.setValue(min_value)  # Set to the first category by default
         else:
             self.parent.toolbar.category_spin_box.setRange(0, 0)  # No valid categories
             self.parent.toolbar.category_spin_box.setValue(0)

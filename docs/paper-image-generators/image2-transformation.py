@@ -11,18 +11,14 @@ def add_snapshots_to_plotter(plotter, model, cmap):
     x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
 
     # Remove first data time entry which is empty, add the final data time entry
-    data_snapshots = np.concatenate(
-        (model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0
-    )
+    data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
 
     # Reverse the snapshots
     mesh_snapshots = model.mesh_snapshots[::-1]
     data_snapshots = data_snapshots[::-1]
 
     actors = []
-    for i, (mesh_snapshot, data_snapshot) in enumerate(
-        zip(mesh_snapshots, data_snapshots)
-    ):
+    for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snapshots)):
         # Assuming snapshots are stored as Nx3 arrays
         deformed_points = mesh_snapshot.reshape(resolution + (3,))
         grid = pv.StructuredGrid(
@@ -31,9 +27,7 @@ def add_snapshots_to_plotter(plotter, model, cmap):
             deformed_points[..., 2],
         )
         # Set the same values to the new grid
-        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
-            order="F"
-        )  # Assigning scalar values to the grid
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
         # Add grid to plotter with a unique color and using the same scalar values
         a = plotter.add_mesh(
             grid,

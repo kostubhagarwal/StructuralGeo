@@ -54,9 +54,7 @@ def plot_slices(slices, max_cols=8):
     # Determine the number of rows and columns
     num_slices = len(slices)
     num_cols = min(num_slices, max_cols)
-    num_rows = (
-        num_slices + max_cols - 1
-    ) // max_cols  # Equivalent to ceil(num_slices / max_cols)
+    num_rows = (num_slices + max_cols - 1) // max_cols  # Equivalent to ceil(num_slices / max_cols)
 
     # Create the subplots
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(num_cols * 2, num_rows * 2))
@@ -88,9 +86,7 @@ def save_slices_as_images(slices, output_dir, prefix="slice"):
     for i, slice_data in enumerate(slices):
         image_path = os.path.join(output_dir, f"{prefix}_{timestamp}_{i}.png")
         # Convert slice data to uint8 for image saving
-        slice_image = (
-            255 * (slice_data - np.min(slice_data)) / np.ptp(slice_data)
-        ).astype(np.uint8)
+        slice_image = (255 * (slice_data - np.min(slice_data)) / np.ptp(slice_data)).astype(np.uint8)
         Image.fromarray(slice_image).save(image_path)
     print(f"Saved {len(slices)} slices as images in {output_dir}.")
 
@@ -107,9 +103,7 @@ def save_slices_as_npy(slices, output_dir, prefix="slice"):
 
 if __name__ == "__main__":
     # Testing the slicing tool
-    fm = FileManager(
-        base_dir="C:/Users/sghys/2024 Summer Work/StructuralGeo/database/faulted_models"
-    )
+    fm = FileManager(base_dir="C:/Users/sghys/2024 Summer Work/StructuralGeo/database/faulted_models")
     models = fm.load_all_models()
 
     model = models[10]

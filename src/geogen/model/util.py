@@ -5,8 +5,23 @@ from scipy.ndimage import gaussian_filter
 
 def rotate(axis, theta):
     """
-    Return the rotation matrix associated with counterclockwise rotation about
+    Return the rotation matrix associated with a counterclockwise rotation about
     the given axis by theta radians.
+
+    This function computes the rotation matrix for a rotation around a specified axis by a given angle.
+    The axis of rotation is normalized before constructing the matrix, and the rotation follows the right-hand rule.
+
+    Parameters
+    ----------
+    axis : array-like
+        A 3-element array representing the axis of rotation.
+    theta : float
+        The rotation angle in radians.
+
+    Returns
+    -------
+    np.ndarray
+        A 3x3 rotation matrix representing the rotation.
     """
     axis = np.asarray(axis)
     axis = axis / np.sqrt(np.dot(axis, axis))
@@ -24,6 +39,27 @@ def rotate(axis, theta):
 
 
 def slip_normal_vectors(rake, dip, strike):
+    """
+    Calculate the slip vector and the normal vector for a fault plane.
+
+    This function computes the slip vector and normal vector based on the given rake, dip,
+    and strike angles. It sequentially rotates the vectors to align them with the fault plane's
+    coordinate system.
+
+    Parameters
+    ----------
+    rake : float
+        The rake angle in radians, representing the direction of slip along the fault plane.
+    dip : float
+        The dip angle in radians, representing the angle of the fault plane relative to the horizontal plane.
+    strike : float
+        The strike angle in radians, representing the orientation of the fault line relative to the north (y-axis).
+
+    Returns
+    -------
+    tuple of np.ndarray
+        The slip vector and the normal vector, both as 3-element arrays.
+    """
     # Calculate rotation matrices (Transform from fold to plane coordinates)
     M1 = rotate([0, 0, 1], -(rake))
     M2 = rotate([0.0, 1.0, 0], (dip))
@@ -45,11 +81,24 @@ def slip_normal_vectors(rake, dip, strike):
 
 
 def resample_mesh(mesh, resolution):
-    """Resample a mesh to match a new x,y resolution.
+    """
+    Resample a mesh to match a new x, y resolution.
 
-    Parameters:
-    mesh (np.ndarray): A 2D numpy array representing the mesh.
-    resolution (tuple): A tuple of the new x and y resolution.
+    This function resamples a 2D mesh to a new specified resolution. If the resolution
+    is lower than the original mesh, a Gaussian low-pass filter is applied to prevent
+    aliasing. The resampling is done using bilinear interpolation.
+
+    Parameters
+    ----------
+    mesh : np.ndarray
+        A 2D numpy array representing the mesh to be resampled.
+    resolution : tuple of int
+        A tuple representing the new (x, y) resolution of the resampled mesh.
+
+    Returns
+    -------
+    np.ndarray
+        The resampled mesh as a 2D numpy array.
     """
 
     # Interpolate the topography mesh to match the model resolution

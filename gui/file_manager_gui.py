@@ -19,9 +19,7 @@ class FileManagerGUI:
 
     def select_folder(self):
         """Open a dialog to select a folder and load models from the selected directory."""
-        folder_path = QtWidgets.QFileDialog.getExistingDirectory(
-            self.parent, "Select Folder", ""
-        )
+        folder_path = QtWidgets.QFileDialog.getExistingDirectory(self.parent, "Select Folder", "")
         if folder_path:
             self.base_dir = folder_path
             self.fm = FileManager(base_dir=self.base_dir)
@@ -30,9 +28,7 @@ class FileManagerGUI:
     def populate_file_tree(self):
         """Populate the file tree with the directory structure and model files."""
         self.file_tree.clear()
-        root_item = QtWidgets.QTreeWidgetItem(
-            self.file_tree, [os.path.basename(self.base_dir)]
-        )
+        root_item = QtWidgets.QTreeWidgetItem(self.file_tree, [os.path.basename(self.base_dir)])
         self._populate_tree_widget(root_item, self.base_dir)
         self.file_tree.collapseAll()
 

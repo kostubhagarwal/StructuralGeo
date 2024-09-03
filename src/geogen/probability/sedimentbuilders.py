@@ -32,9 +32,7 @@ class SedimentBuilder:
 
         # Generate random thicknesses
         random_thicknesses = np.random.lognormal(mean=mu, sigma=sigma, size=n_layers)
-        normalized_thicknesses = (
-            random_thicknesses / np.sum(random_thicknesses) * self.total_thickness
-        )
+        normalized_thicknesses = random_thicknesses / np.sum(random_thicknesses) * self.total_thickness
         values = [self.start_value + i for i in range(n_layers)]
 
         self.values, self.thicknesses = values, normalized_thicknesses
@@ -79,9 +77,7 @@ class MarkovSedimentHelper:
         self.rng = rng if rng is not None else np.random.default_rng()
         self.thickness_bounds = thickness_bounds
         self.thickness_variance = thickness_variance
-        self.transition_matrix = self.randomize_transition_matrix(
-            dirichlet_alpha, anticorrelation_factor
-        )
+        self.transition_matrix = self.randomize_transition_matrix(dirichlet_alpha, anticorrelation_factor)
 
     def randomize_transition_matrix(self, alpha, anti_correlation_factor):
         """Randomize the Markov transition matrix for sediment categories.
@@ -114,12 +110,8 @@ class MarkovSedimentHelper:
         if current_thick is None:
             return self.rng.uniform(*self.thickness_bounds)
         else:
-            next_thick = current_thick * np.random.normal(
-                1, self.thickness_variance
-            )  # Induce some variation
-            next_thick = np.clip(
-                next_thick, *self.thickness_bounds
-            )  # Bound thicknesses
+            next_thick = current_thick * np.random.normal(1, self.thickness_variance)  # Induce some variation
+            next_thick = np.clip(next_thick, *self.thickness_bounds)  # Bound thicknesses
             return next_thick
 
     def generate_sediment_layers(self, total_depth):

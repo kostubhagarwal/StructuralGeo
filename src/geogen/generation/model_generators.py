@@ -83,8 +83,8 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         See the MarkovMatrixParser class for more information on format and requirements.
     """
 
-    _START_STATE = "BaseStrata" # Name of the Markov chain start state, must reference valid events class
-    _END_STATE = "End" # Name of the Markov chain termination event, must reference valid events class
+    _START_STATE = "BaseStrata"  # Name of the Markov chain start state, must reference valid events class
+    _END_STATE = "End"  # Name of the Markov chain termination event, must reference valid events class
     _MAX_STEPS = 20
 
     def __init__(self, **kwargs):
@@ -166,15 +166,13 @@ class MarkovMatrixParser:
         # Build a dictionary of string keys mapping to valid event classes
         self.event_dictionary = self._build_event_dictionary()
         # Load the transition matrix from the CSV file
-        self.markov_states, self.transition_matrix = self._load_transition_matrix_from_csv(
-            self.path
-        )
+        self.markov_states, self.transition_matrix = self._load_transition_matrix_from_csv(self.path)
         # Run a check on the matrix that it is valid markov matrix
         self._validate_transition_matrix()
 
     def _get_default_path(self):
         # Using importlib.resources to access the default Markov matrix file
-        return resources.files('geogen.generation.markov_matrix').joinpath('default_markov_matrix.csv')
+        return resources.files("geogen.generation.markov_matrix").joinpath("default_markov_matrix.csv")
 
     def _validate_path(self, path):
         if not os.path.exists(path):
@@ -198,9 +196,7 @@ class MarkovMatrixParser:
                 if name in valid_event_names and isinstance(cls, type)
             }
         except Exception as e:
-            raise ValueError(
-                f"Failed to build event dictionary from the categorical events module: {e}"
-            )
+            raise ValueError(f"Failed to build event dictionary from the categorical events module: {e}")
 
         return event_dictionary
 
@@ -230,17 +226,13 @@ class MarkovMatrixParser:
 
             # Skip comment lines to get to the true header row
             for header_row in reader:
-                if not any(
-                    "#" in col for col in header_row
-                ):  # Skip if any column contains '#'
+                if not any("#" in col for col in header_row):  # Skip if any column contains '#'
                     break
 
             states = []
             for header in header_row[1:]:
                 header = header.strip()
-                if (
-                    not header
-                ):  # Stop if we hit an empty column, signaling end of contiguous block
+                if not header:  # Stop if we hit an empty column, signaling end of contiguous block
                     break
                 states.append(header)
 
@@ -258,9 +250,7 @@ class MarkovMatrixParser:
             # Populate the transition matrix from the remaining rows
             for i, row in enumerate(reader):
                 row_label = row[0].strip()
-                if (
-                    not row_label
-                ):  # Stop if we hit an empty row, signaling end of contiguous block
+                if not row_label:  # Stop if we hit an empty row, signaling end of contiguous block
                     break
 
                 # Validate the row label
@@ -297,9 +287,7 @@ class MarkovMatrixParser:
         for i, row_sum in enumerate(row_sums):
             if not np.isclose(row_sum, 1.0):
                 state_name = self.markov_states[i]
-                raise ValueError(
-                    f"Row {i+1} ({state_name}) sum is {row_sum:.4f}, but it must sum to 1.0."
-                )
+                raise ValueError(f"Row {i+1} ({state_name}) sum is {row_sum:.4f}, but it must sum to 1.0.")
 
     def get_event_dictionary(self):
         return self.event_dictionary

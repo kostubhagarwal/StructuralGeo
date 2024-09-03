@@ -4,15 +4,11 @@ import numpy as np
 def _parse_bounds(bounds):
     """Ensure bounds are in the form of ((x_min, x_max), (y_min, y_max), (z_min, z_max))."""
     if isinstance(bounds[0], tuple):
-        assert len(bounds) == 3 and all(
-            len(b) == 2 for b in bounds
-        ), "Invalid bounds format."
+        assert len(bounds) == 3 and all(len(b) == 2 for b in bounds), "Invalid bounds format."
     elif isinstance(bounds, tuple) and len(bounds) == 2:
         bounds = (bounds, bounds, bounds)
     else:
-        raise ValueError(
-            "Bounds must be a tuple of 2 values or a tuple of three 2-tuples."
-        )
+        raise ValueError("Bounds must be a tuple of 2 values or a tuple of three 2-tuples.")
     return bounds
 
 

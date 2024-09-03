@@ -21,9 +21,7 @@ def dataset_test():
     """
     bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
     resolution = (128, 128, 64)
-    dataset = GeoData3DStreamingDataset(
-        model_bounds=bounds, model_resolution=resolution
-    )
+    dataset = GeoData3DStreamingDataset(model_bounds=bounds, model_resolution=resolution)
 
     # Draw a sample from the torch dataser
     sample = dataset[0]

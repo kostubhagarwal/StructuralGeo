@@ -98,9 +98,7 @@ class ToolBarWidget(QtWidgets.QWidget):
         self.update_toolbar("Volume View")
 
     def connect_signals(self):
-        self.plotting_type_combo.currentIndexChanged.connect(
-            self.on_plotting_type_changed
-        )
+        self.plotting_type_combo.currentIndexChanged.connect(self.on_plotting_type_changed)
         self.renormalize_button.clicked.connect(self.on_renormalize_clicked)
         self.save_model_button.clicked.connect(self.on_save_model_clicked)
         self.view_slices_button.clicked.connect(self.on_view_slices_clicked)
@@ -158,15 +156,11 @@ class ToolBarWidget(QtWidgets.QWidget):
         slices = self.get_slices_from_plotter()
         # Open a directory selection dialog
         options = QtWidgets.QFileDialog.Options()
-        output_dir = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Output Directory", options=options
-        )
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
 
         if output_dir:
             # Save the slices as images and .npy files
-            sm.save_slices_as_images(
-                slices, output_dir, prefix=self.plotter.curr_model.name
-            )
+            sm.save_slices_as_images(slices, output_dir, prefix=self.plotter.curr_model.name)
             sm.save_slices_as_npy(slices, output_dir)
 
     def get_slices_from_plotter(self):
@@ -202,9 +196,7 @@ class ToolBarWidget(QtWidgets.QWidget):
     def on_save_model_clicked(self, save_as_pkl=True):
         # Prompt the user to select a save directory
         options = QtWidgets.QFileDialog.Options()
-        output_dir = QtWidgets.QFileDialog.getExistingDirectory(
-            self, "Select Output Directory", options=options
-        )
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
 
         # Two save options: save as a .pkl file or save as a .pt file, needs to be set here in source code
         if output_dir:

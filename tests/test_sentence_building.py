@@ -29,5 +29,5 @@ def single_sentence_test():
         geovis.volview(model, plotter=p)
     p.show()
 
-single_sentence_test()
 
+single_sentence_test()

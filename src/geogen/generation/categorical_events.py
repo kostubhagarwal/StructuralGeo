@@ -83,17 +83,11 @@ class _EventTemplateClass(GeoWord):
 
         for case in self.cases:
             if not isinstance(case.name, str):
-                raise TypeError(
-                    f"Case name must be a string, got {type(case.name).__name__}."
-                )
+                raise TypeError(f"Case name must be a string, got {type(case.name).__name__}.")
             if not isinstance(case.p, float):
-                raise TypeError(
-                    f"Case probability must be a float, got {type(case.p).__name__}."
-                )
+                raise TypeError(f"Case probability must be a float, got {type(case.p).__name__}.")
             if not isinstance(case.processes, list):
-                raise TypeError(
-                    f"Case processes must be a list, got {type(case.processes).__name__}."
-                )
+                raise TypeError(f"Case processes must be a list, got {type(case.processes).__name__}.")
             for process in case.processes:
                 if not isinstance(process, (GeoProcess, GeoWord)):
                     raise TypeError(
@@ -124,15 +118,9 @@ class BaseStrata(_EventTemplateClass):
 
     def __init__(self, seed=None):
         cases = [
-            self.Event(
-                name="Basement", p=0.3, processes=[InfiniteBasement(), Sediment()]
-            ),
-            self.Event(
-                name="Sediment: Markov", p=0.25, processes=[InfiniteSedimentMarkov()]
-            ),
-            self.Event(
-                name="Sediment: Uniform", p=0.25, processes=[InfiniteSedimentUniform()]
-            ),
+            self.Event(name="Basement", p=0.3, processes=[InfiniteBasement(), Sediment()]),
+            self.Event(name="Sediment: Markov", p=0.25, processes=[InfiniteSedimentMarkov()]),
+            self.Event(name="Sediment: Uniform", p=0.25, processes=[InfiniteSedimentUniform()]),
             self.Event(
                 name="Sediment: Tilted Markov",
                 p=0.2,
@@ -254,7 +242,7 @@ class Fault(_EventTemplateClass):
         super().__init__(cases=cases, seed=seed)
 
 
-#TODO: Implement Slip events in GeoWords and add to the Slip class
+# TODO: Implement Slip events in GeoWords and add to the Slip class
 class Slip(_EventTemplateClass):
     """A sampling regime for slip events."""
 
@@ -268,7 +256,5 @@ class End(_EventTemplateClass):
     """An ending flag for the geostory."""
 
     def __init__(self, seed=None):
-        cases = [
-            self.Event(name="Termination of Sequence", p=1.0, processes=[NullWord()])
-        ]
+        cases = [self.Event(name="Termination of Sequence", p=1.0, processes=[NullWord()])]
         super().__init__(cases=cases, seed=seed)

@@ -74,9 +74,7 @@ class ModelReviewer:
 
     def plot_model(self):
         with self.output:
-            clear_output(
-                wait=True
-            )  # Clear the output before starting to plot the new model
+            clear_output(wait=True)  # Clear the output before starting to plot the new model
             self.remove_all_actors(self.plotter)
             geovis.volview(self.current_model, plotter=self.plotter, show_bounds=True)
 
@@ -130,9 +128,7 @@ class ModelReviewer:
 
     def save_action(self, b):
         """Save the current model and refresh the review."""
-        self.fm.save_geo_model(
-            self.current_model, self.base_dir
-        )  # Save the current model
+        self.fm.save_geo_model(self.current_model, self.base_dir)  # Save the current model
         with self.output:
             print(f"Model saved to {self.base_dir}")
             self.refresh_model()  # Refresh to get a new model displayed
@@ -144,9 +140,7 @@ class ModelReviewer:
 
     def renormalize_action(self, b):
         """Adjust the height of the current model and refresh the review."""
-        self.current_model.renormalize_height(
-            auto=True
-        )  # Adjust the height of the model
+        self.current_model.renormalize_height(auto=True)  # Adjust the height of the model
         self.plot_model()
         print("Model height adjusted.")
 

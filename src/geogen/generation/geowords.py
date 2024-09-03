@@ -29,6 +29,7 @@ BLOB_VALS = [12, 13]
 # A target mean for random sedimentation depth
 MEAN_SEDIMENTATION_DEPTH = Z_RANGE / 8
 
+
 class GeoWord(_ABC):
     """
     Base class for generating geological events within a hierarchical structure.
@@ -101,9 +102,7 @@ class GeoWord(_ABC):
             for sub_item in item:
                 self.add_process(sub_item)
         else:
-            raise ValueError(
-                f"Expected GeoWord, GeoProcess, or list of these, got {type(item)}"
-            )
+            raise ValueError(f"Expected GeoWord, GeoProcess, or list of these, got {type(item)}")
 
 
 """ Identity word for generating a null event. """
@@ -132,12 +131,8 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
 
     def build_history(self):
         # Choose a large depth that runs beyond the model's height extension bars
-        depth = (Z_RANGE) * (
-            3 * geo.GeoModel.HEIGHT_BAR_EXT_FACTOR
-        )  # Pseudo-infinite using a large depth
-        sediment_base = (
-            -depth
-        )  # The sediment base is located so that it builds back up to z=0
+        depth = (Z_RANGE) * (3 * geo.GeoModel.HEIGHT_BAR_EXT_FACTOR)  # Pseudo-infinite using a large depth
+        sediment_base = -depth  # The sediment base is located so that it builds back up to z=0
 
         # calculate layer thicknesses to fill the depth of sediment
         vals = []
@@ -189,9 +184,7 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     def build_history(self):
         # Choose a large depth that runs beyond the model's height extension bars below and above
         depth = (Z_RANGE) * (6 * geo.GeoModel.HEIGHT_BAR_EXT_FACTOR)
-        sediment_base = (
-            -0.5 * depth
-        )  # In this case we overbuild up and down to allow for tilting and eroding after
+        sediment_base = -0.5 * depth  # In this case we overbuild up and down to allow for tilting and eroding after
 
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
@@ -229,9 +222,7 @@ class FineRepeatSediment(GeoWord):  # Validated
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
             # This helper calculates the required parameters to hit target mean and std for distro
-            *rv.log_normal_params(
-                mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3
-            )
+            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -240,9 +231,7 @@ class FineRepeatSediment(GeoWord):  # Validated
             rng=self.rng,
             thickness_bounds=(100, Z_RANGE / 10),
             thickness_variance=self.rng.uniform(0.1, 0.3),
-            dirichlet_alpha=self.rng.uniform(
-                0.6, 2.0
-            ),  # Low alpha for high repeatability
+            dirichlet_alpha=self.rng.uniform(0.6, 2.0),  # Low alpha for high repeatability
             anticorrelation_factor=0.05,
         )
 
@@ -258,9 +247,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
         # Get a log-normal depth for the sediment block
         depth = self.rng.lognormal(
             # This helper calculates the required parameters to hit target mean and std for distro
-            *rv.log_normal_params(
-                mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3
-            )
+            *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3)
         )
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -269,9 +256,7 @@ class CoarseRepeatSediment(GeoWord):  # Validated
             rng=self.rng,
             thickness_bounds=(Z_RANGE / 12, Z_RANGE / 6),
             thickness_variance=self.rng.uniform(0.1, 0.2),
-            dirichlet_alpha=self.rng.uniform(
-                0.8, 1.2
-            ),  # Low alpha for high repeatability
+            dirichlet_alpha=self.rng.uniform(0.8, 1.2),  # Low alpha for high repeatability
             anticorrelation_factor=0.05,  # Low factor gives low repeatability
         )
 
@@ -304,9 +289,7 @@ class _BaseErosionWord(GeoWord):  # Validated
         super().__init__(seed)
 
     def calculate_depth(self):
-        factor = self.rng.lognormal(
-            *rv.log_normal_params(mean=1, std_dev=0.5)
-        )  # Generally between .25 and 2.5
+        factor = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.5))  # Generally between .25 and 2.5
         factor = np.clip(factor, 0.25, 3)
         return factor * self.MEAN_DEPTH
 
@@ -353,9 +336,7 @@ class WaveUnconformity(_BaseErosionWord):
         self.add_process([fold_in1, fold_in2, unconformity, fold_out2, fold_out1])
 
     def get_fold_pair(self, strike, dip):
-        wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3, 5), smoothness=1
-        )
+        wave_generator = FourierWaveGenerator(num_harmonics=np.random.randint(3, 5), smoothness=1)
         period = self.rng.uniform(0.5, 2) * X_RANGE
         min_amp = period * 0.001
         max_amp = period * 0.04
@@ -380,7 +361,7 @@ class WaveUnconformity(_BaseErosionWord):
 
 class DikePlaneWord(GeoWord):  # Validated
     """Base GeoWord for forming dikes with organic thickness variations."""
-    
+
     class OrganicDikeThicknessFunc:
         def __init__(self, length, expo, amp, x_var, y_var):
             self.length = length
@@ -393,11 +374,7 @@ class DikePlaneWord(GeoWord):  # Validated
             # Elliptical tapering thickness 0 at ends
             taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / self.length)) ** self.expo, 0))
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (
-                (1 + self.amp * self.x_var(x / Z_RANGE))
-                * (1 + self.amp * self.y_var(y / X_RANGE))
-                * taper_factor
-            )
+            return (1 + self.amp * self.x_var(x / Z_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * taper_factor
 
     def get_organic_thickness_func(self, length, wobble_factor=1.0):
         """
@@ -415,12 +392,8 @@ class DikePlaneWord(GeoWord):  # Validated
         fourier = rv.FourierWaveGenerator(num_harmonics=4, smoothness=1)
         x_var = fourier.generate()
         y_var = fourier.generate()
-        amp = (
-            self.rng.uniform(0.1, 0.2) * wobble_factor
-        )  # unevenness of the dike thickness
-        expo = self.rng.uniform(
-            4, 10
-        )  # Hyper ellipse exponent controls tapering sharpness
+        amp = self.rng.uniform(0.1, 0.2) * wobble_factor  # unevenness of the dike thickness
+        expo = self.rng.uniform(4, 10)  # Hyper ellipse exponent controls tapering sharpness
 
         return self.OrganicDikeThicknessFunc(length, expo, amp, x_var, y_var)
 
@@ -428,18 +401,14 @@ class DikePlaneWord(GeoWord):  # Validated
         width = rv.beta_min_max(2, 4, 50, 500)
         length = rv.beta_min_max(2, 2, 300, 16000)
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
-        back_origin = geo.BacktrackedPoint(
-            origin
-        )  # Use a backtracked point to ensure origin is in view
+        back_origin = geo.BacktrackedPoint(origin)  # Use a backtracked point to ensure origin is in view
         dike_params = {
             "strike": self.rng.uniform(0, 360),
             "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
             "origin": back_origin,
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(
-                length, wobble_factor=self.rng.uniform(0.5, 1.5)
-            ),
+            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=self.rng.uniform(0.5, 1.5)),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -460,9 +429,7 @@ class SingleDikeWarped(DikePlaneWord):  # Validated
             "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(
-                length, wobble_factor=1.5
-            ),
+            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -519,14 +486,10 @@ class DikeGroup(DikePlaneWord):  # Validated
             dike_params = {
                 "strike": strike + self.rng.normal(0, 2),
                 "dip": dip,
-                "origin": geo.BacktrackedPoint(
-                    origin
-                ),  # Backtracked point ensures dike is in view
+                "origin": geo.BacktrackedPoint(origin),  # Backtracked point ensures dike is in view
                 "width": width,
                 "value": value,
-                "thickness_func": self.get_organic_thickness_func(
-                    length, wobble_factor=0.5
-                ),
+                "thickness_func": self.get_organic_thickness_func(length, wobble_factor=0.5),
             }
             dike = geo.DikePlane(**dike_params)
             self.add_process(dike)
@@ -542,9 +505,7 @@ class DikeGroup(DikePlaneWord):  # Validated
 
     def get_next_origin(self, origin, strike, spacing_avg):
         # Move orthogonally to strike direction (strike measured from y-axis)
-        orth_vec = np.array(
-            [np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0]
-        )
+        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
         orth_distance = spacing_avg * self.rng.uniform(0.9, 1.3)
         # Shift a bit parallel to strike as well
         par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
@@ -576,9 +537,21 @@ class DikeGroup(DikePlaneWord):  # Validated
 
 class SillWord(GeoWord):
     """A sill construction mechanism using horizontal dike planes"""
-    
+
     class EllipsoidShapingFunction:
-        def __init__(self, x_length, y_length, wobble_factor, x_var, y_var, radial_var, amp, exp_x, exp_y, exp_z):
+        def __init__(
+            self,
+            x_length,
+            y_length,
+            wobble_factor,
+            x_var,
+            y_var,
+            radial_var,
+            amp,
+            exp_x,
+            exp_y,
+            exp_z,
+        ):
             self.x_length = x_length
             self.y_length = y_length
             self.wobble_factor = wobble_factor
@@ -601,15 +574,11 @@ class SillWord(GeoWord):
             ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / self.exp_z)
 
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (
-                (1 + self.amp * self.x_var(x / X_RANGE))
-                * (1 + self.amp * self.y_var(y / X_RANGE))
-                * ellipse_factor
-            )
+            return (1 + self.amp * self.x_var(x / X_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * ellipse_factor
 
     def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.0):
         """Organic Sheet Maker
-        
+
         variance is introduced through 3 different fourier waves. x_var and y_var add ripple to the sheet thickness,
         while the radial_var adds a ripple around the edges of the sheet in the distance that it extends.
 
@@ -631,7 +600,18 @@ class SillWord(GeoWord):
         exp_z = np.random.uniform(3, 6)  # Hyper ellipse exponent controls tapering sharpness
 
         # Return an instance of the EllipsoidShapingFunction class
-        return self.EllipsoidShapingFunction(x_length, y_length, wobble_factor, x_var, y_var, radial_var, amp, exp_x, exp_y, exp_z)
+        return self.EllipsoidShapingFunction(
+            x_length,
+            y_length,
+            wobble_factor,
+            x_var,
+            y_var,
+            radial_var,
+            amp,
+            exp_x,
+            exp_y,
+            exp_z,
+        )
 
     def build_history(self):
         width = rv.beta_min_max(2, 4, 50, 250)
@@ -645,14 +625,11 @@ class SillWord(GeoWord):
             "origin": origin,
             "width": width,
             "value": self.rng.choice(DIKE_VALS),
-            "thickness_func": self.get_ellipsoid_shaping_function(
-                x_length, y_length, wobble_factor=0.0
-            ),
+            "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
         }
         dike = geo.DikePlane(**dike_params)
 
         self.add_process(dike)
-
 
 
 class SillSystem(SillWord):
@@ -678,17 +655,12 @@ class SillSystem(SillWord):
         for i, boundary in enumerate(indices):
             x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1]) * 0.75
             y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1]) * 0.75
-            sill_origin = geo.SedimentConditionedOrigin(
-                x=x_loc, y=y_loc, boundary_index=boundary
-            )
+            sill_origin = geo.SedimentConditionedOrigin(x=x_loc, y=y_loc, boundary_index=boundary)
             origins.append(sill_origin)
 
             width = rv.beta_min_max(2, 4, 40, 250)
             x_length = rv.beta_min_max(2, 2, 600, 4000)
-            y_length = (
-                self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2))
-                * x_length
-            )
+            y_length = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)) * x_length
 
             dike_params = {
                 "strike": self.rng.uniform(0, 360),
@@ -696,9 +668,7 @@ class SillSystem(SillWord):
                 "origin": sill_origin,  # WARNING: This requires sediment to compute first
                 "width": width,
                 "value": self.rock_val,
-                "thickness_func": self.get_ellipsoid_shaping_function(
-                    x_length, y_length, wobble_factor=0.0
-                ),
+                "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
             }
             sill = geo.DikePlane(**dike_params)
 
@@ -735,9 +705,7 @@ class SillSystem(SillWord):
             rng=self.rng,
             thickness_bounds=(Z_RANGE / 18, Z_RANGE / 6),
             thickness_variance=self.rng.uniform(0.1, 0.4),
-            dirichlet_alpha=self.rng.uniform(
-                0.8, 1.2
-            ),  # Low alpha for high repeatability
+            dirichlet_alpha=self.rng.uniform(0.8, 1.2),  # Low alpha for high repeatability
             anticorrelation_factor=0.05,  # Low factor gives low repeatability
         )
 
@@ -767,7 +735,7 @@ class SillSystem(SillWord):
 
 class _HemiPushedWord(GeoWord):
     """A generic pushed hemisphere word providing an organic warping function"""
-    
+
     class HemiFunction:
         def __init__(self, wobble_factor, x_var, y_var, exp_x, exp_y, exp_z, radial_var):
             self.wobble_factor = wobble_factor
@@ -784,7 +752,7 @@ class _HemiPushedWord(GeoWord):
             r = 1 + 0.1 * self.radial_var(np.arctan2(y, x) / (2 * np.pi))
             inner = r**2 - np.abs(x) ** self.exp_x - np.abs(y) ** self.exp_y
             z_surf = np.maximum(0, inner) ** (1 / self.exp_z)
-            return z_surf    
+            return z_surf
 
     def __init__(self, seed=None):
         super().__init__(seed)
@@ -841,9 +809,7 @@ class Laccolith(_HemiPushedWord):  # Validated
         # Add a plug underneath as a feeder dike
         col_params = {
             "origin": self.origin,
-            "diam": diam
-            / 5
-            * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
+            "diam": diam / 5 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
             "minor_axis_scale": min_axis_scale / 2 * self.rng.normal(1, 0.1),
             "rotation": rotation + self.rng.normal(0, 10),
             "value": self.rock_val,
@@ -861,9 +827,7 @@ class Laccolith(_HemiPushedWord):  # Validated
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(
-            -height, Z_RANGE / 2
-        )  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -913,9 +877,7 @@ class Lopolith(_HemiPushedWord):
         # Add a plug underneath as a feeder dike
         col_params = {
             "origin": self.origin,
-            "diam": diam
-            / 10
-            * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
+            "diam": diam / 10 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
             "minor_axis_scale": min_axis_scale / 2 * self.rng.normal(1, 0.1),
             "rotation": rotation + self.rng.normal(0, 10),
             "value": self.rock_val,
@@ -933,9 +895,7 @@ class Lopolith(_HemiPushedWord):
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(
-            -height, Z_RANGE / 2
-        )  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -966,9 +926,7 @@ class VolcanicPlug(GeoWord):
 
         diam = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)) * 200
         origin = geo.BacktrackedPoint(
-            rv.random_point_in_ellipsoid(
-                (BOUNDS_X, BOUNDS_Y, (BOUNDS_Z[0], BOUNDS_Z[1] * 0.8))
-            )
+            rv.random_point_in_ellipsoid((BOUNDS_X, BOUNDS_Y, (BOUNDS_Z[0], BOUNDS_Z[1] * 0.8)))
         )
         rotation = self.rng.uniform(0, 360)
         min_axis_scale = rv.beta_min_max(2, 2, 0.2, 1.8)
@@ -1015,15 +973,11 @@ class BlobWord(GeoWord):
         if self.rock_val is None:
             self.rock_val = self.rng.choice(BLOB_VALS)
         if self.origin is None:
-            self.origin = geo.BacktrackedPoint(
-                tuple(rv.random_point_in_box(MAX_BOUNDS))
-            )
+            self.origin = geo.BacktrackedPoint(tuple(rv.random_point_in_box(MAX_BOUNDS)))
 
         # Ball list generator is a markov chain maker for point distribution
         n_balls = int(rv.beta_min_max(2, 2, 8, 60))
-        scale_factor = 0.5 ** (
-            (n_balls - 30) / 40
-        )  # Heuristically tuned to adjust radius
+        scale_factor = 0.5 ** ((n_balls - 30) / 40)  # Heuristically tuned to adjust radius
         blg = geo.BallListGenerator(
             step_range=(10, 25),
             rad_range=(
@@ -1101,11 +1055,7 @@ class BlobCluster(GeoWord):
 
             # Check if the new origin is within the model bounds
             x, y, z = new_origin
-            if (
-                BOUNDS_X[0] < x < BOUNDS_X[1]
-                and BOUNDS_Y[0] < y < BOUNDS_Y[1]
-                and BOUNDS_Z[0] < z < BOUNDS_Z[1]
-            ):
+            if BOUNDS_X[0] < x < BOUNDS_X[1] and BOUNDS_Y[0] < y < BOUNDS_Y[1] and BOUNDS_Z[0] < z < BOUNDS_Z[1]:
                 break
             else:
                 continue
@@ -1154,9 +1104,7 @@ class TiltCutFill(GeoWord):
         # Fill in lower areas with sediment
         fill_depth = erosion_depth * self.rng.normal(1, 0.05)
         fill = self.get_fill(fill_depth)
-        self.add_process(
-            [fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out]
-        )
+        self.add_process([fold_in, orth_fold_in, erosion, fill, orth_fold_out, fold_out])
 
     def get_fill(self, depth):
         """Generalized sediment fill"""
@@ -1167,9 +1115,7 @@ class TiltCutFill(GeoWord):
             rng=self.rng,
             thickness_bounds=(100, Z_RANGE / 4),
             thickness_variance=self.rng.uniform(0.1, 0.5),
-            dirichlet_alpha=self.rng.uniform(
-                0.6, 1.6
-            ),  # Low alpha for high repeatability
+            dirichlet_alpha=self.rng.uniform(0.6, 1.6),  # Low alpha for high repeatability
             anticorrelation_factor=0.05,
         )
 
@@ -1179,9 +1125,7 @@ class TiltCutFill(GeoWord):
     def get_fold_pair(self, strike):
         dip = self.rng.normal(90, 10)
 
-        wave_generator = FourierWaveGenerator(
-            num_harmonics=np.random.randint(3, 5), smoothness=1
-        )
+        wave_generator = FourierWaveGenerator(num_harmonics=np.random.randint(3, 5), smoothness=1)
         period = self.rng.uniform(0.5, 2) * X_RANGE
         min_amp = period * 0.003
         max_amp = period * 0.02
@@ -1209,17 +1153,13 @@ class MicroNoise(GeoWord):  # Validated
 
     def build_history(self):
         # Fourier wave generator creates randomized waves with a bias towards lower frequencies
-        wave_generator = FourierWaveGenerator(
-            num_harmonics=self.rng.integers(4, 6), smoothness=0.8
-        )
+        wave_generator = FourierWaveGenerator(num_harmonics=self.rng.integers(4, 6), smoothness=0.8)
 
         for _ in range(self.rng.integers(3, 7)):
             period = self.rng.uniform(100, 1000)
             amplitude = period * self.rng.uniform(0.002, 0.005) + 5
             fold_params = {
-                "origin": geo.BacktrackedPoint(
-                    rv.random_point_in_ellipsoid(MAX_BOUNDS)
-                ),
+                "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
                 "strike": self.rng.uniform(0, 360),
                 "dip": self.rng.uniform(0, 360),
                 "rake": self.rng.uniform(0, 360),
@@ -1237,9 +1177,7 @@ class SimpleFold(GeoWord):  # validated
     def build_history(self):
         period = rv.beta_min_max(a=1.4, b=2.1, min_val=100, max_val=14000)
         min_amp = period * 0.04
-        max_amp = period * (
-            0.18 - 0.07 * period / 10000
-        )  # Linear interp, 1000 -> .17 , 11000 -> .10
+        max_amp = period * (0.18 - 0.07 * period / 10000)  # Linear interp, 1000 -> .17 , 11000 -> .10
         amp = self.rng.beta(a=2.1, b=1.4) * (max_amp - min_amp) + min_amp
 
         fold_params = {
@@ -1263,13 +1201,9 @@ class ShapedFold(GeoWord):  # Validated
         true_period = rv.beta_min_max(a=2.1, b=2.1, min_val=1000, max_val=11000)
         shape = self.rng.normal(0.3, 0.1)
         harmonic_weight = shape / np.sqrt(1 + shape**2)
-        period = (
-            1 - (2 / 3) * harmonic_weight
-        ) * true_period  # Effective period due to shape
+        period = (1 - (2 / 3) * harmonic_weight) * true_period  # Effective period due to shape
         min_amp = period * 0.04
-        max_amp = period * (
-            0.18 - 0.07 * period / 10000
-        )  # Linear interp, 1000 -> .17 , 11000 -> .10
+        max_amp = period * (0.18 - 0.07 * period / 10000)  # Linear interp, 1000 -> .17 , 11000 -> .10
         amp = self.rng.beta(a=1.2, b=2.1) * (max_amp - min_amp) + min_amp
 
         fold_params = {
@@ -1477,9 +1411,7 @@ class FaultHorstGraben(GeoWord):
     def get_next_origin(self, origin, strike, orth_distance):
         origin = np.array(origin)  # Cast to array
         # Move orthogonally to strike direction (strike measured from y-axis)
-        orth_vec = np.array(
-            [np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0]
-        )
+        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
 
         # Shift a bit parallel to strike as well
         par_vec = np.array([-orth_vec[1], orth_vec[0], 0])

@@ -11,9 +11,7 @@ class Ball:
     """A single metaball object with a given origin, radius, and goo factor. Base building class for Blob"""
 
     def __init__(self, origin, radius, goo_factor=1.0):
-        self.origin = np.array(origin).astype(
-            np.float32
-        )  # Keep precision low for performance
+        self.origin = np.array(origin).astype(np.float32)  # Keep precision low for performance
         self.radius = radius
         self.goo_factor = goo_factor
 
@@ -109,21 +107,14 @@ class MetaBall(Deposition):
         self.value = value
         self.reference_origin = reference_origin
         self.clip = clip
-        self.fast_filter = (
-            fast_filter  # A flag to use pruning on the mesh to speed up computation
-        )
+        self.fast_filter = fast_filter  # A flag to use pruning on the mesh to speed up computation
 
     def __str__(self):
-        return (
-            f"Metaball: threshold {self.threshold:.1f}, value {self.value:.1f}, "
-            f"with {len(self.balls)} balls."
-        )
+        return f"Metaball: threshold {self.threshold:.1f}, value {self.value:.1f}, " f"with {len(self.balls)} balls."
 
     def run(self, xyz, data):
         # Change of coordinates to the reference origin
-        xyz_p = (xyz - self.reference_origin).astype(
-            np.float32
-        )  # Normalize points to the reference origin
+        xyz_p = (xyz - self.reference_origin).astype(np.float32)  # Normalize points to the reference origin
 
         # Conditional filtering of the mesh, if enabled the mesh is crudely pruned to eliminate far away points
         if self.fast_filter:

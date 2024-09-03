@@ -56,9 +56,7 @@ class GeoProcess(_ABC):
 
         except Exception as e:
             # Handle the exception, log the issue, and potentially skip the process if cant be resolved
-            warnings.warn(
-                f"Process {str(self)} at index {index} failed: {e}. Skipping process."
-            )
+            warnings.warn(f"Process {str(self)} at index {index} failed: {e}. Skipping process.")
             return (
                 xyz,
                 data,
@@ -92,9 +90,7 @@ class GeoProcess(_ABC):
                     setattr(self, attr_name, resolved_value)
                 except Exception as e:
                     # Raise an error to be caught in apply_process
-                    raise RuntimeError(
-                        f"Error resolving deferred parameter '{attr_name}': {e}"
-                    )
+                    raise RuntimeError(f"Error resolving deferred parameter '{attr_name}': {e}")
 
     @abstractmethod
     def run(self, xyz, data):
@@ -127,7 +123,7 @@ class DeferredParameter(_ABC):
     """
     Base class for parameters that are deferred until runtime.
 
-    This abstract class allows for parameters that depend on the model's state and history 
+    This abstract class allows for parameters that depend on the model's state and history
     to be computed dynamically at runtime. Subclasses must implement the `compute_func` method.
 
     Attributes
@@ -189,6 +185,7 @@ class Deposition(GeoProcess, _ABC):
 
     This class should be subclassed to implement specific deposition processes.
     """
+
     pass
 
 
@@ -201,11 +198,12 @@ class Transformation(GeoProcess, _ABC):
 
     Frame Convention:
     -----------------
-    The north direction is considered as 0° strike on the positive y-axis. All transformations 
+    The north direction is considered as 0° strike on the positive y-axis. All transformations
     should adhere to this convention to maintain consistency in geological operations.
 
     This class should be subclassed to implement specific transformation processes.
     """
+
     pass
 
 
@@ -265,7 +263,7 @@ class NullProcess(GeoProcess):
     """
     A null process that does not modify the model.
 
-    The `NullProcess` class acts as a placeholder in scenarios where a geological process 
+    The `NullProcess` class acts as a placeholder in scenarios where a geological process
     is required syntactically but no actual computation or modification to the model is needed.
     """
 
@@ -300,11 +298,7 @@ class Layer(Deposition):
         z_coords = xyz[:, 2]
 
         # Create a mask where z is within the specified range and data is None
-        mask = (
-            (self.base <= z_coords)
-            & (z_coords <= self.base + self.width)
-            & (np.isnan(data))
-        )
+        mask = (self.base <= z_coords) & (z_coords <= self.base + self.width) & (np.isnan(data))
 
         # Apply the mask and update data where condition is met
         data[mask] = self.value
@@ -439,9 +433,7 @@ class Sedimentation(Deposition):
         self.boundaries = None  # Calculated at runtime
 
     def __str__(self):
-        values_summary = ", ".join(
-            f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3]
-        )
+        values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
         values_summary += "..." if len(self.value_list) > 3 else ""
         thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_list[:3])
         thicknesses += "..." if len(self.thickness_list) > 3 else ""
@@ -474,9 +466,7 @@ class Sedimentation(Deposition):
         """Extend the thickness list to match the number of layers."""
         num_layers = len(self.value_list)
         if len(self.thickness_list) < num_layers:
-            repetitions = (num_layers + len(self.thickness_list) - 1) // len(
-                self.thickness_list
-            )
+            repetitions = (num_layers + len(self.thickness_list) - 1) // len(self.thickness_list)
             return (self.thickness_list * repetitions)[:num_layers]
         return self.thickness_list[:num_layers]
 
@@ -538,9 +528,7 @@ class DikePlane(Deposition):
         self.width = width
         self.origin = origin
         self.value = value
-        self.thickness_func = (
-            thickness_func if thickness_func else self.default_thickness_func
-        )
+        self.thickness_func = thickness_func if thickness_func else self.default_thickness_func
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -550,9 +538,7 @@ class DikePlane(Deposition):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
         return (
             f"Dike: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, width {self.width:.1f}, "
@@ -563,9 +549,7 @@ class DikePlane(Deposition):
         self.origin = np.array(self.origin)
         # Calculate rotation matrices to align coordinates with the dike plane
         M1 = rotate([0, 0, 1.0], self.strike)  # Rotation around z-axis for strike
-        M2 = rotate(
-            [0.0, 1.0, 0], -self.dip
-        )  # Rotation around y-axis in strike frame for dip
+        M2 = rotate([0.0, 1.0, 0], -self.dip)  # Rotation around y-axis in strike frame for dip
 
         # Combine rotations and apply to the coordinates
         xyz_local = (xyz - self.origin) @ M1.T @ M2.T
@@ -643,9 +627,7 @@ class DikeColumn(Deposition):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikeColumn: origin ({origin_str}), diam {self.diam:.1f}, depth {self.depth:.1f}, "
             f"minor_axis_scale {self.minor_scale:.2f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -653,9 +635,7 @@ class DikeColumn(Deposition):
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
-        self.end_point = (
-            np.array(self.end_point) if self.end_point is not None else None
-        )
+        self.end_point = np.array(self.end_point) if self.end_point is not None else None
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
 
@@ -691,9 +671,7 @@ class DikeColumn(Deposition):
         # Calculate the cross product between the vector and z-axis
         axis = np.cross(v, z_axis)
         # Calculate the angle between the vector and z-axis
-        angle = np.arccos(
-            np.dot(v, z_axis) / (np.linalg.norm(v) * np.linalg.norm(z_axis))
-        )
+        angle = np.arccos(np.dot(v, z_axis) / (np.linalg.norm(v) * np.linalg.norm(z_axis)))
         # Calculate the rotation matrix
         return rotate(axis, angle)
 
@@ -754,9 +732,7 @@ class DikeHemisphere(Deposition):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikeHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -846,9 +822,7 @@ class PushHemisphere(Transformation):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"PushHemisphere: origin ({origin_str}), diam {self.diam:.1f}, height {self.height:.1f}, "
             f"minor_axis_scale {self.minor_scale:.1f}, rotation {self.rotation:.1f}."
@@ -983,12 +957,12 @@ class DikeHemispherePushed(CompoundProcess):
 
     def __str__(self):
         if isinstance(self.deposition.origin, DeferredParameter):
-            origin_str = str(
-                self.deposition.origin
-            )  # Use DeferredParameter's __str__ method
+            origin_str = str(self.deposition.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
+            origin_str = (
+                f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
+            )
         return (
             f"DikeHemispherePushed: origin ({origin_str})), diam {self.deposition.diam:.1f}, height {self.deposition.height:.1f}, "
             f"minor_axis_scale {self.deposition.minor_scale:.1f}, rotation {self.deposition.rotation:.1f}, value {self.deposition.value:.1f}."
@@ -1039,9 +1013,7 @@ class Laccolith(CompoundProcess):
         clip=False,
         z_function=None,
     ):
-        col = DikeColumn(
-            origin, stem_diam, np.inf, minor_axis_scale, rotation, value, clip
-        )
+        col = DikeColumn(origin, stem_diam, np.inf, minor_axis_scale, rotation, value, clip)
         cap = DikeHemisphere(
             origin,
             cap_diam,
@@ -1053,9 +1025,7 @@ class Laccolith(CompoundProcess):
             clip,
             z_function=z_function,
         )
-        push = PushHemisphere(
-            origin, cap_diam, height, minor_axis_scale, rotation, upper
-        )
+        push = PushHemisphere(origin, cap_diam, height, minor_axis_scale, rotation, upper)
         self.history = [push, cap, col]
 
     def __str__(self):
@@ -1116,9 +1086,7 @@ class DikePlug(Deposition):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikePlug: origin ({origin_str}), diameter {self.diameter:.1f}, "
             f"rotation {self.rotation:.1f}, value {self.value:.1f}."
@@ -1136,9 +1104,7 @@ class DikePlug(Deposition):
         # Calculate the radius from the plug axis in scaled ellipse space for z <= 0
         valid_indices = v0[:, 2] <= 0
         dists = np.full(v0.shape[0], np.nan)  # Initialize with NaN
-        dists[valid_indices] = np.sqrt(
-            v0[valid_indices, 0] ** 2 + v0[valid_indices, 1] ** 2
-        )
+        dists[valid_indices] = np.sqrt(v0[valid_indices, 0] ** 2 + v0[valid_indices, 1] ** 2)
         dists = dists / (self.diameter / 2.0)  # Normalize to the diameter of major axis
 
         # Condition to include in plug is using z<=-|d^shape|
@@ -1277,9 +1243,7 @@ class DikePlugPushed(CompoundProcess):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"DikePlugPushed: origin ({origin_str}), diam {self.diameter:.1f}, minor scaling {self.minor_scale:.1f}, "
             f"rotation {self.rotation:.1f}, shape {self.shape:.1f}, value {self.value:.1f}."
@@ -1390,14 +1354,9 @@ class Tilt(Transformation):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
-        return (
-            f"Tilt: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°,"
-            f"origin ({origin_str})"
-        )
+        return f"Tilt: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°," f"origin ({origin_str})"
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
@@ -1465,9 +1424,7 @@ class Fold(Transformation):
         self.shape = shape
         self.origin = origin
         # Accept a custom periodic function or use the default otherwise
-        self.periodic_func = (
-            periodic_func if periodic_func else self.periodic_func_default
-        )
+        self.periodic_func = periodic_func if periodic_func else self.periodic_func_default
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -1478,9 +1435,7 @@ class Fold(Transformation):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
 
         return (
             f"Fold: strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, period {self.period:.1f},"
@@ -1490,9 +1445,7 @@ class Fold(Transformation):
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
         # Adjust the rake to have slip vector (fold amplitude) perpendicular to the strike
-        slip_vector, normal_vector = slip_normal_vectors(
-            self.rake + np.pi / 2, self.dip, self.strike
-        )
+        slip_vector, normal_vector = slip_normal_vectors(self.rake + np.pi / 2, self.dip, self.strike)
 
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin
@@ -1513,9 +1466,7 @@ class Fold(Transformation):
         """Default periodic function for the fold transformation. uses shaping from 3rd harmonic."""
         # Normalize to amplitude of 1
         norm = (1 + self.shape**2) ** 0.5
-        func = np.cos(2 * np.pi * (n_cycles + self.phase)) + self.shape * np.cos(
-            3 * 2 * np.pi * n_cycles
-        )
+        func = np.cos(2 * np.pi * (n_cycles + self.phase)) + self.shape * np.cos(3 * 2 * np.pi * n_cycles)
         return func / norm
 
 
@@ -1571,9 +1522,7 @@ class Slip(Transformation):
             origin_str = str(self.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
-            )
+            origin_str = f"({self.origin[0]:.2f},{self.origin[1]:.2f},{self.origin[2]:.2f})"
         return (
             f"{self.__class__.__name__} with strike {strike_deg:.1f}°, dip {dip_deg:.1f}°, rake {rake_deg:.1f}°, "
             f"amplitude {self.amplitude:.1f}, origin ({origin_str})."
@@ -1581,16 +1530,12 @@ class Slip(Transformation):
 
     def default_displacement_func(self, distances):
         # A simple linear displacement function as an example
-        return np.zeros(
-            np.shape(distances)
-        )  # Displaces positively where the distance is positive
+        return np.zeros(np.shape(distances))  # Displaces positively where the distance is positive
 
     def run(self, xyz, data):
         self.origin = np.array(self.origin)
         # Slip is measured from dip vector, while the slip_normal convention is from strike vector, add 90 degrees
-        slip_vector, normal_vector = slip_normal_vectors(
-            self.rake, self.dip, self.strike
-        )
+        slip_vector, normal_vector = slip_normal_vectors(self.rake, self.dip, self.strike)
 
         # Translate points to origin coordinate frame
         v0 = xyz - self.origin

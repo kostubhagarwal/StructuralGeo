@@ -1,7 +1,6 @@
 import numpy as np
 
-from geogen.model.geoprocess import (DeferredParameter, Sedimentation,
-                                        Transformation)
+from geogen.model.geoprocess import DeferredParameter, Sedimentation, Transformation
 
 
 class BacktrackedPoint(DeferredParameter):
@@ -82,16 +81,12 @@ class SedimentConditionedOrigin(DeferredParameter):
                 sedimentation = event
                 break
         else:
-            raise ValueError(
-                "SedimentConditionedSillOrigin: No sedimentation process found in the history."
-            )
+            raise ValueError("SedimentConditionedSillOrigin: No sedimentation process found in the history.")
 
         # Find the boundary at the specified index
         boundaries = sedimentation.boundaries
         if self.boundary_index >= len(boundaries):
-            raise IndexError(
-                "SedimentConditionedSillOrigin: Boundary index out of range."
-            )
+            raise IndexError("SedimentConditionedSillOrigin: Boundary index out of range.")
 
         boundary = boundaries[self.boundary_index]
 
@@ -123,9 +118,7 @@ class LookBackParameter(DeferredParameter):
     def compute_func(self, xyz, data, history, index):
         target_index = index - self.steps_back
         if target_index < 0:
-            raise IndexError(
-                "LookBackParameter: Cannot look back beyond the start of the history."
-            )
+            raise IndexError("LookBackParameter: Cannot look back beyond the start of the history.")
 
         target_process = history[target_index]
         if not hasattr(target_process, self.attr_name):
