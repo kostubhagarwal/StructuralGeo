@@ -3,32 +3,50 @@
 import warnings
 from typing import List
 
+from abc import ABC as _ABC, abstractmethod
+
 import numpy as np
 
 from geogen.model.util import rotate, slip_normal_vectors
 
 
-class GeoProcess:
+class GeoProcess(_ABC):
     """
-    Base class template for all geological processes. Includes handling for cases where process
-    parameters that are conditional such as origin are not known until runtime or model generation time.
-    These are deferred parameters that are resolved at runtime.
+    Base class template for all geological processes.
+
+    This class handles `DeferredParameters`, which are object attributes that can not
+    be resolved at intialization and must be resolved at runtime based on the model state.
+    DeferredParameters have access to the model state and its history to allow for conditional
+    actions based on the model's evolution.
+
+    Attributes
+    ----------
+    history : list
+        A list of geological processes applied to the model, used for context in deferred parameters.
     """
 
     def apply_process(self, xyz, data, history, index):
         """
-        This method should not be overridden by subclasses. The subclass should implement the `run` method.
+        Apply the geological process to the model.
+
+        This method resolves deferred parameters and delegates the actual processing to the `run` method,
+        which must be implemented by subclasses.
 
         Parameters
         ----------
         xyz : np.ndarray
-            The coordinates of the model points.
+            The coordinates of the model points at current model history.
         data : np.ndarray
             The geological data to modify.
         history : list
-            The history of geological processes applied to the model.
+            The history (list of GeoProcess) applied to the GeoModel.
         index : int
-            The index of this process in the history list for context.
+            The index of this process in the GeoModel history list for context.
+
+        Returns
+        -------
+        tuple
+            The updated xyz coordinates and data arrays.
         """
         try:
             # Ensure deferred parameters are resolved (conditioned on model state and history)
@@ -78,11 +96,12 @@ class GeoProcess:
                         f"Error resolving deferred parameter '{attr_name}': {e}"
                     )
 
+    @abstractmethod
     def run(self, xyz, data):
         """
-        The method to be implemented by subclasses for the actual geological process logic.
+        Run the geological process on the model.
 
-        This is where the specific logic for each subclass should go.
+        This method should be implemented by subclasses to define the specific geological process.
 
         Parameters
         ----------
@@ -90,6 +109,11 @@ class GeoProcess:
             The coordinates of the model points.
         data : np.ndarray
             The geological data to modify.
+
+        Returns
+        -------
+        tuple
+            The updated xyz coordinates and data arrays.
 
         Raises
         ------
@@ -99,21 +123,28 @@ class GeoProcess:
         raise NotImplementedError("Subclasses should implement this method.")
 
 
-class DeferredParameter:
+class DeferredParameter(_ABC):
     """
-    Base class template to allow option for a GeoProcess parameter to be deferred until runtime.
-    This allows for conditioning based on the model history.
+    Base class for parameters that are deferred until runtime.
 
-    Attributes:
-        compute_func (callable): A function that computes the parameter's value.
+    This abstract class allows for parameters that depend on the model's state and history 
+    to be computed dynamically at runtime. Subclasses must implement the `compute_func` method.
+
+    Attributes
+    ----------
+    value : Any
+        Holds the resolved value once computed. Defaults to None until resolved.
     """
 
     def __init__(self):
         self.value = None  # Holds the resolved value once computed
 
-    def resolve(self, xyz, data, history, index):
+    @abstractmethod
+    def compute_func(self, xyz, data, history, index):
         """
-        Resolve the deferred parameter using the provided computation function.
+        Abstract method that must be implemented by subclasses.
+
+        This method should define how the deferred parameter is computed based on the model's state and history.
 
         Parameters
         ----------
@@ -128,33 +159,53 @@ class DeferredParameter:
 
         Returns
         -------
-        The resolved value.
+        Any
+            The computed value for the deferred parameter.
         """
-        # Avoid recomputing the value if it has already been resolved
+        pass
+
+    def resolve(self, xyz, data, history, index):
+        """
+        Resolve the deferred parameter using the computation function.
+
+        This method avoids recomputing the value if it has already been resolved.
+
+        Returns
+        -------
+        Any
+            The resolved value.
+        """
         if self.value is None:
             self.value = self.compute_func(xyz, data, history, index)
         return self.value
 
 
-class Deposition(GeoProcess):
+class Deposition(GeoProcess, _ABC):
     """
-    Base class for all deposition processes, such as layers and dikes.
+    Abstract base class for all deposition processes, such as layers and dikes.
 
     Depositions modify the geological data (e.g., rock types) associated with a mesh point
     without altering or transforming the mesh.
-    """
 
+    This class should be subclassed to implement specific deposition processes.
+    """
     pass
 
 
-class Transformation(GeoProcess):
+class Transformation(GeoProcess, _ABC):
     """
-    Base class for all transformation processes, such as tilting and folding.
+    Abstract base class for all transformation processes, such as tilting and folding.
 
     Transformations modify the mesh coordinates without altering the data contained at each point.
-    Frame convention is that north is 0 strike on positive y-axis
-    """
+    This class serves as a template for creating specific transformation processes in geological modeling.
 
+    Frame Convention:
+    -----------------
+    The north direction is considered as 0° strike on the positive y-axis. All transformations 
+    should adhere to this convention to maintain consistency in geological operations.
+
+    This class should be subclassed to implement specific transformation processes.
+    """
     pass
 
 
@@ -163,7 +214,8 @@ class CompoundProcess(GeoProcess):
     A compound geological process that consists of multiple sequential sub-processes.
 
     Can include deposition, transformation, or other compound processes. Used to group
-    together multiple processes into a single entity.
+    together multiple processes into a single entity. Compound processes form the nodes
+    of the geological model history tree, while GeoProcesses form the leaves.
 
     Parameters
     ----------
@@ -205,9 +257,17 @@ class CompoundProcess(GeoProcess):
                 unpacked_history.append(process)
         return unpacked_history
 
+    def run(self, xyz, data):
+        raise NotImplementedError("CompoundProcess should not be run directly.")
+
 
 class NullProcess(GeoProcess):
-    """A null process that does not modify the model."""
+    """
+    A null process that does not modify the model.
+
+    The `NullProcess` class acts as a placeholder in scenarios where a geological process 
+    is required syntactically but no actual computation or modification to the model is needed.
+    """
 
     def __str__(self):
         return "NullProcess: no compute action."
@@ -254,7 +314,21 @@ class Layer(Deposition):
 
 
 class Shift(Transformation):
-    """Shift the model by a given vector."""
+    """
+    A transformation that shifts the model's coordinates by a specified vector.
+
+    This class applies a uniform translation to the entire model by shifting
+    all points by the given vector.
+
+    Parameters
+    ----------
+    vector : array-like
+        A 3-element array or list representing the translation vector [dx, dy, dz].
+
+    Example
+    -------
+    shift = Shift([10, 0, -5])
+    """
 
     def __init__(self, vector):
         self.vector = np.array(vector)
@@ -277,7 +351,7 @@ class Rotate(Transformation):
     axis : tuple
         The axis of rotation in x, y, z coordinates.
     angle : float
-        The angle of rotation in degrees, using left-hand rule or clockwise rotation.
+        The angle of rotation in degrees, using the right-hand rule or counterclockwise rotation.
     """
 
     def __init__(self, axis, angle):
@@ -296,7 +370,7 @@ class Rotate(Transformation):
 
 class Bedrock(Deposition):
     """
-    Fill the model with a base level of bedrock.
+    Fill the model with a base level of bedrock. Layer extends infinitely downwards.
 
     Parameters
     ----------
@@ -333,8 +407,9 @@ class Bedrock(Deposition):
 class Sedimentation(Deposition):
     """
     Fill with layers of sediment, with rock values and thickness of layers given as lists.
-    The base elevation from which to fill can either be specified or can be deduced at generation time from
-    the lowest unfilled value in the mesh. Will not overwrite existing rock.
+
+    The base elevation from which to fill can either be specified or can be deduced at generation time
+    from the lowest unfilled value in the mesh. Will not overwrite existing rock.
 
     Parameters
     ----------
@@ -519,9 +594,6 @@ class DikePlane(Deposition):
         return self.value
 
 
-Dike = DikePlane  # Backward compatibility for Dike class in earlier versions
-
-
 class DikeColumn(Deposition):
     """
     Columnar dike intrusion.
@@ -630,8 +702,8 @@ class DikeHemisphere(Deposition):
     """
     A lenticular dike intrusion.
 
-    This class represents a dike intrusion with a hemispherical or lenticular shape. The dike can be rotated, scaled, and
-    positioned within a 3D geological model.
+    This class represents a dike intrusion with a hemispherical or lenticular shape,
+    which can be rotated, scaled, and positioned within a 3D geological model.
 
     Parameters
     ----------
@@ -642,15 +714,15 @@ class DikeHemisphere(Deposition):
     height : float, optional
         The height of the dike; defaults to 100.
     minor_axis_scale : float, optional
-        Scaling factor for the x-axis of the dike; defaults to 1.0.
+        The scaling factor for the x-axis of the dike; defaults to 1.0.
     rotation : float, optional
-        Rotation of the dike in the xy plane, in degrees; defaults to 0.0.
+        The rotation of the dike in the xy plane, in degrees; defaults to 0.0.
     value : float, optional
-        Value of rock-type to assign to the dike; defaults to 0.0.
+        The rock-type value to assign to the dike; defaults to 0.0.
     upper : bool, optional
         If True, the upper hemisphere of the dike is used; if False, the lower hemisphere is used; defaults to True.
     clip : bool, optional
-        If True, clips the dike to not protrude above the surface; defaults to False.
+        If True, clips the dike so it does not protrude above the surface; defaults to False.
     z_function : callable, optional
         A function defining the z-coordinate for the dike's shape; defaults to an elliptical hemisphere function if None is provided.
     """
@@ -728,10 +800,10 @@ class DikeHemisphere(Deposition):
 
 class PushHemisphere(Transformation):
     """
-    Push a hemisphere intrusion in the z-direction.
+    Push a hemispherical intrusion in the z-direction.
 
-    This transformation models a hemispherical intrusion being pushed along the z-axis. The hemisphere can be rotated,
-    scaled, and positioned within a 3D geological model.
+    This transformation models a hemispherical intrusion being pushed along the z-axis.
+    The hemisphere can be rotated, scaled, and positioned within a 3D geological model.
 
     Parameters
     ----------
@@ -742,9 +814,9 @@ class PushHemisphere(Transformation):
     height : float, optional
         The height of the hemisphere; defaults to 1.0.
     minor_axis_scale : float, optional
-        Scaling factor for the x-axis of the hemisphere; defaults to 1.0.
+        The scaling factor for the x-axis of the hemisphere; defaults to 1.0.
     rotation : float, optional
-        Rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
+        The rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
     upper : bool, optional
         If True, the upper hemisphere is used; if False, the lower hemisphere is used; defaults to True.
     z_function : callable, optional
@@ -847,10 +919,11 @@ class PushHemisphere(Transformation):
 
 
 class DikeHemispherePushed(CompoundProcess):
-    """Creates a hemisphere with a pushed curved boundary.
+    """
+    Creates a hemisphere with a pushed curved boundary.
 
-    This compound process combines a hemispherical dike intrusion with a deformation that pushes its boundary,
-    creating a unique geological feature with a curved and displaced boundary.
+    This compound process combines a hemispherical dike intrusion with a deformation
+    that pushes its boundary, creating a unique geological feature with a curved and displaced boundary.
 
     Parameters
     ----------
@@ -861,15 +934,15 @@ class DikeHemispherePushed(CompoundProcess):
     origin : tuple, optional
         The origin point of the hemisphere in the model reference frame; defaults to (0, 0, 0).
     minor_axis_scale : float, optional
-        Scaling factor for the x-axis of the hemisphere; defaults to 1.0.
+        The scaling factor for the x-axis of the hemisphere; defaults to 1.0.
     rotation : float, optional
-        Rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
+        The rotation of the hemisphere in the xy plane, in degrees; defaults to 0.0.
     upper : bool, optional
         If True, the upper hemisphere is used; if False, the lower hemisphere is used; defaults to True.
     clip : bool, optional
-        If True, clips the hemisphere to not protrude above the surface; defaults to False.
+        If True, clips the hemisphere so it does not protrude above the surface; defaults to False.
     value : float, optional
-        The value of rock-type to assign to the dike; defaults to 0.0.
+        The rock-type value to assign to the dike; defaults to 0.0.
     z_function : callable, optional
         A function defining the z-coordinate for the hemisphere's shape; defaults to an elliptical hemisphere function if None is provided.
     """
@@ -923,10 +996,11 @@ class DikeHemispherePushed(CompoundProcess):
 
 
 class Laccolith(CompoundProcess):
-    """Creates a Laccolith or a Lopolith.
+    """
+    Creates a Laccolith or a Lopolith.
 
-    This compound process models a laccolith or lopolith, which are dome-shaped intrusions with a flat base
-    that result from the injection of magma between sedimentary layers, forming a cap and stem structure.
+    This compound process models a laccolith or lopolith, which are dome-shaped intrusions
+    with a flat base that result from the injection of magma between sedimentary layers, forming a cap and stem structure.
 
     Parameters
     ----------
@@ -939,15 +1013,15 @@ class Laccolith(CompoundProcess):
     height : float, optional
         The height of the laccolith cap; defaults to 100.
     minor_axis_scale : float, optional
-        Scaling factor for the x-axis of the laccolith; defaults to 1.0.
+        The scaling factor for the x-axis of the laccolith; defaults to 1.0.
     rotation : float, optional
-        Rotation of the laccolith in the xy plane, in degrees; defaults to 0.0.
+        The rotation of the laccolith in the xy plane, in degrees; defaults to 0.0.
     value : float, optional
-        The value of rock-type to assign to the laccolith; defaults to 0.0.
+        The rock-type value to assign to the laccolith; defaults to 0.0.
     upper : bool, optional
         If True, the upper hemisphere is used; if False, the lower hemisphere is used (Lopolith); defaults to True.
     clip : bool, optional
-        If True, clips the laccolith to not protrude above the surface; defaults to False.
+        If True, clips the laccolith so it does not protrude above the surface; defaults to False.
     z_function : callable, optional
         A function defining the z-coordinate for the laccolith's shape; defaults to an elliptical hemisphere function if None is provided.
     """
@@ -990,7 +1064,8 @@ class Laccolith(CompoundProcess):
 
 
 class DikePlug(Deposition):
-    """An intrusion formed as a parabolic or elliptical plug.
+    """
+    An intrusion formed as a parabolic or elliptical plug.
 
     This class models a dike intrusion that takes the shape of a parabolic or elliptical plug,
     with customizable parameters such as diameter, rotation, and shape. The plug can be clipped
@@ -1099,7 +1174,6 @@ class PushPlug(Transformation):
         The shape parameter for the plug, controlling the exponent of the rotated polynomial.
     push : float
         The magnitude of the pushing displacement applied to the plug.
-
     """
 
     def __init__(self, origin, diam, minor_axis_scale, rotation, shape, push):
@@ -1218,7 +1292,7 @@ class UnconformityBase(Deposition):
 
     This class models an erosion process that removes material from the model
     above a specified base level. The areas above this base are filled with the
-    specified value, typically an "air" value to signify rock removal
+    specified value, typically an "air" value to signify rock removal.
 
     Parameters
     ----------
@@ -1285,12 +1359,22 @@ class UnconformityDepth(Deposition):
 
 
 class Tilt(Transformation):
-    """Tilt the model by a given strike and dip and an origin point.
+    """
+    Tilt the model by a given strike and dip about an origin point.
 
-    Parameters:
-        strike (float): Strike angle in CW degrees (center-line of the dike) from north (y-axis)
-        dip    (float): Dip of the tilt in degrees (CW from the strike axis)
-        origin (tuple): Origin point for the tilt (x,z,y)
+    This transformation applies a tilt to the geological model, using specified
+    strike and dip angles and rotating around an origin point. The strike defines
+    the direction of the tilt's axis relative to the north (y-axis), while the dip
+    defines the angle of the tilt along this axis.
+
+    Parameters
+    ----------
+    strike : float
+        Strike angle in degrees clockwise (CW) from north (y-axis).
+    dip : float
+        Dip angle in degrees clockwise (CW) from the strike axis.
+    origin : tuple
+        Origin point for the tilt, specified as (x, y, z).
     """
 
     def __init__(self, strike, dip, origin=(0, 0, 0)):
@@ -1332,21 +1416,32 @@ class Tilt(Transformation):
 
 class Fold(Transformation):
     """
-    Tilt the model by a given strike and dip about an origin point.
+    Apply a fold to the model with specified strike, dip, and rake.
 
-    This transformation tilts the geological model by rotating it around a specified
-    origin point, using given strike and dip angles. The strike determines the direction
-    of the tilt's axis relative to the north (y-axis), and the dip defines the angle
-    of the tilt along this axis.
+    This transformation applies a fold to the geological model, combining a tilt
+    with a fold along the specified strike, dip, and rake. The periodic function
+    and amplitude control the folding's shape and intensity, respectively.
 
     Parameters
     ----------
     strike : float
-        The strike angle in degrees clockwise (CW) from the north (y-axis).
+        The strike angle in degrees clockwise (CW) from north (y-axis).
     dip : float
-        The dip angle in degrees CW from the strike axis.
+        The dip angle in degrees clockwise (CW) from the strike axis.
+    rake : float
+        The rake angle in degrees, representing the angle of the fold along the fault plane.
+    period : float
+        The wavelength of the fold, controlling the distance between fold crests.
+    amplitude : float
+        The amplitude of the fold, controlling the height of the fold crests.
+    phase : float
+        The phase shift of the fold, controlling the initial position of the fold.
+    shape : float
+        A shaping parameter that controls the non-linearity of the fold.
     origin : tuple
-        The origin point for the tilt, given as a tuple (x, y, z).
+        The origin point for the fold, specified as (x, y, z).
+    periodic_func : callable, optional
+        A custom periodic function to define the fold shape. Defaults to a cosine-based function if None is provided.
     """
 
     def __init__(
