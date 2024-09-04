@@ -34,7 +34,7 @@ class GeoProcess(_ABC):
 
         Parameters
         ----------
-        xyz : np.ndarray
+        xyz : np.F
             The coordinates of the model points at current model history.
         data : np.ndarray
             The geological data to modify.
@@ -507,6 +507,9 @@ class DikePlane(Deposition):
         Function that determines thickness multiplier as a function of (x, y) in the local dike frame.
         x corresponds to the vertical (dip) direction, and y corresponds to the lateral (strike)
         direction. The default thickness function is a constant unity function giving constant width.
+    auto_prune : bool, optional
+        If True, automatically perform an initial pruning operation to only consider points within a range 
+        of the dike plane for closer inspection. Default is True.
 
     Notes
     -----
@@ -522,6 +525,7 @@ class DikePlane(Deposition):
         origin=(0, 0, 0),
         value=0.0,
         thickness_func=None,
+        auto_prune=True,
     ):
         self.strike = np.radians(strike)
         self.dip = np.radians(dip)
@@ -529,6 +533,8 @@ class DikePlane(Deposition):
         self.origin = origin
         self.value = value
         self.thickness_func = thickness_func if thickness_func else self.default_thickness_func
+        self.auto_prune = auto_prune
+        
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -551,22 +557,38 @@ class DikePlane(Deposition):
         M1 = rotate([0, 0, 1.0], self.strike)  # Rotation around z-axis for strike
         M2 = rotate([0.0, 1.0, 0], -self.dip)  # Rotation around y-axis in strike frame for dip
 
+        # Prune out NaN points to reduce computation
+        nan_mask = ~np.isnan(data)
+        xyz_rock = xyz[nan_mask]
+        
         # Combine rotations and apply to the coordinates
-        xyz_local = (xyz - self.origin) @ M1.T @ M2.T
+        xyz_local = (xyz_rock - self.origin) @ M1.T @ M2.T
 
         # Calculate distances from the dike plane in the local frame
         x_dist = xyz_local[:, 0]  # Dipped direction distance
         y_dist = xyz_local[:, 1]  # Strike direction distance
         z_dist = xyz_local[:, 2]  # Normal direction distance
 
+        if self.auto_prune:
+            # Prune points based on z_dist
+            prune_mask = np.abs(z_dist) < 1.5 * self.width
+            xyz_local = xyz_local[prune_mask]
+            z_dist = z_dist[prune_mask]
+            x_dist = x_dist[prune_mask]  # Also prune x_dist and y_dist accordingly
+            y_dist = y_dist[prune_mask]
+            original_indices = np.where(nan_mask)[0][prune_mask]
+        else:
+            # Use all points without pruning
+            original_indices = np.where(nan_mask)[0]
+
         # Determine the thickness based on the thickness function and width
         local_thickness = self.thickness_func(x_dist, y_dist) * self.width
 
-        # Create mask for points within the dike thickness
-        mask = (np.abs(z_dist) <= local_thickness / 2.0) & (~np.isnan(data))
-
-        # Update data where the mask is true
-        data[mask] = self.value
+        # Final mask for points within the dike thickness
+        final_mask = (np.abs(z_dist) <= local_thickness / 2.0)
+        
+        # Directly update the pruned indices in the original data array
+        data[original_indices[final_mask]] = self.value
 
         return xyz, data
 
