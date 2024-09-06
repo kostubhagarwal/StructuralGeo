@@ -508,7 +508,7 @@ class DikePlane(Deposition):
         x corresponds to the vertical (dip) direction, and y corresponds to the lateral (strike)
         direction. The default thickness function is a constant unity function giving constant width.
     auto_prune : bool, optional
-        If True, automatically perform an initial pruning operation to only consider points within a range 
+        If True, automatically perform an initial pruning operation to only consider points within a range
         of the dike plane for closer inspection. Default is True.
 
     Notes
@@ -534,7 +534,6 @@ class DikePlane(Deposition):
         self.value = value
         self.thickness_func = thickness_func if thickness_func else self.default_thickness_func
         self.auto_prune = auto_prune
-        
 
     def __str__(self):
         # Convert radians back to degrees for more intuitive understanding
@@ -560,7 +559,7 @@ class DikePlane(Deposition):
         # Prune out NaN points to reduce computation
         nan_mask = ~np.isnan(data)
         xyz_rock = xyz[nan_mask]
-        
+
         # Combine rotations and apply to the coordinates
         xyz_local = (xyz_rock - self.origin) @ M1.T @ M2.T
 
@@ -585,8 +584,8 @@ class DikePlane(Deposition):
         local_thickness = self.thickness_func(x_dist, y_dist) * self.width
 
         # Final mask for points within the dike thickness
-        final_mask = (np.abs(z_dist) <= local_thickness / 2.0)
-        
+        final_mask = np.abs(z_dist) <= local_thickness / 2.0
+
         # Directly update the pruned indices in the original data array
         data[original_indices[final_mask]] = self.value
 

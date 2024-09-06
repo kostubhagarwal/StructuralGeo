@@ -61,6 +61,9 @@ class FourierWaveGenerator:
             total_power += amplitude**2
 
         rms_scale = np.sqrt(1 / total_power)
+        amplitudes = np.array(amplitudes)
+        phases = np.array(phases)
+
         return functools.partial(
             damped_fourier_wave_fun,
             num_harmonics=self.num_harmonics,

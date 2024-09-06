@@ -127,7 +127,15 @@ class InfiniteBasement(GeoWord):  # Validated
 
 
 class InfiniteSedimentUniform(GeoWord):  # Validated
-    """A large sediment accumulation to simulate deep sedimentary layers."""
+    """
+    A large sediment accumulation to simulate deep sedimentary layers.
+
+    Effects:
+    --------
+    This word fills the model with deep sedimentary layers of uniform thickness. Each layer has a
+    random sediment type, and the sedimentation continues until the total depth is filled.
+    Bedrock is placed below to ensure full coverage underneath the sediment.
+    """
 
     def build_history(self):
         # Choose a large depth that runs beyond the model's height extension bars
@@ -148,7 +156,30 @@ class InfiniteSedimentUniform(GeoWord):  # Validated
 
 
 class InfiniteSedimentMarkov(GeoWord):  # Validated
-    """A large sediment accumulation to simulate deep sedimentary layers with dependency on previous layers."""
+    """
+    A large sediment accumulation to simulate deep sedimentary layers with dependency on previous layers.
+
+    Random Variables (RVs)
+    ----------------------
+    - `thickness_variance` : Controls the variability in thickness
+      of sediment layers. Higher values introduce more thickness variability.
+
+    - `dirichlet_alpha` : Controls the likelihood of repeating sediment types.
+      Lower values increase repeatability, while higher values increase variability.
+
+    - `minimum_layer_thickness` : Represents the smallest possible thickness for a sediment layer.
+
+    - `maximum_layer_thickness` : Represents the largest possible thickness for a sediment layer.
+
+    - `anticorrelation_factor` : Fixed at 0.05. Low factor ensures change in sediment type between layers.
+
+    Effects:
+    --------
+    The Markov process introduces a correlation between the layers, meaning the characteristics of one layer
+    influence the next. This results in a more realistic sedimentary sequence where the variability in layer
+    thickness and sediment type is dependent on the preceding layers. Bedrock is placed below the sediment to
+    ensure full coverage underneath the layers.
+    """
 
     def build_history(self):
         # Caution, the depth needs to extend beyond the bottom of the model mesh,
@@ -178,61 +209,118 @@ class InfiniteSedimentTilted(GeoWord):  # Validated
     """
     A large sediment accumulation to simulate deep sedimentary layers with a tilt.
 
-    Fills entire model with sediment, then tilts the model, then truncates sediment to the bottom of the model.
+    Random Variables (RVs)
+    ----------------------
+
+    - `thickness_variance` : Controls the variability in thickness of the sediment layers.
+
+    - `dirichlet_alpha` : Controls the likelihood of repeating sediment types, or formation of mutual loops.
+      Lower values increase the pattern repeatability, while higher values increase variability between layers.
+
+    - `minimum_layer_thickness` : Represents the smallest possible thickness for a sediment layer.
+
+    - `maximum_layer_thickness` : Represents the largest possible thickness for a sediment layer.
+
+    - `anticorrelation_factor` : Fixed at 0.05. Low factor ensures change in sediment type between layers.
+
+    Effects:
+    --------
+    These RVs work together to simulate deep sedimentary layers that are tilted and then truncated at the bottom.
+    The strike and dip control the orientation and angle of the tilt, while the sedimentation process creates layers
+    of varying thickness and composition.
     """
 
     def build_history(self):
-        # Choose a large depth that runs beyond the model's height extension bars below and above
-        depth = (Z_RANGE) * (6 * geo.GeoModel.HEIGHT_BAR_EXT_FACTOR)
-        sediment_base = -0.5 * depth  # In this case we overbuild up and down to allow for tilting and eroding after
+        # Sediment parameters
+        depth = (Z_RANGE) * (
+            3 * geo.GeoModel.HEIGHT_BAR_EXT_FACTOR
+        )  # Large depth to simulate deep sediment accumulation
+        sediment_base = -0.5 * depth  # Overbuild to allow room for tilting and subsequent truncation
 
+        minimum_layer_thickness = 200  # Minimum thickness for sediment layers (meters)
+        maximum_layer_thickness = Z_RANGE / 4  # Maximum thickness for sediment layers (based on Z_RANGE)
+        thickness_variance = self.rng.uniform(0.1, 0.6)  # Variance in layer thickness
+        dirichlet_alpha = self.rng.uniform(0.6, 1.2)  # Parameter controlling repeatability of layers
+        anticorrelation_factor = 0.05  # Bias to prevent successive layers from being too similar
+
+        # Tilt parameters
+        strike = self.rng.uniform(0, 360)  # Random strike direction
+        dip = self.rng.normal(0, 10)  # Tilt angle sampled from a normal distribution
+
+        # Generate sediment layers using a Markov process
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
             rng=self.rng,
-            thickness_bounds=(200, Z_RANGE / 4),
-            thickness_variance=self.rng.uniform(0.1, 0.6),
-            dirichlet_alpha=self.rng.uniform(0.6, 1.2),
-            anticorrelation_factor=0.05,
+            thickness_bounds=(minimum_layer_thickness, maximum_layer_thickness),
+            thickness_variance=thickness_variance,
+            dirichlet_alpha=dirichlet_alpha,
+            anticorrelation_factor=anticorrelation_factor,
         )
-
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
-        # Sediment needs to go above and below model bounds for tilt, build from bottom up through extended model
+
+        # Sediment process
         sed = geo.Sedimentation(vals, thicks, base=sediment_base)
+        tilt = geo.Tilt(strike=strike, dip=dip, origin=geo.BacktrackedPoint((0, 0, 0)))
 
-        tilt = geo.Tilt(
-            strike=self.rng.uniform(0, 360),
-            dip=self.rng.normal(0, 10),
-            origin=geo.BacktrackedPoint((0, 0, 0)),
-        )
-        # Shave off all excess sediment above the tilt operation
-        unc = geo.UnconformityBase(1000)
+        # Erosion process: truncating sediment at the base
+        unc = geo.UnconformityBase(1000)  # Unconformity cuts off sediment above a base level
 
-        # Bedrock ensures full coverage underneath sediment in all cases
-        self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))
-        self.add_process([sed, tilt, unc])
+        # Add processes in the geological history
+        self.add_process(geo.Bedrock(base=sediment_base, value=BED_ROCK_VAL))  # Bedrock underneath sediment
+        self.add_process([sed, tilt, unc])  # Add sedimentation, tilt, and unconformity to history
 
 
 """ Sediment Acumulation Events"""
 
 
 class FineRepeatSediment(GeoWord):  # Validated
-    """A series of thin sediment layers with repeating values."""
+    """
+    A series of thin sediment layers with repeating values.
+
+    Random Variables (RVs)
+    ----------------------
+    - `depth` : Log-normal distributed total sedimentation depth with target mean and std.
+
+    - `thickness_variance` : Controls the variability in thickness
+      of sediment layers. Higher values introduce more thickness variability.
+
+    - `dirichlet_alpha` : Controls the likelihood of repeating sediment types.
+      Lower values increase repeatability, while higher values increase variability.
+
+    - `minimum_layer_thickness` : Represents the smallest possible thickness for a sediment layer.
+
+    - `maximum_layer_thickness` : Represents the largest possible thickness for a sediment layer.
+
+    - `anticorrelation_factor` : Fixed at 0.05. Low factor ensures change in sediment type between layers.
+
+    Effects:
+    --------
+    These RVs work together to create a sedimentary sequence that can vary in total depth, layer thickness,
+    and repeatability of sediment types. Fine-tuning the RVs will affect the appearance of the simulated
+    geological history.
+    """
 
     def build_history(self):
-        # Get a log-normal depth for the sediment block
+        # Random variables with detailed annotations
+        # Log-normal depth, with a mean and standard deviation designed for sedimentation layers
         depth = self.rng.lognormal(
-            # This helper calculates the required parameters to hit target mean and std for distro
             *rv.log_normal_params(mean=MEAN_SEDIMENTATION_DEPTH, std_dev=MEAN_SEDIMENTATION_DEPTH / 3)
         )
+        # Markov helper random parameters
+        minimum_layer_thickness = 100  # Minimum thickness for sediment layers (meters)
+        maximum_layer_thickness = 400  # Maximum thickness for sediment layers
+        thickness_variance = self.rng.uniform(0.1, 0.3)  # Range for sediment layer thickness variance in a set
+        dirichlet_alpha = self.rng.uniform(0.6, 2.0)  # Dirichlet distribution parameter for layer transitions
+        anticorrelation_factor = 0.05  # Fixed anticorrelation factor
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
         markov_helper = MarkovSedimentHelper(
             categories=SEDIMENT_VALS,
             rng=self.rng,
-            thickness_bounds=(100, Z_RANGE / 10),
-            thickness_variance=self.rng.uniform(0.1, 0.3),
-            dirichlet_alpha=self.rng.uniform(0.6, 2.0),  # Low alpha for high repeatability
-            anticorrelation_factor=0.05,
+            thickness_bounds=(minimum_layer_thickness, maximum_layer_thickness),
+            thickness_variance=thickness_variance,
+            dirichlet_alpha=dirichlet_alpha,
+            anticorrelation_factor=anticorrelation_factor,
         )
 
         vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
@@ -241,7 +329,29 @@ class FineRepeatSediment(GeoWord):  # Validated
 
 
 class CoarseRepeatSediment(GeoWord):  # Validated
-    """A series of thick sediment layers with repeating values."""
+    """
+    A series of thick sediment layers with repeating values.
+
+    Random Variables (RVs)
+    ----------------------
+    - `thickness_variance` : Controls the variability in thickness
+      of sediment layers. Higher values introduce more thickness variability.
+
+    - `dirichlet_alpha` : Controls the likelihood of repeating sediment types.
+      Lower values increase repeatability, while higher values increase variability.
+
+    - `minimum_layer_thickness` : Represents the smallest possible thickness for a sediment layer.
+
+    - `maximum_layer_thickness` : Represents the largest possible thickness for a sediment layer.
+
+    - `anticorrelation_factor` : Fixed at 0.05. Low factor ensures change in sediment type between layers.
+
+    Effects:
+    --------
+    This word simulates a sequence of thick, repeating sediment layers. The Markov process introduces consistency
+    in sediment type, while variability in thickness is controlled by the random variables. The process continues
+    until the total depth is filled with sediment.
+    """
 
     def build_history(self):
         # Get a log-normal depth for the sediment block
@@ -266,10 +376,17 @@ class CoarseRepeatSediment(GeoWord):  # Validated
 
 
 class SingleRandSediment(GeoWord):
-    """A single sediment layer with a random value and thickness."""
+    """
+    A single sediment layer with a random value and thickness.
+
+    Effects:
+    --------
+    A single sedimentation event occurs with a randomly selected sediment type and thickness.
+    This is useful for generating isolated, standalone sediment layers in the geological model.
+    """
 
     def build_history(self):
-        val = self.rng.integers(1, 5)
+        val = self.rng.choice(SEDIMENT_VALS)
         sediment = geo.Sedimentation(
             [val],
             [self.rng.normal(MEAN_SEDIMENTATION_DEPTH, MEAN_SEDIMENTATION_DEPTH / 3)],
@@ -281,7 +398,18 @@ class SingleRandSediment(GeoWord):
 
 
 class _BaseErosionWord(GeoWord):  # Validated
-    """Reusable generic class for calculating total depth of erosion events."""
+    """
+    Reusable generic class for calculating total depth of erosion events.
+
+    Random Variables (RVs)
+    ----------------------
+    - `erosion_factor` : Log-normal distributed scaling factor for erosion depth. Scales the MEAN_DEPTH
+
+    Effects:
+    --------
+    The class calculates an erosion depth based on a log-normal distribution, allowing for a range of possible
+    erosion depths. The depth is then applied in child classes to simulate different types of erosion events.
+    """
 
     MEAN_DEPTH = Z_RANGE / 8
 
@@ -289,13 +417,25 @@ class _BaseErosionWord(GeoWord):  # Validated
         super().__init__(seed)
 
     def calculate_depth(self):
-        factor = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.5))  # Generally between .25 and 2.5
-        factor = np.clip(factor, 0.25, 3)
-        return factor * self.MEAN_DEPTH
+        erosion_factor = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.5))  # Generally between .25 and 2.5
+        erosion_factor = np.clip(erosion_factor, 0.25, 3)
+        return erosion_factor * self.MEAN_DEPTH
 
 
 class FlatUnconformity(_BaseErosionWord):  # Validated
-    """Flat unconformity down to a random depth"""
+    """
+    Flat unconformity down to a random depth.
+
+    Random Variables (RVs)
+    ----------------------
+    - `total_depth` : Log-normal distributed erosion depth, calculated using the base class method.
+      The depth represents how much material is eroded from the geological model starting from the top.
+
+    Effects:
+    --------
+    A flat erosion event removes material down to a certain depth across the entire model. This creates a
+    uniform, flat unconformity surface in the model.
+    """
 
     def build_history(self):
         total_depth = self.calculate_depth()
@@ -304,7 +444,23 @@ class FlatUnconformity(_BaseErosionWord):  # Validated
 
 
 class TiltedUnconformity(_BaseErosionWord):  # Validated
-    """Slightly tilted unconformity down to a random depth"""
+    """
+    Slightly tilted unconformity down to a random depth.
+
+    Random Variables (RVs)
+    ----------------------
+    - `num_tilts` : Determines the number of tilt-erosion iterations applied to the unconformity surface.
+
+    - `total_depth` : Log-normal distributed erosion depth, calculated using the base class method.
+      Represents the total depth to which the unconformity will erode.
+
+    - `depths` : Dirichlet distributed depths for each tilt. The depths are distributed to sum to the total depth
+
+    Effects:
+    --------
+    This word generates an unconformity where the surface is tilted in one or more directions,
+    creating a varied erosion depth across the model. The tilting introduces asymmetry in the erosion pattern.
+    """
 
     def build_history(self):
         num_tilts = self.rng.integers(1, 4)
@@ -313,11 +469,11 @@ class TiltedUnconformity(_BaseErosionWord):  # Validated
 
         for depth in depths:
             strike = self.rng.uniform(0, 360)
-            tilt_angle = self.rng.normal(0, 3)
+            dip = self.rng.normal(0, 3)
             x, y, z = rv.random_point_in_ellipsoid(MAX_BOUNDS)
             origin = geo.BacktrackedPoint((x, y, 0))
-            tilt_in = geo.Tilt(strike=strike, dip=tilt_angle, origin=origin)
-            tilt_out = geo.Tilt(strike=strike, dip=-tilt_angle, origin=origin)
+            tilt_in = geo.Tilt(strike=strike, dip=dip, origin=origin)
+            tilt_out = geo.Tilt(strike=strike, dip=-dip, origin=origin)
 
             unconformity = geo.UnconformityDepth(depth)
 
@@ -325,7 +481,33 @@ class TiltedUnconformity(_BaseErosionWord):  # Validated
 
 
 class WaveUnconformity(_BaseErosionWord):
-    """Change of coordinates/basis with two orthogonal folds to create wavy unconformity"""
+    """
+    Wavy unconformity created by two orthogonal folds.
+
+    Random Variables (RVs)
+    ----------------------
+    - `total_depth` : Log-normal distributed depth, scaled down to 80% of the standard depth.
+
+    - `orientation` : Determines the principal orientation of the wave folds.
+
+    - `num_harmonics` : Controls how many sine wave harmonics are combined to create folded surface
+
+    - `smoothness` : Controls the balance between high and low frequency harmonics in the folded surface
+
+    - `fold_period` : Determines the wavelength of the fold.
+
+    - `amplitude` : Controls the height of the waves in the unconformity surface.
+
+    - `springback_factor` : Determines how much the fold springs back. Full spring back
+    leaves the strata flat, while partial spring back retains some of the fold's shape
+    correlated with the unconformity.
+
+    Effects:
+    --------
+    The unconformity creates a wavy surface by folding the geological structure in two orthogonal directions.
+    The folding amplitude and period determine the size and frequency of the waves, while the springback factor
+    controls how much the fold amplitude is reduced. This leads to a dynamic and non-uniform unconformity surface.
+    """
 
     def build_history(self):
         total_depth = self.calculate_depth() * 0.8
@@ -360,7 +542,30 @@ class WaveUnconformity(_BaseErosionWord):
 
 
 class DikePlaneWord(GeoWord):  # Validated
-    """Base GeoWord for forming dikes with organic thickness variations."""
+    """
+    Base GeoWord for forming dikes with organic thickness variations.
+
+    Random Variables (RVs)
+    ----------------------
+    - `width` : overall thickness of the dike
+
+    - `length` : the length of the dike along long axis
+
+    - `wobble_factor` : Introduces randomness in the thickness variation,
+      with higher values leading to more pronounced variations.
+
+    - `amp` : Controls the unevenness of the dike thickness, larger values introducing more variability in thickness.
+
+    - `expo` : Controls the sharpness of tapering at the ends of the dike.  Higher values lead
+    to more abrupt tapering at the edges, while lower values create smoother transitions.
+
+    Effects:
+    --------
+    This word generates a dike with non-uniform thickness along its length and width, shaped by a combination
+    of Fourier-generated variability and organic tapering at the ends. The dike parameters—such as width, length,
+    and tapering—are controlled by the random variables, making each dike unique in terms of its shape and orientation.
+    The dike is embedded into the model at a random origin point and extends along its defined strike and dip.
+    """
 
     class OrganicDikeThicknessFunc:
         def __init__(self, length, expo, amp, x_var, y_var):
@@ -416,7 +621,29 @@ class DikePlaneWord(GeoWord):  # Validated
 
 
 class SingleDikeWarped(DikePlaneWord):  # Validated
-    """A single dike with organic thickness and a more serpentine length"""
+    """
+    A single dike with organic thickness and a serpentine length.
+
+    Random Variables (RVs)
+    ----------------------
+    - `width` : overall thickness of the dike
+
+    - `length` : the length of the dike along long axis
+
+    - `wobble_factor` : Increases the degree of randomness in the thickness variation, creating
+      a more pronounced organic, uneven appearance.
+
+    - `fold_period` :Controls the wavelength of the fold warping on the dike.
+
+    - `amplitude` : Determines the amplitude of the fold warping on the dike.
+
+    Effects:
+    --------
+    The generated dike has an organic, serpentine structure with varying thickness and a warped path. The
+    `wobble_factor` introduces randomness to the thickness, while the folding process applies a wave-like
+    distortion along the length of the dike, making it appear more natural and irregular. The random strike,
+    dip, width, and length add further variability to the dike's final shape.
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
@@ -459,14 +686,35 @@ class SingleDikeWarped(DikePlaneWord):  # Validated
 
 
 class DikeGroup(DikePlaneWord):  # Validated
-    """A correlated grouping of vertical dikes with varying thicknesses and lengths."""
+    """
+    A correlated grouping of vertical dikes with varying thicknesses and lengths.
+
+    Random Variables (RVs)
+    ----------------------
+    - `num_dikes` : At least 2 dikes are generated, with a 30% chance of adding more dikes to the group.
+
+    - `origin` : Random point in an ellipsoid within model bounds, starting location of first dike.
+    Subsequent dikes are placed orthogonally to the strike direction of the previous dike with variations.
+
+    - `strike` : Random strike direction of the first dike, with subsequent dikes adjusted slightly.
+
+    - `width` : Width of the first dike, with subsequent dikes adjusted by a random scaling proportional to prev
+
+    - `dip` : Normal distribution with a bias of 90 degrees and std of 8 degrees.
+
+    - `spacing_avg` : Log-normal distributed average spacing between dikes, with variations in spacing introduced.
+
+    Effects:
+    --------
+    This word generates a group of vertical dikes with varying thicknesses and lengths. The dikes are placed
+    sequentially parallel with small variations in strike, width, and dip.
+    """
 
     def build_history(self):
-        num_dikes = 2
-        while self.rng.uniform() < 0.3:
-            num_dikes += 1
+        # Geometric distribution with probability of failure 0.7 (success rate 0.3), min of 2 dikes
+        num_dikes = self.rng.geometric(p=0.7) + 1
 
-        # Starting parameters, to be sequrntially modified
+        # Starting parameters, to be sequentially modified
         origin = rv.random_point_in_ellipsoid(MAX_BOUNDS)
         strike = self.rng.uniform(0, 360)
         width = rv.beta_min_max(1.5, 4, 40, 350)
@@ -484,7 +732,7 @@ class DikeGroup(DikePlaneWord):  # Validated
         for _ in range(num_dikes):
             length = rv.beta_min_max(2, 2, 600, 16000)
             dike_params = {
-                "strike": strike + self.rng.normal(0, 2),
+                "strike": strike,
                 "dip": dip,
                 "origin": geo.BacktrackedPoint(origin),  # Backtracked point ensures dike is in view
                 "width": width,
@@ -496,7 +744,7 @@ class DikeGroup(DikePlaneWord):  # Validated
 
             # Modify parameters for next dike
             origin = self.get_next_origin(origin, strike, spacing_avg)
-            strike += self.rng.normal(0, 2)
+            strike += self.rng.normal(0, 4)
             width *= np.maximum(self.rng.normal(1, 0.1), 0.8)
             dip += self.rng.normal(0, 1)
 
@@ -536,7 +784,24 @@ class DikeGroup(DikePlaneWord):  # Validated
 
 
 class SillWord(GeoWord):
-    """A sill construction mechanism using horizontal dike planes"""
+    """A sill construction mechanism using horizontal dike planes
+
+    Random Variables (RVs)
+    ----------------------
+    - `width` : the vertical thickness of the sill
+
+    - `x_length, y_length` : the two principal axes of the hyper ellipsoid sill
+
+    - `origin` : the center point of the hyper ellipsoid sill
+
+    Effects:
+    --------
+    Generates a puddle-like warped sill based off of a warped hyper ellipsoid. The z-axis is normalized to 1,
+    while the x and y lengths are specified relative to it. The width parameter of the Dike controls the scaling
+    of the sill thickness from the baseline of 1. Radial warping is controlled using a fourier series
+    of harmonic waves to give a rippled edge, while the thickness is also warped with the same technique.
+    The overall horizontal intrusion will be place about the specified origin point.
+    """
 
     class EllipsoidShapingFunction:
         def __init__(
@@ -633,7 +898,20 @@ class SillWord(GeoWord):
 
 
 class SillSystem(SillWord):
-    """A sill construction mechanism using horizontal dike planes"""
+    """A sill construction mechanism using horizontal dike planes
+
+    Random Variables (RVs)
+    ----------------------
+    - `origins` : List of origin points for each sill in the system
+
+    - `sediment` : Sedimentation object to be used as a substrate for the sills
+
+    Effects:
+    --------
+    This is a complex word that generates a sedimentary substrate followed by sills intruding in between layers
+    and finally a systemp of pipes conneting the sills from their centers. It requires a deferred parameter that
+    can fetch the placement of the sill origins after the sedimentation has been computed. See SillWord for more
+    """
 
     def __init__(self, seed=None):
         super().__init__(seed)
@@ -645,10 +923,27 @@ class SillSystem(SillWord):
         # Build a sediment substrate to sill into
         self.build_sedimentation()
         self.add_process(self.sediment)
+        # Choose a random rock value and place sills into boundary layers, then link them
         self.rock_val = self.rng.choice(DIKE_VALS)
         indices = self.get_layer_indices()
         origins = self.build_sills(indices)
         self.link_sills(origins)
+
+    def build_sedimentation(self) -> geo.Sedimentation:
+        """Sediment building portion of word"""
+        markov_helper = MarkovSedimentHelper(
+            categories=SEDIMENT_VALS,
+            rng=self.rng,
+            thickness_bounds=(Z_RANGE / 18, Z_RANGE / 6),
+            thickness_variance=self.rng.uniform(0.1, 0.4),
+            dirichlet_alpha=self.rng.uniform(0.8, 1.2),  # Low alpha for high repeatability
+            anticorrelation_factor=0.05,  # Low factor gives low repeatability
+        )
+
+        depth = Z_RANGE / 2
+        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
+        sed = geo.Sedimentation(vals, thicks)
+        self.sediment = sed
 
     def build_sills(self, indices):
         origins = []
@@ -699,22 +994,8 @@ class SillSystem(SillWord):
             col = geo.DikeColumn(**col_params)
             self.add_process(col)
 
-    def build_sedimentation(self) -> geo.Sedimentation:
-        markov_helper = MarkovSedimentHelper(
-            categories=SEDIMENT_VALS,
-            rng=self.rng,
-            thickness_bounds=(Z_RANGE / 18, Z_RANGE / 6),
-            thickness_variance=self.rng.uniform(0.1, 0.4),
-            dirichlet_alpha=self.rng.uniform(0.8, 1.2),  # Low alpha for high repeatability
-            anticorrelation_factor=0.05,  # Low factor gives low repeatability
-        )
-
-        depth = Z_RANGE / 2
-        vals, thicks = markov_helper.generate_sediment_layers(total_depth=depth)
-        sed = geo.Sedimentation(vals, thicks)
-        self.sediment = sed
-
     def get_layer_indices(self):
+        """A helper function to select layer boundaries for sill placement"""
         # Create a range from 1 to len(layers) - 2 (inclusive)
         valid_indices = np.arange(1, len(self.sediment.thickness_list) - 1)
 
@@ -734,7 +1015,7 @@ class SillSystem(SillWord):
 
 
 class _HemiPushedWord(GeoWord):
-    """A generic pushed hemisphere word providing an organic warping function"""
+    """A generic pushed hemisphere word providing an organic warping function for the hemisphere"""
 
     class HemiFunction:
         def __init__(self, wobble_factor, x_var, y_var, exp_x, exp_y, exp_z, radial_var):
@@ -782,13 +1063,30 @@ class _HemiPushedWord(GeoWord):
 
 
 class Laccolith(_HemiPushedWord):  # Validated
-    """A large laccolith intrusion with a pushed hemisphere shape above"""
+    """
+    A large laccolith intrusion with a pushed hemisphere shape above
+
+    Random Variables (RVs)
+    ----------
+    - `diam` : Diameter of the laccolith, primary axis of hemisphere
+
+    - `height` : Height of the laccolith dome
+
+    - `rotation` : Random rotation of the laccolith's primary axis
+
+    - `min_axis_scale` : Random scaling of the minor vs major axis of the hemisphere
+
+    Effects:
+    --------
+    Builds a flattened lens shaped intrusion with an upward pushed direction and a
+    feeder column dike below
+    """
 
     def build_history(self):
         self.rock_val = self.rng.choice(INTRUSION_VALS)
 
         diam = self.rng.uniform(1000, 15000)
-        height = 0.5 * self.rng.uniform(5e-2, 2e-1) + 0.5 * self.rng.uniform(500, 2000)
+        height = self.rng.uniform(250, 1000)
         self.origin = self.get_origin(height)  # places the self.origin parameter
         rotation = self.rng.uniform(0, 360)
         min_axis_scale = rv.beta_min_max(2, 2, 0.5, 1.5)
@@ -806,7 +1104,7 @@ class Laccolith(_HemiPushedWord):  # Validated
         }
         hemi = geo.DikeHemispherePushed(**hemi_params)
 
-        # Add a plug underneath as a feeder dike
+        # Add a column underneath as a feeder dike
         col_params = {
             "origin": self.origin,
             "diam": diam / 5 * self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.2)),
@@ -850,7 +1148,24 @@ class Laccolith(_HemiPushedWord):  # Validated
 
 
 class Lopolith(_HemiPushedWord):
-    """Lopoliths are larger than laccoliths and have a pushed hemisphere downward"""
+    """
+    Lopoliths are larger than laccoliths and have a pushed hemisphere downward
+
+    Random Variables (RVs)
+    ----------
+    - `diam` : Diameter of the lopolith, primary axis of hemisphere
+
+    - `height` : Height of the lopolith dome
+
+    - `rotation` : Random rotation of the lopolith's primary axis
+
+    - `min_axis_scale` : Random scaling of the minor vs major axis of the hemisphere
+
+    Effects:
+    --------
+    Builds a flattened lens shaped intrusion with an downward pushed direction and a
+    feeder column dike below
+    """
 
     def build_history(self):
         self.rock_val = self.rng.choice(INTRUSION_VALS)
@@ -917,9 +1232,27 @@ class Lopolith(_HemiPushedWord):
         return fold
 
 
-# TODO: The push factor is not working at this scale, for now using regular plug
+# TODO: The push factor from PlugPush GeoProcess is not working at this scale, for now using regular plug
 class VolcanicPlug(GeoWord):
-    """A volcanic plug that is resistant to erosion"""
+    """
+    A volcanic plug that is resistant to erosion
+
+    Random Variables (RVs)
+    ----------
+    - `diam` : Diameter of the plug, not a well defined quantity from how the plug
+    is constructed and requires tuning
+
+    - `rotation` : Random rotation of the plug about z-axis
+
+    - `min_axis_scale` : Random scaling of the minor vs major axis of the plug
+
+    - `shape` : Shape of the plug determines steepness of the sides
+
+    Effects:
+    --------
+    Builds a resistant (no-clip) volcanic plug that is a parabaloid style intrusion from below
+
+    """
 
     def build_history(self):
         rock_val = self.rng.choice(INTRUSION_VALS)
@@ -950,16 +1283,27 @@ class VolcanicPlug(GeoWord):
 
 
 class BlobWord(GeoWord):
-    """A single blob intrusion event
+    """
+    A single blob intrusion event
 
-    Parameters
+    Random Variables (RVs)
     ----------
-    seed : int
-        The seed value for the random number generator.
-    origin : tuple (optional)
-        The origin point of the blob intrusion. Randomly generated if not provided.
-    value : float (optional)
-        The rock value of the blob intrusion. Randomly selected if not provided.
+    - `n_balls` : Number of balls in the blob, determines the complexity of the blob
+
+    - `scale_factor` : Scaling factor for the blob, determines the size of the blob,
+    adjusting the radius relative to the number of balls
+
+    - `blg` : Ball list generator object to generate a local coordinate system markov chain of points
+
+    Effects:
+    --------
+    Generates a blob intrusion with a correlated set of balls, mimicking ore body deposits
+    The blobs can form as multiple trees originating from a single point. More information
+    can be found in the MetaBall class and associated objects.
+
+    This operation is expensive if not using pruning, for this reason a fast_filter is used
+    to prune out potential deposit points that are too far away from the origin.
+
     """
 
     def __init__(self, seed=None, origin=None, value=None):
@@ -1004,9 +1348,17 @@ class BlobWord(GeoWord):
 
 
 class BlobCluster(GeoWord):
-    """A clustering of blob intrusions with correlated centers and rock values
-
+    """
     This word generates a correlated set of blob clusters mimicking ore body deposits.
+
+    Random Variables (RVs)
+    ----------
+    - `n_blobs` : number of clusters to generate total
+
+    Effects:
+    --------
+    Adds several blob intrusions that are in close proximity using a markov chain to step
+    between blob origins
     """
 
     def build_history(self):
@@ -1030,7 +1382,7 @@ class BlobCluster(GeoWord):
         """
         Determine the next origin point for the next blob using a correlated random walk.
 
-        Parameters
+        Random Variables (RVs)
         ----------
         origin : geo.BacktrackedPoint
             The current origin point from which the next origin is determined.
@@ -1067,13 +1419,27 @@ class BlobCluster(GeoWord):
 """ Tilting Events"""
 
 
+# TODO This is a very useful weathering word that should be added to deposits, erosions or end of models
 class TiltCutFill(GeoWord):
     """
     A combined cluster of tilt, erosion, fill, with weathering
 
+    Random Variables (RVs)
+    ----------
+    - `dip` : The total permanent dip of the old strata
+
+    -  `edge_displacement` : The amount of displacement at the edge of the model caused by the dip
+
+    - `erosion_depth` : The amount of erosion to cut off the top of the model
+
+    - `fill_depth` : The amount of fill to add to the lower areas of the model
+
+    Effects:
+    --------
     An initial tilt of strata is constructed, followed by an estimate of the depth needed
     to create an erosion-fill scheme to prevent unnatural looking models. Erosion-fill is
-    done through a 2d fourier surface transform to introduce variety
+    done through a 2d fourier surface transform to introduce variety using unconformity with
+    a sedimentation fill.
     """
 
     def build_history(self):
@@ -1259,7 +1625,21 @@ def _typical_fault_amplitude():
 
 
 class FaultRandom(GeoWord):
-    """A somewhat unconstrained fault event"""
+    """
+    A somewhat unconstrained fault event.
+
+    Random Variables (RVs)
+    ----------
+    - `rake`: Rake of the fault, angle of slip direction relative to strike.
+
+    - `amplitude`: The vertical displacement along the fault.
+
+    Effects:
+    --------
+    Generates a random fault structure with random values for strike, dip, rake, and amplitude,
+    with little to no constraints. Typically results in a faulting event without a preferred
+    orientation or structure.
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
@@ -1281,7 +1661,22 @@ class FaultRandom(GeoWord):
 
 
 class FaultNormal(GeoWord):
-    """Normal faulting"""
+    """
+    Normal faulting with a bias towards vertical dip.
+
+    Random Variables (RVs)
+    ----------
+    - `dip`: Dip of the fault is controlled to create a fault that is vertical without overhang
+
+    - `rake`: Rake of the fault, the angle of slip direction along the fault plane.
+
+    - `amplitude`: The vertical displacement along the fault.
+
+    Effects:
+    --------
+    Generates a normal faulting event where the hanging wall moves down relative to the footwall.
+    A folding change of coordinates is included to add non linear deformation to the event
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
@@ -1322,7 +1717,22 @@ class FaultNormal(GeoWord):
 
 
 class FaultReverse(GeoWord):
-    """Normal faulting"""
+    """Reverse Faulting with a bias towards vertical dip
+
+    Random Variables (RVs)
+    ----------
+    - `dip`: Dip of the fault, typically steep for reverse faults.
+
+    - `rake`: Rake of the fault, the angle of slip direction along the fault plane.
+
+    - `amplitude`: The vertical displacement along the fault.
+
+    Effects:
+    --------
+    Generates a reverse faulting event where the hanging wall moves up relative to the footwall.
+    This event is associated with compressional tectonic settings. Includes a folding process
+    to represent the deformation caused by faulting.
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
@@ -1363,7 +1773,25 @@ class FaultReverse(GeoWord):
 
 
 class FaultHorstGraben(GeoWord):
-    """Horst and Graben faulting"""
+    """
+    Horst and Graben faulting
+
+    Random Variables (RVs)
+    ----------
+    - `dip`: Dip of the fault on either side of the Horst and Graben structure, veritcal bias
+
+    - `rake`: Rake of the fault, the angle of slip direction along the fault plane.
+
+    - `amplitude`: The vertical displacement along each fault.
+
+    - `distance`: Distance between faults based on the amplitude and dip offset.
+
+    Effects:
+    --------
+    Generates a Horst and Graben structure, characterized by two parallel normal faults
+    with opposing dips. One fault moves downward (graben) while the other moves upward
+    (horst), creating a distinct topographical depression and uplift.
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
@@ -1438,7 +1866,22 @@ class FaultHorstGraben(GeoWord):
 
 
 class FaultStrikeSlip(GeoWord):
-    """A classic strike-slip faulting event"""
+    """
+    A classic strike-slip faulting event
+
+    Random Variables (RVs)
+    ----------
+    - `dip`: Dip of the fault, biased to vertical
+
+    - `rake`: Rake of the fault, biased to slip along the fault
+
+    - `amplitude`: The horizontal displacement along the fault.
+
+    Effects:
+    --------
+    Generates a strike-slip fault where lateral movement occurs along the fault plane.
+    The displacement is typically horizontal and occurs along a near-vertical fault plane.
+    """
 
     def build_history(self):
         strike = self.rng.uniform(0, 360)
