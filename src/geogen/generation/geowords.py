@@ -43,6 +43,15 @@ class GeoWord(_ABC):
     ----------
     seed : Optional[int]
         An optional seed for the random number generator, ensuring reproducibility.
+        
+    Attributes
+    ----------
+    hist : List[Union[geo.GeoProcess, GeoWord]]
+        A list of geological processes forming the history of the GeoWord, to be randomly sampled.
+    seed : Optional[int]
+        The seed for the random number generator, ensuring reproducibility.
+    rng : np.random.Generator
+        The random number generator used to sample random variables.
     """
 
     def __init__(self, seed: int = None):
@@ -82,7 +91,8 @@ class GeoWord(_ABC):
         Adds a process or event to the GeoWord history.
 
         This method supports adding individual `GeoProcess` or `GeoWord` instances, as well as lists of them.
-        Items are added in chronological order from earliest to latest event.
+        Items are added in chronological order from earliest to latest event. Recursive calls to other GeoWords
+        are supported by calling their own generate methods to build their sub-histories.
 
         Parameters
         ----------
