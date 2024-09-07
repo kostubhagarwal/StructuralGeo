@@ -350,15 +350,15 @@ class GeoModel:
         self._backward_pass(self.history_unpacked)
         # Forward pass to apply deposition events
         self._forward_pass(self.history_unpacked)
+        
+        # Remove height tracking bars if required
+        if remove_bars and self.num_tracking_points > 0:
+            self._remove_tracking_points()
 
         # Clean up snapshots if not required
         if not keep_snapshots:
             self.mesh_snapshots = np.empty((0, 0, 0, 0))
             self.data_snapshots = np.empty((0, 0))
-
-        # Remove height tracking bars if required
-        if remove_bars and self.num_tracking_points > 0:
-            self._remove_tracking_points()
 
     def _add_height_tracking_bars(self):
         """
