@@ -31,21 +31,16 @@ def get_plot_config(n_colors=10):
 
 
 def setup_plot(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5):
-    """Common setup for all plot types"""
-    if plotter is None:  # Make a plotter if one is not provided
+    if plotter is None:
         plotter = pv.Plotter()
 
-    if np.all(np.isnan(model.data)):  # Warn if no data to show
+    if np.all(np.isnan(model.data)):
         plotter.add_text("No data to show, all values are NaN.", font_size=20)
         mesh = None
-        n_colors = 10
     else:
-        mesh = get_voxel_grid_from_model(model, threshold)  # Get voxel grid
-        unique_vals = np.unique(model.data)
-        n_colors = unique_vals[~np.isnan(unique_vals)].size
+        mesh = get_voxel_grid_from_model(model, threshold)
 
-    plot_config = get_plot_config(n_colors=n_colors)
-
+    plot_config = get_plot_config()
     return plotter, mesh, plot_config
 
 
@@ -128,14 +123,19 @@ def transformationview(model: GeoModel, plotter: Optional[pv.Plotter] = None, th
         return plotter
 
     final_mesh = get_voxel_grid_from_model(model, threshold)
-    plotter.add_mesh(final_mesh, scalars="values", **plot_config)
+    final_actor = plotter.add_mesh(final_mesh, scalars="values", **plot_config)
     plotter.add_axes(line_width=5)
 
-    add_snapshots_to_plotter(plotter, model, plot_config["cmap"])
+    # Get the colormap and scalar range (clim) from the final mesh plot
+    # To use as reference for coloring in the snapshots
+    clim = final_actor.mapper.scalar_range
+    cmap = plot_config["cmap"]
+
+    add_snapshots_to_plotter(plotter, model, cmap, clim)
     return plotter
 
 
-def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
+def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap, clim):
     resolution = model.resolution
     # Calculate the offset to separate each snapshot
     # The offset is chosen based on the overall size of the model
@@ -144,7 +144,7 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
     # Remove first data time entry which is empty, add the final data time entry
     data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
 
-    # Reverse the snapshots
+    # Reverse the snapshots for proper plotting
     mesh_snapshots = model.mesh_snapshots[::-1]
     data_snapshots = data_snapshots[::-1]
 
@@ -160,12 +160,13 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap):
         )
         # Set the same values to the new grid
         grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
-        # Add grid to plotter with a unique color and using the same scalar values
+        # Add grid to plotter using the same colormap and scalar range as the final mesh
         a = plotter.add_mesh(
             grid,
             style="wireframe",
             scalars="values",
-            cmap=cmap,
+            cmap=cmap,  # Use the colormap from the final mesh
+            clim=clim,  # Use the scalar range from the final mesh
             line_width=1,
             show_scalar_bar=False,
         )
