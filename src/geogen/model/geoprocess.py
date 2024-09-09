@@ -559,10 +559,14 @@ class DikePlane(Deposition):
         # Prune out NaN points to reduce computation
         nan_mask = ~np.isnan(data)
         xyz_rock = xyz[nan_mask]
+        
+        # Check if xyz_rock has no valid points after applying the mask
+        if xyz_rock.size == 0:
+            return xyz, data  # Early exit if no valid points
 
         # Combine rotations and apply to the coordinates
         xyz_local = (xyz_rock - self.origin) @ M1.T @ M2.T
-
+        
         # Calculate distances from the dike plane in the local frame
         x_dist = xyz_local[:, 0]  # Dipped direction distance
         y_dist = xyz_local[:, 1]  # Strike direction distance
