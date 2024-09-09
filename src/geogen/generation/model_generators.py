@@ -93,11 +93,16 @@ class MarkovGeostoryGenerator(_GeostoryGenerator):
         self.mc: MarkovChain = self.markov_matrix_parser.get_markov_chain()
         self.event_dictionary = self.markov_matrix_parser.get_event_dictionary()
 
-    def build_geostory(self):
-        """Build a geological history from a Markov chain."""
+    def build_sentence(self) -> List[str]:
+        """Build a geological sentence from a Markov chain."""
         sequence = self._build_markov_sequence()
         # Instantiate the event classes from the sequence
         sentence = [self.event_dictionary[state]() for state in sequence]
+        return sentence
+
+    def build_geostory(self):
+        """Build a geological history from a Markov chain."""
+        sentence = self.build_sentence()
         # Generate the history from the instantiated events
         history = [word.generate() for word in sentence]
         return history
