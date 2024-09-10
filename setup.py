@@ -21,4 +21,8 @@ setup(
         "tqdm",
         "PyDTMC",
     ],
+    package_data={
+        "geogen.generation.markov_matrix": ["default_markov_matrix.csv"],
+    },
+    include_package_data=True,
 )
