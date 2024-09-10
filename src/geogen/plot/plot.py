@@ -49,7 +49,26 @@ def volview(
     plotter: Optional[pv.Plotter] = None,
     threshold=-0.5,
     show_bounds=False,
-) -> pv.Plotter:
+) -> pv.Plotter:    
+    """
+    Visualize a volumetric view of the geological model with an optional bounding box.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model to be visualized. It contains the data and resolution information.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering the visualization. If not provided, a new one is created.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is -0.5, values below this threshold are not shown.
+    show_bounds : bool, optional
+        If True, display the axis-aligned bounds and tick marks of the model. Default is False.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with the volumetric view rendered.
+    """
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -79,6 +98,23 @@ def volview(
 
 
 def orthsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5) -> pv.Plotter:
+    """
+    Visualize using interactive orthogonal slices of the geological model.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model to be sliced and visualized.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering. If not provided, a new one is created.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is -0.5, values below this threshold are not shown.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with orthogonal slices rendered.
+    """
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -89,6 +125,27 @@ def orthsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, thresho
 
 
 def nsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5) -> pv.Plotter:
+    """
+    Visualize multiple slices along a specified axis of the geological model.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model to be sliced and visualized.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering. If not provided, a new one is created.
+    n : int, optional
+        The number of slices to be extracted along the specified axis. Default is 5.
+    axis : str, optional
+        The axis along which to slice the model. Can be "x", "y", or "z". Default is "x".
+    threshold : float, optional
+        Threshold value to filter the voxel grid. Default is -0.5, values below this threshold are not shown.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with the slices rendered.
+    """
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -100,6 +157,23 @@ def nsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis=
 
 
 def onesliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5) -> pv.Plotter:
+    """
+    Visualize a single slice through the geological model, along with a translucent surface for context.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model to be sliced and visualized.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering. If not provided, a new one is created.
+    threshold : float, optional
+        Threshold value to filter the voxel grid. Default is -0.5, values below this threshold are not shown.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with the single slice and surface skin rendered.
+    """
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -118,6 +192,23 @@ def onesliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshol
 
 
 def transformationview(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=None) -> pv.Plotter:
+    """
+    Visualize a time-sequenced transformation view of the geological model, showing snapshots of model deformations.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model containing the data and deformation snapshots to be visualized.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering. If not provided, a new one is created.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is None, meaning no filtering will occur.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with the transformation snapshots rendered.
+    """
     plotter, mesh, plot_config = setup_plot(model, plotter, threshold)
     if mesh is None:
         return plotter
@@ -131,11 +222,30 @@ def transformationview(model: GeoModel, plotter: Optional[pv.Plotter] = None, th
     clim = final_actor.mapper.scalar_range
     cmap = plot_config["cmap"]
 
-    add_snapshots_to_plotter(plotter, model, cmap, clim)
+    _add_snapshots_to_plotter(plotter, model, cmap, clim)
     return plotter
 
 
-def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap, clim):
+def _add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap, clim):
+    """
+    Add historical deformation snapshots of the geological model to the plotter.
+
+    Parameters
+    ----------
+    plotter : pv.Plotter
+        The PyVista plotter to which the snapshots are added.
+    model : GeoModel
+        The geological model containing the mesh and data snapshots to visualize.
+    cmap : str
+        The colormap to use for the snapshots.
+    clim : tuple
+        The color limit range (clim) to ensure consistent scaling across the snapshots.
+
+    Returns
+    -------
+    list
+        A list of actors representing the deformation snapshots added to the plotter.
+    """
     resolution = model.resolution
     # Calculate the offset to separate each snapshot
     # The offset is chosen based on the overall size of the model
@@ -176,6 +286,25 @@ def add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap, clim):
 
 
 def categorical_grid_view(model: GeoModel, threshold=None, text_annot=True, off_screen=False) -> pv.Plotter:
+    """
+    Visualize categorical rock types from the geological model in a grid layout, with each category displayed separately.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model containing categorical rock type data.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is None, meaning no filtering will occur.
+    text_annot : bool, optional
+        If True, display the rock type labels in each subplot. Default is True.
+    off_screen : bool, optional
+        If True, create the plotter off-screen. Useful for generating plots without a visible window. Default is False.
+
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with categorical views rendered in subplots.
+    """
     cfg = get_plot_config()
 
     def calculate_grid_dims(n):
@@ -230,8 +359,20 @@ def categorical_grid_view(model: GeoModel, threshold=None, text_annot=True, off_
 
 
 def get_mesh_from_model(model: GeoModel, threshold=None):
-    """Convert GeoModel data to a mesh grid of nodes for visualization
-    Total nodes is the same as data values, grid cells will be filled by interpolated rock type values
+    """
+    Convert a geological model's data into a structured grid mesh for visualization.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model containing the grid data and resolution.
+    threshold : float, optional
+        Threshold value to filter out cells with values below the threshold. Default is None, meaning no filtering.
+
+    Returns
+    -------
+    pyvista.StructuredGrid
+        The PyVista structured grid with scalar values assigned from the model's data.
     """
 
     if model.data is None or model.data.size == 0:
@@ -248,8 +389,20 @@ def get_mesh_from_model(model: GeoModel, threshold=None):
 
 
 def get_voxel_grid_from_model(model, threshold=None):
-    """Convert GeoModel data to a voxel grid for visualization
-    Total cells is the same as data values, each cell given a discrete rock type value
+    """
+    Convert the geological model's data into a voxel grid for visualization. The voxel grid contains discrete rock types.
+
+    Parameters
+    ----------
+    model : GeoModel
+        The geological model containing rock type data and resolution.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is None, meaning no filtering will occur.
+
+    Returns
+    -------
+    pyvista.ImageData
+        The voxel grid representation of the geological model, with discrete values for rock types.
     """
     if model.data is None or model.data.size == 0:
         raise ValueError("Model data is empty or not computed, no data to show. Use compute model first.")
