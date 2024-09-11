@@ -11,9 +11,9 @@ from geogen.generation import *
 
 def single_plotter():
     # List of geological words to generate
-    sentence = [BaseStrata(), DikeGroup(), FaultStrikeSlip()]
+    sentence = [BaseStrata(), SingleDikeWarped()]
     # Model resolution and boundse
-    z = 128
+    z = 64
 
     res = (2 * z, 2 * z, z)
     bounds = (

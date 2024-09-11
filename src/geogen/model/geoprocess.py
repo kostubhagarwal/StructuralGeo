@@ -1,9 +1,9 @@
 """ Base classes for implementing parametric geological processes."""
 
 import warnings
+from abc import ABC as _ABC
+from abc import abstractmethod
 from typing import List
-
-from abc import ABC as _ABC, abstractmethod
 
 import numpy as np
 
@@ -433,7 +433,9 @@ class Sedimentation(Deposition):
         self.boundaries = None  # Calculated at runtime
 
     def __str__(self):
-        values_summary = ", ".join(f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3])
+        values_summary = ", ".join(
+            f"{v:.1f}" if isinstance(v, float) else str(v) for v in self.value_list[:3]
+        )
         values_summary += "..." if len(self.value_list) > 3 else ""
         thicknesses = ", ".join(f"{t:.3f}" for t in self.thickness_list[:3])
         thicknesses += "..." if len(self.thickness_list) > 3 else ""
@@ -559,14 +561,14 @@ class DikePlane(Deposition):
         # Prune out NaN points to reduce computation
         nan_mask = ~np.isnan(data)
         xyz_rock = xyz[nan_mask]
-        
+
         # Check if xyz_rock has no valid points after applying the mask
         if xyz_rock.size == 0:
             return xyz, data  # Early exit if no valid points
 
         # Combine rotations and apply to the coordinates
         xyz_local = (xyz_rock - self.origin) @ M1.T @ M2.T
-        
+
         # Calculate distances from the dike plane in the local frame
         x_dist = xyz_local[:, 0]  # Dipped direction distance
         y_dist = xyz_local[:, 1]  # Strike direction distance
@@ -985,9 +987,7 @@ class DikeHemispherePushed(CompoundProcess):
             origin_str = str(self.deposition.origin)  # Use DeferredParameter's __str__ method
         else:
             # Format the tuple to limit decimal points
-            origin_str = (
-                f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
-            )
+            origin_str = f"({self.deposition.origin[0]:.2f},{self.deposition.origin[1]:.2f},{self.deposition.origin[2]:.2f})"
         return (
             f"DikeHemispherePushed: origin ({origin_str})), diam {self.deposition.diam:.1f}, height {self.deposition.height:.1f}, "
             f"minor_axis_scale {self.deposition.minor_scale:.1f}, rotation {self.deposition.rotation:.1f}, value {self.deposition.value:.1f}."

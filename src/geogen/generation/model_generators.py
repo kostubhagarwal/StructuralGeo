@@ -2,17 +2,16 @@
 
 import abc as _abc
 import csv
-from typing import List
-
 import importlib.resources as resources
 import os
+from typing import List
 
 import numpy as np
 from pydtmc import MarkovChain
 
 import geogen.generation.categorical_events as events
-from geogen.model.geomodel import GeoModel, GeoProcess
 from geogen.generation.geowords import BOUNDS_X, BOUNDS_Y, BOUNDS_Z
+from geogen.model.geomodel import GeoModel, GeoProcess
 
 
 class _GeostoryGenerator(_abc.ABC):

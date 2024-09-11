@@ -110,7 +110,10 @@ class MetaBall(Deposition):
         self.fast_filter = fast_filter  # A flag to use pruning on the mesh to speed up computation
 
     def __str__(self):
-        return f"Metaball: threshold {self.threshold:.1f}, value {self.value:.1f}, " f"with {len(self.balls)} balls."
+        return (
+            f"Metaball: threshold {self.threshold:.1f}, value {self.value:.1f}, "
+            f"with {len(self.balls)} balls."
+        )
 
     def run(self, xyz, data):
         # Change of coordinates to the reference origin

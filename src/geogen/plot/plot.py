@@ -49,7 +49,7 @@ def volview(
     plotter: Optional[pv.Plotter] = None,
     threshold=-0.5,
     show_bounds=False,
-) -> pv.Plotter:    
+) -> pv.Plotter:
     """
     Visualize a volumetric view of the geological model with an optional bounding box.
 
@@ -124,7 +124,9 @@ def orthsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, thresho
     return plotter
 
 
-def nsliceview(model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5) -> pv.Plotter:
+def nsliceview(
+    model: GeoModel, plotter: Optional[pv.Plotter] = None, n=5, axis="x", threshold=-0.5
+) -> pv.Plotter:
     """
     Visualize multiple slices along a specified axis of the geological model.
 
@@ -269,7 +271,9 @@ def _add_snapshots_to_plotter(plotter: pv.Plotter, model: GeoModel, cmap, clim):
             deformed_points[..., 2],
         )
         # Set the same values to the new grid
-        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
+            order="F"
+        )  # Assigning scalar values to the grid
         # Add grid to plotter using the same colormap and scalar range as the final mesh
         a = plotter.add_mesh(
             grid,

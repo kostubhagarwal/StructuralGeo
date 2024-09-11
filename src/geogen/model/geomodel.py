@@ -350,7 +350,7 @@ class GeoModel:
         self._backward_pass(self.history_unpacked)
         # Forward pass to apply deposition events
         self._forward_pass(self.history_unpacked)
-        
+
         # Remove height tracking bars if required
         if remove_bars and self.num_tracking_points > 0:
             self._remove_tracking_points()
@@ -858,7 +858,9 @@ class GeoModel:
         # Setup mesh for X, Y, Z coordinates and flattened xyz array
         instance._setup_mesh()
         # Insert torch tensor data into model
-        instance.data = data_tensor.detach().numpy().flatten()  # Convert tensor to numpy array and flatten it
+        instance.data = (
+            data_tensor.detach().numpy().flatten()
+        )  # Convert tensor to numpy array and flatten it
         # Set history to [NullProcess()] signifying no known geological history
         instance.history = [NullProcess()]
 

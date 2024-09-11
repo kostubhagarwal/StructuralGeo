@@ -43,7 +43,7 @@ class GeoWord(_ABC):
     ----------
     seed : Optional[int]
         An optional seed for the random number generator, ensuring reproducibility.
-        
+
     Attributes
     ----------
     hist : List[Union[geo.GeoProcess, GeoWord]]
@@ -319,8 +319,12 @@ class FineRepeatSediment(GeoWord):  # Validated
         # Markov helper random parameters
         minimum_layer_thickness = 100  # Minimum thickness for sediment layers (meters)
         maximum_layer_thickness = 400  # Maximum thickness for sediment layers
-        thickness_variance = self.rng.uniform(0.1, 0.3)  # Range for sediment layer thickness variance in a set
-        dirichlet_alpha = self.rng.uniform(0.6, 2.0)  # Dirichlet distribution parameter for layer transitions
+        thickness_variance = self.rng.uniform(
+            0.1, 0.3
+        )  # Range for sediment layer thickness variance in a set
+        dirichlet_alpha = self.rng.uniform(
+            0.6, 2.0
+        )  # Dirichlet distribution parameter for layer transitions
         anticorrelation_factor = 0.05  # Fixed anticorrelation factor
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -427,7 +431,9 @@ class _BaseErosionWord(GeoWord):  # Validated
         super().__init__(seed)
 
     def calculate_depth(self):
-        erosion_factor = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.5))  # Generally between .25 and 2.5
+        erosion_factor = self.rng.lognormal(
+            *rv.log_normal_params(mean=1, std_dev=0.5)
+        )  # Generally between .25 and 2.5
         erosion_factor = np.clip(erosion_factor, 0.25, 3)
         return erosion_factor * self.MEAN_DEPTH
 
@@ -589,7 +595,11 @@ class DikePlaneWord(GeoWord):  # Validated
             # Elliptical tapering thickness 0 at ends
             taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / self.length)) ** self.expo, 0))
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + self.amp * self.x_var(x / Z_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * taper_factor
+            return (
+                (1 + self.amp * self.x_var(x / Z_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * taper_factor
+            )
 
     def get_organic_thickness_func(self, length, wobble_factor=1.0):
         """
@@ -623,7 +633,9 @@ class DikePlaneWord(GeoWord):  # Validated
             "origin": back_origin,
             "width": width,
             "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=self.rng.uniform(0.5, 1.5)),
+            "thickness_func": self.get_organic_thickness_func(
+                length, wobble_factor=self.rng.uniform(0.5, 1.5)
+            ),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -849,7 +861,11 @@ class SillWord(GeoWord):
             ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / self.exp_z)
 
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + self.amp * self.x_var(x / X_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * ellipse_factor
+            return (
+                (1 + self.amp * self.x_var(x / X_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * ellipse_factor
+            )
 
     def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.0):
         """Organic Sheet Maker
@@ -973,7 +989,9 @@ class SillSystem(SillWord):
                 "origin": sill_origin,  # WARNING: This requires sediment to compute first
                 "width": width,
                 "value": self.rock_val,
-                "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
+                "thickness_func": self.get_ellipsoid_shaping_function(
+                    x_length, y_length, wobble_factor=0.0
+                ),
             }
             sill = geo.DikePlane(**dike_params)
 
@@ -1135,7 +1153,9 @@ class Laccolith(_HemiPushedWord):  # Validated
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -1220,7 +1240,9 @@ class Lopolith(_HemiPushedWord):
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -1417,7 +1439,11 @@ class BlobCluster(GeoWord):
 
             # Check if the new origin is within the model bounds
             x, y, z = new_origin
-            if BOUNDS_X[0] < x < BOUNDS_X[1] and BOUNDS_Y[0] < y < BOUNDS_Y[1] and BOUNDS_Z[0] < z < BOUNDS_Z[1]:
+            if (
+                BOUNDS_X[0] < x < BOUNDS_X[1]
+                and BOUNDS_Y[0] < y < BOUNDS_Y[1]
+                and BOUNDS_Z[0] < z < BOUNDS_Z[1]
+            ):
                 break
             else:
                 continue
@@ -1915,6 +1941,7 @@ class FaultStrikeSlip(GeoWord):
 
         self.add_process(fault)
 
+
 class FaultSequence(GeoWord):  # Inherits from FaultRandom for base faulting behavior
     """
     A correlated sequence of faults with varying characteristics.
@@ -1922,10 +1949,10 @@ class FaultSequence(GeoWord):  # Inherits from FaultRandom for base faulting beh
     Random Variables (RVs)
     ----------------------
     - `num_faults`: At least 2 faults are generated, with a geometric probability distribution of adding more faults.
-    
-    - `origin`: Random point within model bounds, starting location of the first fault. 
+
+    - `origin`: Random point within model bounds, starting location of the first fault.
     Subsequent faults are placed orthogonally or parallel to the previous fault with variations.
-    
+
     - `strike`: Strike direction of the first fault, with subsequent faults adjusted slightly.
 
     - `dip`: Normal distribution of dips for each fault, modified by a small random factor.
@@ -1951,7 +1978,7 @@ class FaultSequence(GeoWord):  # Inherits from FaultRandom for base faulting beh
         strike = self.rng.uniform(0, 360)
         dip = self.rng.normal(90, 20)
         rake = self.rng.normal(90, 30)
-        amplitude = _typical_fault_amplitude()/(num_faults - 1)
+        amplitude = _typical_fault_amplitude() / (num_faults - 1)
         spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=600, std_dev=900))
 
         # Setup slight wave transform for deformation along the fault sequence

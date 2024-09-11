@@ -110,7 +110,9 @@ class MarkovSedimentHelper:
         if current_thick is None:
             return self.rng.uniform(*self.thickness_bounds)
         else:
-            next_thick = current_thick * np.random.normal(1, self.thickness_variance)  # Induce some variation
+            next_thick = current_thick * np.random.normal(
+                1, self.thickness_variance
+            )  # Induce some variation
             next_thick = np.clip(next_thick, *self.thickness_bounds)  # Bound thicknesses
             return next_thick
 

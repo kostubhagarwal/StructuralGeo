@@ -156,7 +156,9 @@ class ToolBarWidget(QtWidgets.QWidget):
         slices = self.get_slices_from_plotter()
         # Open a directory selection dialog
         options = QtWidgets.QFileDialog.Options()
-        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Select Output Directory", options=options
+        )
 
         if output_dir:
             # Save the slices as images and .npy files
@@ -196,7 +198,9 @@ class ToolBarWidget(QtWidgets.QWidget):
     def on_save_model_clicked(self, save_as_pkl=True):
         # Prompt the user to select a save directory
         options = QtWidgets.QFileDialog.Options()
-        output_dir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Directory", options=options)
+        output_dir = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Select Output Directory", options=options
+        )
 
         # Two save options: save as a .pkl file or save as a .pt file, needs to be set here in source code
         if output_dir:
