@@ -1630,7 +1630,7 @@ class FourierFold(GeoWord):  # Validated
 def _typical_fault_amplitude():
     """Get a typical fault amplitude based on a beta distribution."""
     min_amp = 60
-    max_amp = 800
+    max_amp = 1000
     return rv.beta_min_max(1.8, 5.5, min_amp, max_amp)
 
 
@@ -1914,3 +1914,98 @@ class FaultStrikeSlip(GeoWord):
         fault = geo.Fault(**fault_params)
 
         self.add_process(fault)
+
+class FaultSequence(GeoWord):  # Inherits from FaultRandom for base faulting behavior
+    """
+    A correlated sequence of faults with varying characteristics.
+
+    Random Variables (RVs)
+    ----------------------
+    - `num_faults`: At least 2 faults are generated, with a geometric probability distribution of adding more faults.
+    
+    - `origin`: Random point within model bounds, starting location of the first fault. 
+    Subsequent faults are placed orthogonally or parallel to the previous fault with variations.
+    
+    - `strike`: Strike direction of the first fault, with subsequent faults adjusted slightly.
+
+    - `dip`: Normal distribution of dips for each fault, modified by a small random factor.
+
+    - `rake`: The angle of slip direction for each fault.
+
+    - `amplitude`: Displacement amplitude along the fault. Amplitude varies slightly between faults.
+
+    - `spacing_avg`: Average spacing between faults, controlled by a log-normal distribution.
+
+    Effects:
+    --------
+    This class generates a sequence of faults where each fault is related but slightly varies in its strike, dip, and
+    amplitude. The faults are placed sequentially with a small random offset in origin and spacing.
+    """
+
+    def build_history(self):
+        # Geometric distribution with a 0.7 probability of stopping, ensuring at least 2 faults
+        num_faults = self.rng.geometric(p=0.7) + 1
+
+        # Starting parameters for the first fault
+        origin = rv.random_point_in_box(MAX_BOUNDS)
+        strike = self.rng.uniform(0, 360)
+        dip = self.rng.normal(90, 20)
+        rake = self.rng.normal(90, 30)
+        amplitude = _typical_fault_amplitude()/(num_faults - 1)
+        spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=600, std_dev=900))
+
+        # Setup slight wave transform for deformation along the fault sequence
+        fold_in = self.get_fold(strike, dip)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        self.add_process(fold_in)
+
+        for _ in range(num_faults):
+            fault_params = {
+                "strike": strike,
+                "dip": dip,
+                "rake": rake,
+                "amplitude": amplitude,
+                "origin": geo.BacktrackedPoint(origin),  # Ensures faults remain visible in the model
+            }
+
+            fault = geo.Fault(**fault_params)
+            self.add_process(fault)
+
+            # Update parameters for the next fault in the sequence
+            origin = self.get_next_origin(origin, strike, spacing_avg)
+            strike += self.rng.normal(0, 5)
+            dip += self.rng.normal(0, 2)
+            amplitude *= self.rng.uniform(0.8, 1.2)
+
+        # Add final deformation fold
+        self.add_process(fold_out)
+
+    def get_next_origin(self, origin, strike, spacing_avg):
+        # Move orthogonally to the strike direction (strike measured from y-axis)
+        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
+        orth_distance = spacing_avg * self.rng.uniform(0.9, 1.2)
+        # Shift a bit parallel to strike as well
+        par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
+        par_distance = spacing_avg * self.rng.uniform(-0.3, 0.3)
+
+        new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
+        return new_origin
+
+    def get_fold(self, fault_strike, fault_dip):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 6), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(10, 250)
+        fold_params = {
+            "strike": fault_strike + 90,
+            "dip": (2 * 90 + fault_dip) / 3,  # weighted average of dip and 90
+            "rake": self.rng.normal(90, 5),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold
