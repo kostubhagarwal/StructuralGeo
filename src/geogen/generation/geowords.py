@@ -632,7 +632,7 @@ class DikePlaneWord(GeoWord):  # Validated
             "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
             "origin": back_origin,
             "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
+            "value": self.rng.choice(DIKE_VALS),
             "thickness_func": self.get_organic_thickness_func(
                 length, wobble_factor=self.rng.uniform(0.5, 1.5)
             ),
@@ -677,7 +677,7 @@ class SingleDikeWarped(DikePlaneWord):  # Validated
             "dip": dip,  # Bias towards vertical dikes
             "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
             "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
+            "value": self.rng.choice(DIKE_VALS),
             "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
         }
         dike = geo.DikePlane(**dike_params)
@@ -915,7 +915,7 @@ class SillWord(GeoWord):
             "dip": self.rng.normal(0, 0.1),  # Bias towards horizontal sills
             "origin": origin,
             "width": width,
-            "value": self.rng.choice(DIKE_VALS),
+            "value": self.rng.choice(INTRUSION_VALS),
             "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
         }
         dike = geo.DikePlane(**dike_params)
@@ -950,7 +950,7 @@ class SillSystem(SillWord):
         self.build_sedimentation()
         self.add_process(self.sediment)
         # Choose a random rock value and place sills into boundary layers, then link them
-        self.rock_val = self.rng.choice(DIKE_VALS)
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
         indices = self.get_layer_indices()
         origins = self.build_sills(indices)
         self.link_sills(origins)
@@ -1265,6 +1265,7 @@ class Lopolith(_HemiPushedWord):
 
 
 # TODO: The push factor from PlugPush GeoProcess is not working at this scale, for now using regular plug
+# Some sort of deformation factor would be useful in the future
 class VolcanicPlug(GeoWord):
     """
     A volcanic plug that is resistant to erosion
