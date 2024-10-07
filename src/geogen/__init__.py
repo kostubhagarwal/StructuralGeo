@@ -27,7 +27,6 @@ You can visualize the model using PyVista or with some built-in visualization to
 __title__ = "GeoGen"
 
 import geogen.model as model
-
 # TODO: Update these imports into a cohesive API
 # Note, some very specific imports should be used to avoid importing the entire library
 from geogen.dataset import GeoData3DStreamingDataset as StreamingDataset

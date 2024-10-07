@@ -1,6 +1,7 @@
 import numpy as np
 
-from geogen.model.geoprocess import DeferredParameter, Sedimentation, Transformation
+from geogen.model.geoprocess import (DeferredParameter, Sedimentation,
+                                     Transformation)
 
 
 class BacktrackedPoint(DeferredParameter):

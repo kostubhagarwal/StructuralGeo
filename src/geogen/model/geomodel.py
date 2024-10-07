@@ -241,7 +241,7 @@ class GeoModel:
         """
         if not self.history:
             return "No geological history to display."
-        
+
         if not unpacked:
             history = self.history
         else:

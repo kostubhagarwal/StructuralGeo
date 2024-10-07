@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import geogen.plot as geovis
-from geogen.dataset import GeoData3DStreamingDataset
+from geogen.dataset import GeoData3DStreamingDataset, OneHotTransform
 from geogen.model import GeoModel
 
 """ 
@@ -65,7 +65,30 @@ def loader_test():
     p.show()
     print("")
 
+def onehot_test():
+    """
+    Test the OneHotTransform class by converting a sample tensor into a one-hot tensor.
+    """
+    bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
+    resolution = (64,64,32)
+    onehot = OneHotTransform(num_classes=15, min_val=-1)
+    dataset = GeoData3DStreamingDataset(model_bounds=bounds, model_resolution=resolution, transform=onehot)
+
+    # Draw a sample from the torch dataser
+    onehot_tensor = dataset[0]
+
+    # Display the one-hot tensor
+    air = onehot_tensor[0, ...]
+    geovis.volview(GeoModel.from_tensor(bounds=bounds, data_tensor=air)).show()
+    
+    # Squash back to original tensor
+    squashed = onehot_tensor.argmax(dim=0)-1
+    
+    geovis.volview(GeoModel.from_tensor(bounds=bounds, data_tensor=squashed)).show()
+
+    print("")
 
 if __name__ == "__main__":
-    dataset_test()
-    loader_test()
+    # dataset_test()
+    # loader_test()
+    onehot_test()
