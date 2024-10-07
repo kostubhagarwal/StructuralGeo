@@ -75,7 +75,9 @@ for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snap
         deformed_points[..., 2],
     )
     # Set the same values to the new grid
-    grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
+    grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
+        order="F"
+    )  # Assigning scalar values to the grid
     # Add grid to plotter with a unique color and using the same scalar values
     a = p.add_mesh(
         grid,

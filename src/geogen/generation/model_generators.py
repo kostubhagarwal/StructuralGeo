@@ -2,15 +2,15 @@
 
 import abc as _abc
 import csv
-from typing import List
-
 import importlib.resources as resources
 import os
+from typing import List
 
 import numpy as np
 from pydtmc import MarkovChain
 
 import geogen.generation.categorical_events as events
+from geogen.generation.geowords import BOUNDS_X, BOUNDS_Y, BOUNDS_Z
 from geogen.model.geomodel import GeoModel, GeoProcess
 
 
@@ -33,9 +33,9 @@ class _GeostoryGenerator(_abc.ABC):
     def __init__(self, model_bounds=None, model_resolution=None, config=None, **kwargs):
 
         self.model_bounds = model_bounds or (
-            (-3840, 3840),
-            (-3840, 3840),
-            (-1920, 1920),
+            BOUNDS_X,
+            BOUNDS_Y,
+            BOUNDS_Z,
         )
         self.model_resolution = model_resolution or (256, 256, 128)
         self.config = config

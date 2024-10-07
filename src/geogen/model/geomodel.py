@@ -230,7 +230,7 @@ class GeoModel:
         # Clear the unpacked history cache
         self.history_unpacked = []
 
-    def get_history_string(self):
+    def get_history_string(self, unpacked=False):
         """
         Get a string description of the complete geological history of the model.
 
@@ -241,10 +241,15 @@ class GeoModel:
         """
         if not self.history:
             return "No geological history to display."
+        
+        if not unpacked:
+            history = self.history
+        else:
+            history = self.history_unpacked
 
         history_str = "Geological History:\n"
 
-        for index, process in enumerate(self.history):
+        for index, process in enumerate(history):
             history_str += f"{index + 1}: {str(process)}\n"
 
         return history_str.strip()  # Remove the trailing newline
@@ -350,7 +355,7 @@ class GeoModel:
         self._backward_pass(self.history_unpacked)
         # Forward pass to apply deposition events
         self._forward_pass(self.history_unpacked)
-        
+
         # Remove height tracking bars if required
         if remove_bars and self.num_tracking_points > 0:
             self._remove_tracking_points()
@@ -858,7 +863,9 @@ class GeoModel:
         # Setup mesh for X, Y, Z coordinates and flattened xyz array
         instance._setup_mesh()
         # Insert torch tensor data into model
-        instance.data = data_tensor.detach().numpy().flatten()  # Convert tensor to numpy array and flatten it
+        instance.data = (
+            data_tensor.detach().numpy().flatten()
+        )  # Convert tensor to numpy array and flatten it
         # Set history to [NullProcess()] signifying no known geological history
         instance.history = [NullProcess()]
 

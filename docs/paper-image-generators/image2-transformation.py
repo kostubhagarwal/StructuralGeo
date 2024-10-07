@@ -27,7 +27,9 @@ def add_snapshots_to_plotter(plotter, model, cmap):
             deformed_points[..., 2],
         )
         # Set the same values to the new grid
-        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(order="F")  # Assigning scalar values to the grid
+        grid["values"] = data_snapshot.reshape(model.X.shape).flatten(
+            order="F"
+        )  # Assigning scalar values to the grid
         # Add grid to plotter with a unique color and using the same scalar values
         a = plotter.add_mesh(
             grid,

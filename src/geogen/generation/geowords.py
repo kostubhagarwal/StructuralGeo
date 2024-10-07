@@ -43,7 +43,7 @@ class GeoWord(_ABC):
     ----------
     seed : Optional[int]
         An optional seed for the random number generator, ensuring reproducibility.
-        
+
     Attributes
     ----------
     hist : List[Union[geo.GeoProcess, GeoWord]]
@@ -319,8 +319,12 @@ class FineRepeatSediment(GeoWord):  # Validated
         # Markov helper random parameters
         minimum_layer_thickness = 100  # Minimum thickness for sediment layers (meters)
         maximum_layer_thickness = 400  # Maximum thickness for sediment layers
-        thickness_variance = self.rng.uniform(0.1, 0.3)  # Range for sediment layer thickness variance in a set
-        dirichlet_alpha = self.rng.uniform(0.6, 2.0)  # Dirichlet distribution parameter for layer transitions
+        thickness_variance = self.rng.uniform(
+            0.1, 0.3
+        )  # Range for sediment layer thickness variance in a set
+        dirichlet_alpha = self.rng.uniform(
+            0.6, 2.0
+        )  # Dirichlet distribution parameter for layer transitions
         anticorrelation_factor = 0.05  # Fixed anticorrelation factor
 
         # Get a markov process for selecting next layer type, gaussian differencing for thickness
@@ -427,7 +431,9 @@ class _BaseErosionWord(GeoWord):  # Validated
         super().__init__(seed)
 
     def calculate_depth(self):
-        erosion_factor = self.rng.lognormal(*rv.log_normal_params(mean=1, std_dev=0.5))  # Generally between .25 and 2.5
+        erosion_factor = self.rng.lognormal(
+            *rv.log_normal_params(mean=1, std_dev=0.5)
+        )  # Generally between .25 and 2.5
         erosion_factor = np.clip(erosion_factor, 0.25, 3)
         return erosion_factor * self.MEAN_DEPTH
 
@@ -589,7 +595,11 @@ class DikePlaneWord(GeoWord):  # Validated
             # Elliptical tapering thickness 0 at ends
             taper_factor = np.sqrt(np.maximum(1 - np.abs((2 * y / self.length)) ** self.expo, 0))
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + self.amp * self.x_var(x / Z_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * taper_factor
+            return (
+                (1 + self.amp * self.x_var(x / Z_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * taper_factor
+            )
 
     def get_organic_thickness_func(self, length, wobble_factor=1.0):
         """
@@ -622,8 +632,10 @@ class DikePlaneWord(GeoWord):  # Validated
             "dip": self.rng.normal(90, 10),  # Bias towards vertical dikes
             "origin": back_origin,
             "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
-            "thickness_func": self.get_organic_thickness_func(length, wobble_factor=self.rng.uniform(0.5, 1.5)),
+            "value": self.rng.choice(DIKE_VALS),
+            "thickness_func": self.get_organic_thickness_func(
+                length, wobble_factor=self.rng.uniform(0.5, 1.5)
+            ),
         }
         dike = geo.DikePlane(**dike_params)
 
@@ -665,7 +677,7 @@ class SingleDikeWarped(DikePlaneWord):  # Validated
             "dip": dip,  # Bias towards vertical dikes
             "origin": geo.BacktrackedPoint(rv.random_point_in_ellipsoid(MAX_BOUNDS)),
             "width": width,
-            "value": self.rng.choice(INTRUSION_VALS),
+            "value": self.rng.choice(DIKE_VALS),
             "thickness_func": self.get_organic_thickness_func(length, wobble_factor=1.5),
         }
         dike = geo.DikePlane(**dike_params)
@@ -849,7 +861,11 @@ class SillWord(GeoWord):
             ellipse_factor = (np.maximum(ellipse_factor, 0)) ** (1 / self.exp_z)
 
             # The thickness modifier combines 2d fourier with tapering at ends
-            return (1 + self.amp * self.x_var(x / X_RANGE)) * (1 + self.amp * self.y_var(y / X_RANGE)) * ellipse_factor
+            return (
+                (1 + self.amp * self.x_var(x / X_RANGE))
+                * (1 + self.amp * self.y_var(y / X_RANGE))
+                * ellipse_factor
+            )
 
     def get_ellipsoid_shaping_function(self, x_length, y_length, wobble_factor=1.0):
         """Organic Sheet Maker
@@ -899,7 +915,7 @@ class SillWord(GeoWord):
             "dip": self.rng.normal(0, 0.1),  # Bias towards horizontal sills
             "origin": origin,
             "width": width,
-            "value": self.rng.choice(DIKE_VALS),
+            "value": self.rng.choice(INTRUSION_VALS),
             "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
         }
         dike = geo.DikePlane(**dike_params)
@@ -934,7 +950,7 @@ class SillSystem(SillWord):
         self.build_sedimentation()
         self.add_process(self.sediment)
         # Choose a random rock value and place sills into boundary layers, then link them
-        self.rock_val = self.rng.choice(DIKE_VALS)
+        self.rock_val = self.rng.choice(INTRUSION_VALS)
         indices = self.get_layer_indices()
         origins = self.build_sills(indices)
         self.link_sills(origins)
@@ -973,7 +989,9 @@ class SillSystem(SillWord):
                 "origin": sill_origin,  # WARNING: This requires sediment to compute first
                 "width": width,
                 "value": self.rock_val,
-                "thickness_func": self.get_ellipsoid_shaping_function(x_length, y_length, wobble_factor=0.0),
+                "thickness_func": self.get_ellipsoid_shaping_function(
+                    x_length, y_length, wobble_factor=0.0
+                ),
             }
             sill = geo.DikePlane(**dike_params)
 
@@ -1135,7 +1153,9 @@ class Laccolith(_HemiPushedWord):  # Validated
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -1220,7 +1240,9 @@ class Lopolith(_HemiPushedWord):
         # Use a deferred parameter to measure a height off the floor of the mesh in the past frame
         x_loc = self.rng.uniform(BOUNDS_X[0], BOUNDS_X[1])
         y_loc = self.rng.uniform(BOUNDS_Y[0], BOUNDS_Y[1])
-        z_loc = BOUNDS_Z[0] + self.rng.uniform(-height, Z_RANGE / 2)  # Sample from just out of view to mid-model
+        z_loc = BOUNDS_Z[0] + self.rng.uniform(
+            -height, Z_RANGE / 2
+        )  # Sample from just out of view to mid-model
         origin = geo.BacktrackedPoint((x_loc, y_loc, z_loc))
         return origin
 
@@ -1243,6 +1265,7 @@ class Lopolith(_HemiPushedWord):
 
 
 # TODO: The push factor from PlugPush GeoProcess is not working at this scale, for now using regular plug
+# Some sort of deformation factor would be useful in the future
 class VolcanicPlug(GeoWord):
     """
     A volcanic plug that is resistant to erosion
@@ -1417,7 +1440,11 @@ class BlobCluster(GeoWord):
 
             # Check if the new origin is within the model bounds
             x, y, z = new_origin
-            if BOUNDS_X[0] < x < BOUNDS_X[1] and BOUNDS_Y[0] < y < BOUNDS_Y[1] and BOUNDS_Z[0] < z < BOUNDS_Z[1]:
+            if (
+                BOUNDS_X[0] < x < BOUNDS_X[1]
+                and BOUNDS_Y[0] < y < BOUNDS_Y[1]
+                and BOUNDS_Z[0] < z < BOUNDS_Z[1]
+            ):
                 break
             else:
                 continue
@@ -1630,7 +1657,7 @@ class FourierFold(GeoWord):  # Validated
 def _typical_fault_amplitude():
     """Get a typical fault amplitude based on a beta distribution."""
     min_amp = 60
-    max_amp = 800
+    max_amp = 1000
     return rv.beta_min_max(1.8, 5.5, min_amp, max_amp)
 
 
@@ -1914,3 +1941,99 @@ class FaultStrikeSlip(GeoWord):
         fault = geo.Fault(**fault_params)
 
         self.add_process(fault)
+
+
+class FaultSequence(GeoWord):  # Inherits from FaultRandom for base faulting behavior
+    """
+    A correlated sequence of faults with varying characteristics.
+
+    Random Variables (RVs)
+    ----------------------
+    - `num_faults`: At least 2 faults are generated, with a geometric probability distribution of adding more faults.
+
+    - `origin`: Random point within model bounds, starting location of the first fault.
+    Subsequent faults are placed orthogonally or parallel to the previous fault with variations.
+
+    - `strike`: Strike direction of the first fault, with subsequent faults adjusted slightly.
+
+    - `dip`: Normal distribution of dips for each fault, modified by a small random factor.
+
+    - `rake`: The angle of slip direction for each fault.
+
+    - `amplitude`: Displacement amplitude along the fault. Amplitude varies slightly between faults.
+
+    - `spacing_avg`: Average spacing between faults, controlled by a log-normal distribution.
+
+    Effects:
+    --------
+    This class generates a sequence of faults where each fault is related but slightly varies in its strike, dip, and
+    amplitude. The faults are placed sequentially with a small random offset in origin and spacing.
+    """
+
+    def build_history(self):
+        # Geometric distribution with a 0.7 probability of stopping, ensuring at least 2 faults
+        num_faults = self.rng.geometric(p=0.7) + 1
+
+        # Starting parameters for the first fault
+        origin = rv.random_point_in_box(MAX_BOUNDS)
+        strike = self.rng.uniform(0, 360)
+        dip = self.rng.normal(90, 20)
+        rake = self.rng.normal(90, 30)
+        amplitude = _typical_fault_amplitude() / (num_faults - 1)
+        spacing_avg = self.rng.lognormal(*rv.log_normal_params(mean=600, std_dev=900))
+
+        # Setup slight wave transform for deformation along the fault sequence
+        fold_in = self.get_fold(strike, dip)
+        fold_out = copy.deepcopy(fold_in)
+        fold_out.amplitude *= -1
+
+        self.add_process(fold_in)
+
+        for _ in range(num_faults):
+            fault_params = {
+                "strike": strike,
+                "dip": dip,
+                "rake": rake,
+                "amplitude": amplitude,
+                "origin": geo.BacktrackedPoint(origin),  # Ensures faults remain visible in the model
+            }
+
+            fault = geo.Fault(**fault_params)
+            self.add_process(fault)
+
+            # Update parameters for the next fault in the sequence
+            origin = self.get_next_origin(origin, strike, spacing_avg)
+            strike += self.rng.normal(0, 5)
+            dip += self.rng.normal(0, 2)
+            amplitude *= self.rng.uniform(0.8, 1.2)
+
+        # Add final deformation fold
+        self.add_process(fold_out)
+
+    def get_next_origin(self, origin, strike, spacing_avg):
+        # Move orthogonally to the strike direction (strike measured from y-axis)
+        orth_vec = np.array([np.cos(np.radians(strike)), -np.sin(np.radians(strike)), 0])
+        orth_distance = spacing_avg * self.rng.uniform(0.9, 1.2)
+        # Shift a bit parallel to strike as well
+        par_vec = np.array([-orth_vec[1], orth_vec[0], 0])
+        par_distance = spacing_avg * self.rng.uniform(-0.3, 0.3)
+
+        new_origin = origin + orth_distance * orth_vec + par_distance * par_vec
+        return new_origin
+
+    def get_fold(self, fault_strike, fault_dip):
+        wave_generator = FourierWaveGenerator(
+            num_harmonics=np.random.randint(3, 6), smoothness=np.random.normal(1.2, 0.2)
+        )
+        period = self.rng.uniform(0.5, 2) * X_RANGE
+        amp = self.rng.uniform(10, 250)
+        fold_params = {
+            "strike": fault_strike + 90,
+            "dip": (2 * 90 + fault_dip) / 3,  # weighted average of dip and 90
+            "rake": self.rng.normal(90, 5),  # Bias to lateral folds
+            "period": period,
+            "amplitude": amp,
+            "periodic_func": wave_generator.generate(),
+        }
+        fold = geo.Fold(**fold_params)
+        return fold

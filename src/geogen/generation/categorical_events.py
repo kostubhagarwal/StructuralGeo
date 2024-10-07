@@ -103,7 +103,7 @@ class _EventTemplateClass(GeoWord):
 
         if not np.isclose(sum_prob, 1.0):
             warnings.warn(
-                f"Probabilities sum to {sum_prob:.4f}, but should sum to 1.0. Renormalizing.",
+                f"{self.__class__.__name__}: Probabilities sum to {sum_prob:.4f}, but should sum to 1.0. Renormalizing.",
                 RuntimeWarning,
             )
             probabilities = np.array(probabilities) / sum_prob
@@ -151,9 +151,10 @@ class Erosion(_EventTemplateClass):
 
     def __init__(self, seed=None):
         cases = [
-            self.Event(name="Flat", p=0.2, processes=[FlatUnconformity()]),
-            self.Event(name="Tilted", p=0.4, processes=[TiltedUnconformity()]),
-            self.Event(name="Wave", p=0.4, processes=[WaveUnconformity()]),
+            self.Event(name="Flat", p=0.25, processes=[FlatUnconformity()]),
+            self.Event(name="Tilted", p=0.25, processes=[TiltedUnconformity()]),
+            self.Event(name="TiltCutFill", p=0.15, processes=[TiltCutFill()]),
+            self.Event(name="Wave", p=0.35, processes=[WaveUnconformity()]),
         ]
         super().__init__(cases=cases, seed=seed)
 
@@ -236,8 +237,9 @@ class Fault(_EventTemplateClass):
             self.Event(name="Reverse", p=0.1, processes=[FaultReverse()]),
             self.Event(name="StrikeSlip", p=0.1, processes=[FaultStrikeSlip()]),
             self.Event(name="HorstGraben", p=0.1, processes=[FaultHorstGraben()]),
-            self.Event(name="StrikeSlip", p=0.2, processes=[FaultStrikeSlip()]),
+            self.Event(name="StrikeSlip", p=0.25, processes=[FaultStrikeSlip()]),
             self.Event(name="FullyRandom", p=0.2, processes=[FaultRandom()]),
+            self.Event(name="Sequence", p=0.15, processes=[FaultSequence()]),
         ]
         super().__init__(cases=cases, seed=seed)
 

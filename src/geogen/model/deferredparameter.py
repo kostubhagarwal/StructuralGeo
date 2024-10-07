@@ -81,7 +81,9 @@ class SedimentConditionedOrigin(DeferredParameter):
                 sedimentation = event
                 break
         else:
-            raise ValueError("SedimentConditionedSillOrigin: No sedimentation process found in the history.")
+            raise ValueError(
+                "SedimentConditionedSillOrigin: No sedimentation process found in the history."
+            )
 
         # Find the boundary at the specified index
         boundaries = sedimentation.boundaries

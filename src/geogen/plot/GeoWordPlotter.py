@@ -23,11 +23,7 @@ from pyvista import Box
 from pyvistaqt import BackgroundPlotter
 
 import geogen.plot as geovis
-from geogen.generation import (
-    InfiniteBasement,
-    InfiniteSedimentUniform,
-    generate_history,
-)
+from geogen.generation import InfiniteBasement, InfiniteSedimentUniform, generate_history
 from geogen.model import GeoModel
 
 
