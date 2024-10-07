@@ -3,6 +3,7 @@ PyTorch DataLoader for streaming GeoWord geological histories.
 """
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 # Two types of geological model generators provided
@@ -60,3 +61,36 @@ class GeoData3DStreamingDataset(Dataset):
             data_tensor = self.transform(data_tensor)  # Apply the transform
 
         return data_tensor
+
+
+class OneHotTransform:
+    def __init__(self, num_classes=15, min_val=-1):
+        """
+        Args:
+            num_classes (int): Number of classes for one-hot encoding.
+            min_val (int): Minimum value in the tensor.
+        """
+        self.num_classes = num_classes
+        self.min_val = min_val
+
+    def __call__(self, sample):
+        """
+        Args:
+            sample (torch.Tensor): Input tensor of shape (C, X, Y, Z) with C=1.
+        Returns:
+            torch.Tensor: One-hot encoded tensor of shape (num_classes, X, Y, Z).
+        """
+        # Ensure the tensor has a single channel
+        if sample.shape[0] != 1:
+            raise ValueError(f"Expected channel dimension to be 1, but got {sample.shape[0]}")
+
+        tensor = sample.squeeze(0)  # Shape: (X, Y, Z)
+        tensor_shifted = tensor - self.min_val  # Shift to start from 0
+        tensor_shifted = torch.clamp(tensor_shifted, 0, self.num_classes - 1)  # Clamp to range
+        tensor_shifted = tensor_shifted.long()  # Convert to long for indexing
+
+        # One-hot encode: (X, Y, Z) -> (X, Y, Z, num_classes)
+        one_hot = F.one_hot(tensor_shifted, num_classes=self.num_classes)  # Shape: (X, Y, Z, num_classes)
+        one_hot = one_hot.permute(3, 0, 1, 2).contiguous().float()
+
+        return one_hot
