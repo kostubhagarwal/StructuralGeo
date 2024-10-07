@@ -36,6 +36,7 @@ class GeoData3DStreamingDataset(Dataset):
         generator_config=None,
         dataset_size=int(1e6),
         device="cpu",
+        transform=None,  # Add the transform parameter
     ):
         self.model_generator = _DEFAULT_GENERATOR_CLASS(
             model_bounds=model_bounds,
@@ -44,6 +45,7 @@ class GeoData3DStreamingDataset(Dataset):
         )
         self.device = device
         self.size = dataset_size
+        self.transform = transform  # Store the transform
 
     def __len__(self):
         return self.size
@@ -53,5 +55,8 @@ class GeoData3DStreamingDataset(Dataset):
         model.fill_nans()
         data = model.get_data_grid()
         data_tensor = torch.from_numpy(data).float().unsqueeze(0).to(self.device)
+
+        if self.transform:
+            data_tensor = self.transform(data_tensor)  # Apply the transform
 
         return data_tensor
