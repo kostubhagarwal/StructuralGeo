@@ -6,29 +6,54 @@ from typing import Optional
 
 import numpy as np
 import pyvista as pv
+import matplotlib.pyplot as plt
 
 from geogen.model import GeoModel
+from geogen.generation import BED_ROCK_VAL, SEDIMENT_VALS, DIKE_VALS, INTRUSION_VALS, BLOB_VALS
 
 
-def get_plot_config(n_colors=10):
-    """Central color configurations and appearance settings for the plotter"""
-    settings = {
-        # Color map for the rock types
-        "cmap": "gist_ncar",  # Vibrant color map to differentiate rock types
-        # Scalar bar settings
+def get_plot_config():
+    color_range = (-1,13)
+    clim = (color_range[0]-0.5, color_range[1]+0.5)
+    n_colors = color_range[1] - color_range[0] + 1
+    my_cmap = plt.get_cmap("gist_ncar", n_colors)
+
+    annotations = {}
+    annotations[float(-1)] = "Air"
+    annotations[float(BED_ROCK_VAL)] = "Basement"
+
+    for val in SEDIMENT_VALS:
+        annotations[float(val)] = "Sedimentary"
+
+    for val in DIKE_VALS:
+        annotations[float(val)] = "Planar Dikes"
+
+    for val in INTRUSION_VALS:
+        annotations[float(val)] = "Magma Intrusion"
+
+    for val in BLOB_VALS:
+        annotations[float(val)] = "Minerals"
+    
+    
+    plot_config = {
+        "cmap": my_cmap,
+        # Shift so each integer is the center of a bin: 
+        "clim": clim,
+        "n_colors": n_colors,
+        # Provide annotation dict for -1..15
+        "annotations": annotations,
+        # Optional: scalar bar styling
         "scalar_bar_args": {
             "title": "Rock Type",
             "title_font_size": 16,
-            "label_font_size": 10,
-            "shadow": True,
-            "italic": True,
-            "font_family": "arial",
-            "n_labels": 2,  # Reducing the number of labels for clarity
+            "label_font_size": 12,
             "vertical": True,
+            "n_labels": 0,
+            "width": 0.10,
+            "height": 0.8,
         },
     }
-    return settings
-
+    return plot_config
 
 def setup_plot(model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5):
     if plotter is None:
@@ -79,9 +104,12 @@ def volview(
 
     plotter.add_mesh(mesh, scalars="values", **plot_config, interpolate_before_map=False)
     plotter.add_axes(line_width=5)
+    
+    flat_bounds = [item for sublist in model.bounds for item in sublist]
 
     if show_bounds:
         plotter.show_bounds(
+            mesh=mesh,
             grid="back",
             location="outer",
             ticks="outside",
@@ -91,12 +119,11 @@ def volview(
             xtitle="Easting",
             ytitle="Northing",
             ztitle="Elevation",
+            bounds=flat_bounds,
             all_edges=True,
+            corner_factor=0.5,
+            font_size=12,
         )
-
-    flat_bounds = [item for sublist in model.bounds for item in sublist]
-    bounding_box = pv.Box(flat_bounds)
-    plotter.add_mesh(bounding_box, color="black", style="wireframe", line_width=1)
 
     return plotter
 
