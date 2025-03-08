@@ -18,7 +18,7 @@ from geogen.generation import (
 )
 
 
-def get_plot_config(geowords=True):
+def plot_config_categorical(geowords=True):
     """Generate a plot configuration dictionary for PyVista visualization.
 
     Args:
@@ -74,6 +74,23 @@ def get_plot_config(geowords=True):
     return plot_config
 
 
+def plot_config_continuous():
+    plot_config = {
+        "cmap": "rainbow",
+        # "clim": clim,
+
+        "scalar_bar_args": {
+            "title": "Continuous Data",
+            "title_font_size": 16,
+            "label_font_size": 12,
+            "vertical": False,
+            "width": 0.6,
+            "height": 0.1,
+        },
+    }
+    return plot_config
+
+
 def setup_plot(
     model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5, geowords=True
 ):
@@ -86,9 +103,45 @@ def setup_plot(
     else:
         mesh = get_voxel_grid_from_model(model, threshold)
 
-    plot_config = get_plot_config(geowords)
+    plot_config = plot_config_categorical(geowords)
     return plotter, mesh, plot_config
 
+def plot_array(
+    data, bounds=None, plotter: Optional[pv.Plotter] = None, threshold=-0.5
+) -> pv.Plotter:
+    """
+    Visualize a 3D array of values using PyVista.
+    Parameters
+    ----------
+    data : Union[Tensor, np.ndarray]
+        The 3D array of values to be visualized.
+    bounds : tuple, optional
+        The bounds of the 3D array in ((xmin, xmax), (ymin, ymax), (zmin, zmax)) format.
+        If not provided, the bounds are inferred from the data.
+    plotter : pv.Plotter, optional
+        The PyVista plotter to use for rendering. If not provided, a new one is created.
+    threshold : float, optional
+        Threshold value used to filter the voxel grid. Default is -0.5, values below this threshold are not shown.
+    Returns
+    -------
+    pv.Plotter
+        The PyVista plotter object with the 3D array rendered.
+    """
+    assert len(data.shape) == 3, f"Data must be a 3D array, got shape {data.shape}"
+    
+    # force data to np array
+    data = np.array(data)    
+
+    grid = _convert_3darray_to_voxel_grid(data, bounds)
+    mesh = grid.threshold(threshold, all_scalars=True)
+
+    plot_config = plot_config_continuous()
+
+    plotter = plotter or pv.Plotter()
+
+    plotter.add_mesh(mesh, scalars="values", **plot_config, interpolate_before_map=False)
+    plotter.add_axes()
+    return plotter
 
 def volview(
     model: GeoModel,
@@ -155,7 +208,9 @@ def volview(
 
 
 def orthsliceview(
-    model: GeoModel, plotter: Optional[pv.Plotter] = None, threshold=-0.5,
+    model: GeoModel,
+    plotter: Optional[pv.Plotter] = None,
+    threshold=-0.5,
 ) -> pv.Plotter:
     """
     Visualize using interactive orthogonal slices of the geological model.
@@ -378,7 +433,7 @@ def categorical_grid_view(
     pv.Plotter
         The PyVista plotter object with categorical views rendered in subplots.
     """
-    cfg = get_plot_config()
+    cfg = plot_config_categorical()
 
     def calculate_grid_dims(n):
         """Calculate grid dimensions that are as square as possible."""
@@ -509,4 +564,36 @@ def get_voxel_grid_from_model(model, threshold=None):
     # Necessary to reshape data vector in Fortran order to match the grid
     grid["values"] = model.data.reshape(model.resolution).ravel(order="F")
     grid = grid.threshold(threshold, all_scalars=True)
+    return grid
+
+def _convert_3darray_to_voxel_grid(
+    model_data, bounds=None
+) -> pv.ImageData:
+    """
+    Converts np.ndarray to a voxel grid with each channel of data as a scalar field.
+    Parameters
+    ----------
+    plotting_input : Union[GeoModel, Tensor, np.ndarray]
+        The input to be converted into a voxel grid for visualization.
+    bounds : tuple, optional
+        The bounds of the 3D array in ((xmin, xmax), (ymin, ymax), (zmin, zmax)) format.
+        If not provided, the bounds are inferred from the data.
+    """
+
+    resolution = model_data.shape[-3:]
+    
+    if bounds is None:
+        bounds = ((0, model_data.shape[0]), (0, model_data.shape[1]), (0, model_data.shape[2]))
+
+    dimensions = tuple(x + 1 for x in resolution)
+    spacing = tuple((x[1] - x[0]) / (r - 1) for x, r in zip(bounds, resolution))
+    origin = tuple(x[0] - cs / 2 for x, cs in zip(bounds, spacing))
+
+    grid = pv.ImageData(
+        dimensions=dimensions,
+        spacing=spacing,
+        origin=origin,
+    )
+    grid["values"] = model_data.ravel(order="F")
+    
     return grid
