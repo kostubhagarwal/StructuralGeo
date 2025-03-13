@@ -30,7 +30,7 @@ shape = (1, 2)
 # Create the plotter with the defined shape and groups
 p = pv.Plotter(shape=shape, window_size=(1200, 450), border=True, off_screen=True)
 
-p.subplot(0, 0) 
+p.subplot(0, 0)
 
 time_arrow = pv.Arrow(
     start=(22000, 0, 4000),
@@ -69,12 +69,7 @@ if np.all(np.isnan(model.data)):
     p.add_text("No data to show, all values are NaN.", font_size=20)
 else:
     # Add the mesh to the plotter
-    final_actor = p.add_mesh(
-        final_mesh,
-        scalars="values",
-        **plot_config,
-        clim = [0,17]
-    )
+    final_actor = p.add_mesh(final_mesh, scalars="values", **plot_config, clim=[0, 17])
 _ = p.add_axes(line_width=5)
 
 clim = final_actor.mapper.scalar_range
@@ -86,7 +81,9 @@ resolution = model.resolution
 x_offset = model.bounds[0][1] - model.bounds[0][0]  # Width of the model along x
 
 # Remove first data time entry which is empty, add the final data time entry
-data_snapshots = np.concatenate((model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0)
+data_snapshots = np.concatenate(
+    (model.data_snapshots[1:], model.data.reshape(1, -1)), axis=0
+)
 
 # Reverse the snapshots for proper plotting
 mesh_snapshots = model.mesh_snapshots[::-1]
@@ -120,7 +117,7 @@ for i, (mesh_snapshot, data_snapshot) in enumerate(zip(mesh_snapshots, data_snap
 
 # Create a plotter object
 p.subplot(0, 1)  # Right subplot (1/4 width)
-plot_config = geovis.get_plot_config()
+plot_config = geovis.plot_config_categorical()
 
 if np.all(np.isnan(model.data)):
     p.add_text("No data to show, all values are NaN.", font_size=20)
