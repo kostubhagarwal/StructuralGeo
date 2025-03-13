@@ -22,7 +22,7 @@ class ModelPlotter:
         self.resolution = None  # Model resolution override for faster plotting
         self.plotter.add_axes(line_width=5)
         self.plot_view_mode = self.plot_volume_view  # Default view mode
-        self.plot_config = geovis.get_plot_config()
+        self.plot_config = geovis.plot_config_categorical()
 
     def update_model(self, model):
         if self.curr_model is not None:
@@ -83,7 +83,7 @@ class ModelPlotter:
 
             cats = np.unique(grid["values"])
             clim = [cats.min(), cats.max()]
-            cfg = geovis.get_plot_config()
+            cfg = geovis.plot_config_categorical()
             cmap = cfg["cmap"]
             # Plot the category cluster and a translucent skin for context
             self.plotter.add_mesh(
