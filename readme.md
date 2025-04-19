@@ -149,5 +149,27 @@ If `trame` is not installed the jupyter backend should be set to static which wi
 
 More information can be found in the code_examples folder.
 
+## Acknowledgements
 
+StructuralGeo was developed by Simon Ghyselincks and Eldad Haber.  
+This software was used in collaborative research funded in part by the King Abdullah University of Science and Technology (KAUST).
+
+## Citation
+
+If you have found this software useful in your work, please consider citing it:
+
+```
+@software{ghyselincks_structuralgeo_2025,
+  author       = {Simon Ghyselincks and Eldad Haber},
+  title        = {GeoGen: Synthetic Data for Structural Geology},
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {1.0.0},
+  doi          = {10.5281/zenodo.15244035},
+  url          = {https://doi.org/10.5281/zenodo.15244035}
+}
+```
+
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15244035.svg)](https://doi.org/10.5281/zenodo.15244035)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
