@@ -29,7 +29,33 @@ After installation, the package can be imported into your Python environment wit
 ```python
 import geogen
 ```
+### Dataset Quick Start
 
+The streaming dataset is initialized with:
+- `model_bounds`: ((xmin, xmax), (ymin, ymax), (zmin, zmax)) in meters. Note the randomization scheme of Geowords is designed for models that are ((-3840, 3840), (-3840, 3840), (-1920, 1920)) in size.
+- `model_resolution`: Resolution of the meshgrid, along with bounds determines the voxel size.
+- `generator_config`: Path pointing to a configuration file or CSV with the markov matrix weights, if None, uses a default set.
+- `dataset_size`: Artifical number of samples in one epoch. The dataset does not reuse samples across epochs and always streams new ones.
+- `device`: Device to load model tensors
+
+```python
+from geogen.dataset import GeoData3DStreamingDataset
+
+# Decide on bounds and resolution for the model
+bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
+resolution = (128, 128, 64)
+
+# Dataset, Loader and Batch
+dataset = GeoData3DStreamingDataset(
+    model_bounds=bounds, model_resolution=resolution
+)
+loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
+batch = next(iter(loader))
+
+batch_shape = batch.shape
+print(f"Datlaloader yields a sample of shape: {batch_shape}")
+```
+A quickstart guide is found in `code_examples/quickstart.py`
 ___
 ### Project Structure
 
@@ -87,34 +113,6 @@ The project is structured with the following directories:
   - **wavegenerators.py**: Helper functions related to generating wave form functions for functional parameterization of GeoWords.
 
 ___
-
-### Dataset Quick Start
-
-The streaming dataset is initialized with:
-- `model_bounds`: ((xmin, xmax), (ymin, ymax), (zmin, zmax)) in meters. Note the randomization scheme of Geowords is designed for models that are ((-3840, 3840), (-3840, 3840), (-1920, 1920)) in size.
-- `model_resolution`: Resolution of the meshgrid, along with bounds determines the voxel size.
-- `generator_config`: Path pointing to a configuration file or CSV with the markov matrix weights, if None, uses a default set.
-- `dataset_size`: Artifical number of samples in one epoch. The dataset does not reuse samples across epochs and always streams new ones.
-- `device`: Device to load model tensors
-
-```python
-from geogen.dataset import GeoData3DStreamingDataset
-
-# Decide on bounds and resolution for the model
-bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
-resolution = (128, 128, 64)
-
-# Dataset, Loader and Batch
-dataset = GeoData3DStreamingDataset(
-    model_bounds=bounds, model_resolution=resolution
-)
-loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
-batch = next(iter(loader))
-
-batch_shape = batch.shape
-print(f"Datlaloader yields a sample of shape: {batch_shape}")
-```
-A quickstart guide is found in `code_examples/quickstart.py`
 
 #### Jupyter Notebook Viewing
 
