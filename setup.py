@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="GeoGen",
-    version="0.0.3",
+    version="0.1.0",
     description="A package for creating, visualizing, and exporting 3D structural geology models. \
     Allows either user specified, or randomized generation of models.",
     packages=find_packages(where="src"),  # Look for packages in the 'src' directory
