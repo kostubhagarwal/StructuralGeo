@@ -43,13 +43,6 @@ The project is structured with the following directories:
 | `tests/`           | Contains some basic tests for the package, mostly human inspected  |
 | `src/geogen/`      | Contains the main package source code                              |
 
-### GUI Operation
-Launch the gui by running the main.py. By default it opens a file tree viewer in the present working directory. Use the menu to select a database of .pkl models: `File->Select Models Folder`. 
-
-The file tree will only show .pkl files and directories. Select a .pkl file to load it into the plotter window. Use the dropdown menu at the bottom to change between plotting modes.
-
-In n-slice mode, select the number of slices and hit enter. Choose the slicing axis. Slices can be saved to a directory as both npy arrays and png files.
-
 ### Project Source
 
 #### `dataset`
@@ -94,6 +87,35 @@ In n-slice mode, select the number of slices and hit enter. Choose the slicing a
   - **wavegenerators.py**: Helper functions related to generating wave form functions for functional parameterization of GeoWords.
 
 ___
+
+### Dataset Quick Start
+
+The streaming dataset is initialized with:
+- `model_bounds`: ((xmin, xmax), (ymin, ymax), (zmin, zmax)) in meters. Note the randomization scheme of Geowords is designed for models that are ((-3840, 3840), (-3840, 3840), (-1920, 1920)) in size.
+- `model_resolution`: Resolution of the meshgrid, along with bounds determines the voxel size.
+- `generator_config`: Path pointing to a configuration file or CSV with the markov matrix weights, if None, uses a default set.
+- `dataset_size`: Artifical number of samples in one epoch. The dataset does not reuse samples across epochs and always streams new ones.
+- `device`: Device to load model tensors
+
+```python
+from geogen.dataset import GeoData3DStreamingDataset
+
+# Decide on bounds and resolution for the model
+bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
+resolution = (128, 128, 64)
+
+# Dataset, Loader and Batch
+dataset = GeoData3DStreamingDataset(
+    model_bounds=bounds, model_resolution=resolution
+)
+loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
+batch = next(iter(loader))
+
+batch_shape = batch.shape
+print(f"Datlaloader yields a sample of shape: {batch_shape}")
+```
+A quickstart guide is found in `code_examples/quickstart.py`
+
 #### Jupyter Notebook Viewing
 
 The visualization is handled with Pyvista which may require additional configuration for Jupyter Notebook to view the model iteractively. 
