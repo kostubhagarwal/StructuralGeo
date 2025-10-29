@@ -5,4 +5,3 @@ uv.lock
 pyproject.toml
 .python-version
 src/structuralgeo.egg-info/*
-code_examples/exagen.py

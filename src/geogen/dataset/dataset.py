@@ -67,13 +67,10 @@ class GeoData3DStreamingDataset(Dataset):
         else:
             data = labels
 
-        data_tensor = data.unsqueeze(0).to(self.device)
-
         if self.transform:
-            data_tensor = self.transform(data_tensor)  # Apply the transform
+            data = self.transform(data)  # Apply the transform
 
-        return data_tensor
-
+        return data
 
 class OneHotTransform:
     def __init__(self, num_classes=15, min_val=-1):
