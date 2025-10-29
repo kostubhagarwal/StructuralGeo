@@ -8,6 +8,7 @@ from torch.utils.data import Dataset
 
 # Two types of geological model generators provided
 from geogen.generation import MarkovGeostoryGenerator
+from geogen.dataset.add_channel import add_channel
 
 _DEFAULT_GENERATOR_CLASS = MarkovGeostoryGenerator
 
@@ -27,7 +28,7 @@ class GeoData3DStreamingDataset(Dataset):
     dataset_size : int
         The total number of samples in one epoch.
     device : str
-        Torch device where data is loaded.
+        Torch device where data is loaded.    
     """
 
     def __init__(
@@ -36,8 +37,9 @@ class GeoData3DStreamingDataset(Dataset):
         model_resolution=(256, 256, 128),
         generator_config=None,
         dataset_size=int(1e6),
-        device="cpu",
+        device="cuda",
         transform=None,  # Add the transform parameter
+        add_channels=True
     ):
         self.model_generator = _DEFAULT_GENERATOR_CLASS(
             model_bounds=model_bounds,
@@ -47,6 +49,7 @@ class GeoData3DStreamingDataset(Dataset):
         self.device = device
         self.size = dataset_size
         self.transform = transform  # Store the transform
+        self.add_channels = add_channels
 
     def __len__(self):
         return self.size
@@ -54,8 +57,17 @@ class GeoData3DStreamingDataset(Dataset):
     def __getitem__(self, idx):
         model = self.model_generator.generate_model()
         model.fill_nans()
-        data = model.get_data_grid()
-        data_tensor = torch.from_numpy(data).float().unsqueeze(0).to(self.device)
+        labels = model.get_data_grid()
+        d1 = torch.from_numpy(labels).float()      
+
+        if self.add_channels:
+            d2 = add_channel(labels)
+            d2 = torch.from_numpy(d2).float() 
+            data = torch.stack([d1, d2], dim=0)
+        else:
+            data = labels
+
+        data_tensor = data.unsqueeze(0).to(self.device)
 
         if self.transform:
             data_tensor = self.transform(data_tensor)  # Apply the transform
