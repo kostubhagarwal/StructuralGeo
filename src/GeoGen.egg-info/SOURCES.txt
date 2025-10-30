@@ -7,6 +7,7 @@ src/GeoGen.egg-info/requires.txt
 src/GeoGen.egg-info/top_level.txt
 src/geogen/__init__.py
 src/geogen/dataset/__init__.py
+src/geogen/dataset/add_channel.py
 src/geogen/dataset/dataset.py
 src/geogen/filemanagement/__init__.py
 src/geogen/filemanagement/file_manager.py
@@ -15,6 +16,8 @@ src/geogen/generation/categorical_events.py
 src/geogen/generation/geohistgen.py
 src/geogen/generation/geowords.py
 src/geogen/generation/model_generators.py
+src/geogen/generation/markov_matrix/__init__.py
+src/geogen/generation/markov_matrix/default_markov_matrix.csv
 src/geogen/model/__init__.py
 src/geogen/model/deferredparameter.py
 src/geogen/model/geomodel.py

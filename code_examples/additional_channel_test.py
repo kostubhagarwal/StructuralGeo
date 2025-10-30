@@ -9,14 +9,15 @@ def main():
      dataloader()
 
 def dataloader():
-    bounds = ((-3840, 3840), (-3840, 3840), (-1920, 1920))
-    resolution = (128, 128, 64)
+    bounds = ((0, 1.6e3), (0, 1.6e3), (0, 0.8e3))
+    resolution = (32, 32, 16)
     dataset = GeoData3DStreamingDataset(model_bounds=bounds, model_resolution=resolution)
-    loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=2)
-    batch = next(iter(loader))
-    batch_shape = batch.shape
-    print(f"Dataloader yields a sample of shape: {batch_shape}")
-    model = geo.GeoModel.from_tensor(bounds=bounds, data_tensor=batch[0, 0, ...])
+    # loader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=2)
+    print(f"Dataset shape: {dataset.__getitem__(0).shape}")
+    # batch = next(iter(loader))
+    # batch_shape = batch.shape
+    # print(f"Dataloader yields a sample of shape: {batch_shape}")
+    model = geo.GeoModel.from_tensor(bounds=bounds, data_tensor=dataset.__getitem__(0)[1, ...])
     geovis.volview(model, show_bounds=True).show()
 
 if __name__ == "__main__":
